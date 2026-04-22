@@ -2,11 +2,15 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth/client";
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<p className="text-sm">Loading…</p>}>
+    <Suspense fallback={<p className="text-sm">Cargando…</p>}>
       <ResetInner />
     </Suspense>
   );
@@ -37,26 +41,35 @@ function Request() {
   }
 
   if (done) {
-    return <p className="text-sm">If that email exists, a reset link was sent.</p>;
+    return (
+      <div className="space-y-3 text-center">
+        <h1 className="text-xl font-semibold">Revisa tu email</h1>
+        <p className="text-sm text-muted-foreground">Si esa cuenta existe, te enviamos un link de reset.</p>
+        <Link href="/login" className="inline-block text-sm text-primary hover:underline">
+          Volver a login
+        </Link>
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <h1 className="text-xl font-semibold">Reset password</h1>
-      <input
-        required
-        type="email"
-        placeholder="Your email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full rounded border px-3 py-2"
-      />
-      <button
-        disabled={loading}
-        className="w-full rounded bg-primary text-primary-foreground py-2 disabled:opacity-50"
-      >
-        {loading ? "Sending…" : "Send reset link"}
-      </button>
+    <form onSubmit={submit} className="space-y-5">
+      <div className="space-y-1.5">
+        <h1 className="text-xl font-semibold tracking-tight">Recuperar contraseña</h1>
+        <p className="text-sm text-muted-foreground">Te enviaremos un link para cambiarla.</p>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Enviando…" : "Enviar link"}
+      </Button>
+      <p className="text-center text-sm">
+        <Link href="/login" className="text-muted-foreground hover:underline">
+          ← Volver
+        </Link>
+      </p>
     </form>
   );
 }
@@ -74,33 +87,39 @@ function Reset({ token }: { token: string }) {
     const res = await authClient.resetPassword({ newPassword: pw, token });
     setLoading(false);
     if (res.error) {
-      setErr(res.error.message ?? "Reset failed");
+      setErr(res.error.message ?? "No se pudo cambiar la contraseña");
       return;
     }
     setDone(true);
   }
 
-  if (done) return <p className="text-sm">Password changed. You can log in now.</p>;
+  if (done) {
+    return (
+      <div className="space-y-3 text-center">
+        <h1 className="text-xl font-semibold">Listo</h1>
+        <p className="text-sm text-muted-foreground">Tu contraseña fue actualizada.</p>
+        <Link href="/login" className="inline-block text-sm text-primary hover:underline">
+          Iniciar sesión
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <h1 className="text-xl font-semibold">Choose a new password</h1>
-      <input
-        required
-        minLength={8}
-        type="password"
-        placeholder="New password"
-        value={pw}
-        onChange={(e) => setPw(e.target.value)}
-        className="w-full rounded border px-3 py-2"
-      />
-      {err && <p className="text-sm text-red-600">{err}</p>}
-      <button
-        disabled={loading}
-        className="w-full rounded bg-primary text-primary-foreground py-2 disabled:opacity-50"
-      >
-        {loading ? "Saving…" : "Save"}
-      </button>
+    <form onSubmit={submit} className="space-y-5">
+      <div className="space-y-1.5">
+        <h1 className="text-xl font-semibold tracking-tight">Nueva contraseña</h1>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="pw">Contraseña (mín. 8)</Label>
+        <Input id="pw" required minLength={8} type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
+      </div>
+      {err && (
+        <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{err}</p>
+      )}
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Guardando…" : "Guardar"}
+      </Button>
     </form>
   );
 }
