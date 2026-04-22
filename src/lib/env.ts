@@ -16,8 +16,8 @@ const schema = z.object({
 
   DISABLE_SIGNUP: z
     .string()
-    .transform((v) => v === "true")
-    .default("false"),
+    .default("false")
+    .transform((v) => v === "true"),
 
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
