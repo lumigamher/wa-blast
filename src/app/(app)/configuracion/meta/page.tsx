@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, CheckCircle2Icon, AlertCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,12 +9,14 @@ import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings } from "@/lib/org/settings";
 import { saveForwardUrlAction, saveMetaCredsAction, saveOptoutKeywordsAction } from "../actions";
+import { TestConnectionButton } from "./_test-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function MetaSettingsPage() {
   const { orgId } = await requireOrg();
   const s = await getOrgSettings(db, orgId);
+  const configured = Boolean(s.metaPhoneId && s.metaAccessToken && s.metaWabaId);
 
   return (
     <div className="space-y-6">
@@ -21,10 +24,22 @@ export default async function MetaSettingsPage() {
         <Link href="/configuracion" className="text-xs text-muted-foreground hover:underline">
           <ArrowLeftIcon className="inline size-3" /> Configuración
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Meta WhatsApp</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Meta WhatsApp</h1>
+          {configured ? (
+            <Badge variant="outline" className="border-emerald-300 text-emerald-700">
+              <CheckCircle2Icon className="mr-1 size-3" /> Configurado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-amber-300 text-amber-700">
+              <AlertCircleIcon className="mr-1 size-3" /> Sin configurar
+            </Badge>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           Estas credenciales se almacenan encriptadas (AES-256-GCM) y solo se descifran al llamar a la API de Meta.
         </p>
+        {configured && <TestConnectionButton />}
       </header>
 
       <Card>

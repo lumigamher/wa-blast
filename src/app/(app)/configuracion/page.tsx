@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRightIcon, KeyIcon, LayersIcon } from "lucide-react";
+import { ChevronRightIcon, KeyIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ConfigIndex() {
@@ -21,12 +21,6 @@ export default function ConfigIndex() {
               icon={<KeyIcon className="size-4 text-blue-600" />}
               title="Meta WhatsApp"
               desc="Phone ID, WABA ID, access token, webhook verify token y forward URL"
-            />
-            <ConfigLink
-              href="/contactos/segmentos"
-              icon={<LayersIcon className="size-4 text-indigo-600" />}
-              title="Segmentos avanzados"
-              desc="Reglas complejas sobre custom fields + tags (opcional)"
             />
           </ul>
         </CardContent>
