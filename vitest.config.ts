@@ -7,6 +7,7 @@ export default defineConfig({
     environment: "node",
     pool: "forks",
     globals: true,
+    exclude: ["**/node_modules/**", "**/tests/e2e/**"],
     server: {
       deps: {
         inline: ["zod"],
