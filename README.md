@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# wa-blast
 
-## Getting Started
+Standalone WhatsApp marketing platform — blast broadcasts via Meta Cloud API, own auth (Better Auth), pluggable CRM forwarding.
 
-First, run the development server:
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+cp .env.example .env.local   # fill in values
+bun run db:migrate
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and create your account at `/signup`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `bun run dev` — Next.js dev server (turbopack)
+- `bun run build` — production build
+- `bun run db:generate` — generate Drizzle migration from schema
+- `bun run db:migrate` — apply migrations to the DB
+- `bun run db:studio` — Drizzle Studio UI
+- `bun run test` — run Vitest suite
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+See `docs/superpowers/specs/2026-04-21-standalone-refactor-design.md` for the full design and `docs/superpowers/plans/2026-04-21-standalone-refactor.md` for the implementation plan.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Three internal services share one SQLite DB:
+1. **Web UI** — Next.js App Router with Better Auth session gating.
+2. **Sender worker** — In-process background dispatcher (rate-limited) calling Meta Cloud API.
+3. **Webhook proxy** — Single `/api/webhook/meta` endpoint, verifies Meta signatures, processes delivery/opt-out events, forwards raw payload to an optional external CRM URL.

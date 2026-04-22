@@ -9,7 +9,7 @@ const realFetch = globalThis.fetch;
 type FetchFn = typeof fetch;
 
 function setFetch(fn: FetchFn) {
-  globalThis.fetch = fn;
+  globalThis.fetch = fn as unknown as typeof fetch;
 }
 
 async function seed() {
@@ -51,7 +51,8 @@ describe("InProcessSenderWorker", () => {
   test("sends all recipients, updates counters, marks campaign done", async () => {
     const db = await seed();
     setFetch(
-      async () => new Response(JSON.stringify({ messages: [{ id: "wamid.AAA" }] }), { status: 200 }),
+      (async () =>
+        new Response(JSON.stringify({ messages: [{ id: "wamid.AAA" }] }), { status: 200 })) as unknown as FetchFn,
     );
 
     const worker = new InProcessSenderWorker(db);
@@ -69,7 +70,7 @@ describe("InProcessSenderWorker", () => {
   test("on Meta error, marks recipient failed and increments failed counter", async () => {
     const db = await seed();
     let call = 0;
-    setFetch(async () => {
+    setFetch((async () => {
       call++;
       if (call === 1) {
         return new Response(
@@ -78,7 +79,7 @@ describe("InProcessSenderWorker", () => {
         );
       }
       return new Response(JSON.stringify({ messages: [{ id: "wamid.OK" }] }), { status: 200 });
-    });
+    }) as unknown as FetchFn);
 
     const worker = new InProcessSenderWorker(db);
     await worker.runCampaign("camp");
