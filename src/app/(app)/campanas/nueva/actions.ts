@@ -1,69 +1,101 @@
 "use server";
 
-import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { createCampaign } from "@/lib/campaigns/create";
 import { getWorker } from "@/lib/campaigns/worker";
-import { runSegment } from "@/lib/segments/query";
-import { segmentRuleSchema } from "@/lib/segments/ast";
-import { segments } from "@/lib/db/schema";
+import { contactTags, contacts } from "@/lib/db/schema";
 
-export async function createFromSegmentAction(formData: FormData) {
+const inputSchema = z.object({
+  name: z.string().min(1),
+  templateName: z.string().min(1),
+  templateLanguage: z.string().min(1),
+  source: z.enum(["tags", "adhoc"]),
+  tagIds: z.array(z.string()).optional(),
+  adhocRows: z
+    .array(
+      z.object({
+        phone: z.string(),
+        name: z.string().optional().nullable(),
+        params: z.record(z.string(), z.string()).default({}),
+      }),
+    )
+    .optional(),
+  paramsByContact: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+  scheduledAt: z.string().optional().nullable(),
+});
+
+export type CreateCampaignResult =
+  | { ok: true; campaignId: string; scheduled: boolean }
+  | { ok: false; error: string };
+
+export async function createCampaignAction(input: unknown): Promise<CreateCampaignResult> {
   const { orgId, session } = await requireOrg();
-  const segmentId = String(formData.get("segmentId") ?? "");
-  const name = String(formData.get("name") ?? "");
-  const templateName = String(formData.get("templateName") ?? "");
-  const templateLanguage = String(formData.get("templateLanguage") ?? "es");
-  const paramsCsv = String(formData.get("paramsCsv") ?? "");
+  const parsed = inputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Input inválido" };
+  const data = parsed.data;
 
-  const [seg] = await db.select().from(segments).where(eq(segments.id, segmentId));
-  if (!seg) throw new Error("segment not found");
+  const scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
+  if (scheduledAt && scheduledAt.getTime() < Date.now() - 60_000) {
+    return { ok: false, error: "La fecha programada debe ser a futuro" };
+  }
 
-  const rule = segmentRuleSchema.parse(JSON.parse(seg.ruleJson));
-  const rows = await runSegment(db, orgId, rule);
+  let recipients: Parameters<typeof createCampaign>[1]["recipients"] = [];
 
-  const paramValues = paramsCsv
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const recipients = rows.map((c) => ({
-    contactId: c.id,
-    phone: c.phone,
-    name: c.name,
-    params: Object.fromEntries(paramValues.map((v, i) => [String(i + 1), resolveParam(v, c)])),
-  }));
+  if (data.source === "tags") {
+    const tagIds = data.tagIds ?? [];
+    if (tagIds.length === 0) return { ok: false, error: "Selecciona al menos un tag" };
+
+    const contactIds = await db
+      .select({ id: contactTags.contactId })
+      .from(contactTags)
+      .where(inArray(contactTags.tagId, tagIds));
+
+    const uniqueIds = [...new Set(contactIds.map((r) => r.id))];
+    if (uniqueIds.length === 0) return { ok: false, error: "Los tags seleccionados no tienen contactos" };
+
+    const rows = await db
+      .select()
+      .from(contacts)
+      .where(and(eq(contacts.orgId, orgId), inArray(contacts.id, uniqueIds), isNull(contacts.optOutAt)));
+
+    recipients = rows.map((c) => ({
+      contactId: c.id,
+      phone: c.phone,
+      name: c.name,
+      params: data.paramsByContact?.[c.id] ?? {},
+    }));
+  } else {
+    const adhoc = data.adhocRows ?? [];
+    if (adhoc.length === 0) return { ok: false, error: "No hay destinatarios" };
+    recipients = adhoc.map((r) => ({
+      phone: r.phone,
+      name: r.name ?? null,
+      params: r.params,
+    }));
+  }
+
+  if (recipients.length === 0) return { ok: false, error: "No hay destinatarios válidos" };
 
   const { campaignId } = await createCampaign(db, {
     orgId,
     createdBy: session.user.id,
-    name,
-    templateName,
-    templateLanguage,
+    name: data.name,
+    templateName: data.templateName,
+    templateLanguage: data.templateLanguage,
     headerType: "NONE",
-    source: "segment",
-    segmentId,
+    source: data.source === "tags" ? "segment" : "adhoc",
+    scheduledAt,
     recipients,
   });
 
-  void getWorker(db)
-    .runCampaign(campaignId)
-    .catch((e) => console.error("sender error", e));
-
-  redirect(`/campanas/${campaignId}`);
-}
-
-function resolveParam(spec: string, c: { name: string | null; customFields: string }): string {
-  if (spec === "{{name}}") return c.name ?? "";
-  if (spec.startsWith("{{custom.")) {
-    const key = spec.slice("{{custom.".length, -2);
-    try {
-      const cf = JSON.parse(c.customFields) as Record<string, string>;
-      return cf[key] ?? "";
-    } catch {
-      return "";
-    }
+  if (!scheduledAt) {
+    void getWorker(db)
+      .runCampaign(campaignId)
+      .catch((e) => console.error("sender error", e));
   }
-  return spec;
+
+  return { ok: true, campaignId, scheduled: Boolean(scheduledAt) };
 }

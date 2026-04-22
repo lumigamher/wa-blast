@@ -34,9 +34,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 space-y-0.5 p-3">
           <NavLink href="/" icon={<HomeIcon className="size-4" />} label="Inicio" />
           <NavLink href="/campanas/nueva" icon={<SendIcon className="size-4" />} label="Nuevo envío" />
-          <NavLink href="/campanas" icon={<SendIcon className="size-4" />} label="Campañas" />
+          <NavLink href="/campanas" icon={<LayersIcon className="size-4" />} label="Campañas" />
           <NavLink href="/contactos" icon={<UsersIcon className="size-4" />} label="Contactos" />
-          <NavLink href="/contactos/segmentos" icon={<LayersIcon className="size-4" />} label="Segmentos" />
           <NavLink href="/contactos/tags" icon={<TagIcon className="size-4" />} label="Tags" />
           <NavLink href="/plantillas" icon={<FileTextIcon className="size-4" />} label="Plantillas" />
           <NavLink href="/salud" icon={<HeartPulseIcon className="size-4" />} label="Salud WhatsApp" />

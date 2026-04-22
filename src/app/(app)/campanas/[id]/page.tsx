@@ -10,5 +10,20 @@ export default async function CampaignDetail({ params }: { params: Promise<{ id:
   const { orgId } = await requireOrg();
   const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, id));
   if (!camp || camp.orgId !== orgId) notFound();
-  return <Live campaignId={id} initial={camp} />;
+
+  const initial = {
+    id: camp.id,
+    name: camp.name,
+    templateName: camp.templateName,
+    templateLanguage: camp.templateLanguage,
+    status: camp.status,
+    total: camp.total,
+    sent: camp.sent,
+    delivered: camp.delivered,
+    read: camp.read,
+    failed: camp.failed,
+    replied: camp.replied,
+    scheduledAt: camp.scheduledAt ? camp.scheduledAt.toISOString() : null,
+  };
+  return <Live campaignId={id} initial={initial} />;
 }
