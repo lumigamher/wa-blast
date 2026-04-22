@@ -1,20 +1,25 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
-const PUBLIC_PATHS = ["/login", "/_next", "/favicon.ico", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/signup", "/verify", "/reset-password", "/api/auth", "/api/webhook"];
 
-export function proxy(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
-  const hasSession = req.cookies.has("funes_blast_session");
-  if (!hasSession) {
+  if (pathname.startsWith("/_next") || pathname === "/favicon.ico") {
+    return NextResponse.next();
+  }
+
+  const cookie = getSessionCookie(req);
+  if (!cookie) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
   }
+
   return NextResponse.next();
 }
 
