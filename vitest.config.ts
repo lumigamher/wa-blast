@@ -7,6 +7,11 @@ export default defineConfig({
     environment: "node",
     pool: "forks",
     globals: true,
+    server: {
+      deps: {
+        inline: ["zod"],
+      },
+    },
   },
   resolve: {
     alias: { "@": resolve(__dirname, "./src") },
