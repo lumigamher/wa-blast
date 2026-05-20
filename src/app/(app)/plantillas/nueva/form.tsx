@@ -239,7 +239,7 @@ export function TemplateForm() {
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value.toLowerCase())}
-                placeholder="p.ej. funes_recordatorio_cita"
+                placeholder="p.ej. milujo_promocion_oro"
                 className="font-mono"
               />
               <p className="mt-1 text-[11px] text-muted-foreground">

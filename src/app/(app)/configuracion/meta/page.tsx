@@ -86,7 +86,7 @@ export default async function MetaSettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">Forward URL (opcional)</CardTitle>
           <CardDescription className="text-xs">
-            Si tienes otra app (Chatwoot, Wati, tu CRM), wa-blast le reenviará los webhooks de Meta byte-a-byte.
+            Si tienes otra app (Chatwoot, Wati, tu CRM), Milujo Blast le reenviará los webhooks de Meta byte-a-byte.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -131,7 +131,7 @@ export default async function MetaSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Cómo apuntar Meta a wa-blast</CardTitle>
+          <CardTitle className="text-base">Cómo apuntar Meta a Milujo Blast</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>
