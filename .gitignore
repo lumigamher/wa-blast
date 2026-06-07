@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# iCloud sync duplicates ("foo 2.ts", "bar 3.tsx", etc.)
+* [0-9].*
+
 # local sqlite data
 /.data/
 *.db
