@@ -1,4 +1,4 @@
-import type { CreateTemplateInput, MediaFormat, WhatsAppTemplate } from "./types";
+import type { ButtonSpec, CardInput, CreateTemplateInput, MediaFormat, WhatsAppTemplate } from "./types";
 
 const GRAPH_API = "https://graph.facebook.com/v22.0";
 
@@ -75,7 +75,43 @@ export async function deleteTemplate(creds: GraphCreds, name: string): Promise<v
   });
 }
 
-function buildComponents(input: CreateTemplateInput) {
+function metaButton(b: ButtonSpec): Record<string, unknown> {
+  if (b.type === "QUICK_REPLY") return { type: "QUICK_REPLY", text: b.text };
+  if (b.type === "PHONE_NUMBER") return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number };
+  const out: Record<string, unknown> = { type: "URL", text: b.text, url: b.url };
+  if (/\{\{\d+\}\}/.test(b.url) && b.example?.length) out.example = b.example;
+  return out;
+}
+
+export function validateCarousel(cards: CardInput[]): void {
+  if (cards.length < 2 || cards.length > 10) {
+    throw new Error("El carrusel debe tener entre 2 y 10 tarjetas");
+  }
+  const fmt = cards[0].header.format;
+  const sig = (c: CardInput) => c.buttons.map((b) => b.type).join(",");
+  const sig0 = sig(cards[0]);
+  for (const c of cards) {
+    if (c.header.format !== fmt) throw new Error("Todas las tarjetas deben usar el mismo formato de header (IMAGE o VIDEO)");
+    if (sig(c) !== sig0) throw new Error("Todas las tarjetas deben tener la misma estructura de buttons");
+  }
+}
+
+function buildCardComponents(card: CardInput): Array<Record<string, unknown>> {
+  const comps: Array<Record<string, unknown>> = [
+    { type: "HEADER", format: card.header.format, example: { header_handle: [card.header.handle] } },
+  ];
+  const body: Record<string, unknown> = { type: "BODY", text: card.body.text };
+  if (/\{\{\d+\}\}/.test(card.body.text) && card.body.example?.length) {
+    body.example = { body_text: [card.body.example] };
+  }
+  comps.push(body);
+  if (card.buttons.length) {
+    comps.push({ type: "BUTTONS", buttons: card.buttons.map(metaButton) });
+  }
+  return comps;
+}
+
+export function buildCreateComponents(input: CreateTemplateInput) {
   const components: Array<Record<string, unknown>> = [];
 
   if (input.header) {
@@ -105,10 +141,13 @@ function buildComponents(input: CreateTemplateInput) {
   if (input.buttons?.length) {
     components.push({
       type: "BUTTONS",
-      buttons: input.buttons.map((b) =>
-        b.type === "URL" ? { type: "URL", text: b.text, url: b.url } : { type: "QUICK_REPLY", text: b.text },
-      ),
+      buttons: input.buttons.map(metaButton),
     });
+  }
+
+  if (input.carousel?.cards?.length) {
+    validateCarousel(input.carousel.cards);
+    components.push({ type: "CAROUSEL", cards: input.carousel.cards.map((c) => ({ components: buildCardComponents(c) })) });
   }
 
   return components;
@@ -125,7 +164,7 @@ export async function createTemplate(
       language: input.language,
       category: input.category,
       allow_category_change: false,
-      components: buildComponents(input),
+      components: buildCreateComponents(input),
     }),
   });
 }
