@@ -2,10 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings } from "@/lib/org/settings";
 import { MetaApiError, credsFromSettings, createTemplate } from "@/lib/meta/graph";
+import { templateCardMedia } from "@/lib/db/schema";
+import type { CardInput } from "@/lib/meta/types";
 
 const nameSchema = z
   .string()
@@ -93,4 +96,89 @@ export async function createTemplateAction(input: unknown): Promise<CreateTempla
 
 export async function goToPlantillasList() {
   redirect("/plantillas");
+}
+
+type CarouselCardPayload = {
+  headerFormat: "IMAGE" | "VIDEO";
+  handle: string;
+  assetId: string;
+  body: string;
+  bodyExample: string;
+  buttons: Array<
+    | { type: "QUICK_REPLY"; text: string }
+    | { type: "URL"; text: string; url: string }
+    | { type: "PHONE_NUMBER"; text: string; phone_number: string }
+  >;
+};
+
+export type CreateCarouselResult =
+  | { ok: true; status: string; name: string }
+  | { ok: false; error: string };
+
+export async function createCarouselTemplateAction(input: {
+  name: string;
+  language: string;
+  category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
+  body: string;
+  bodyExample: string;
+  cards: CarouselCardPayload[];
+}): Promise<CreateCarouselResult> {
+  const { orgId } = await requireOrg();
+  const settings = await getOrgSettings(db, orgId);
+  const creds = credsFromSettings(settings);
+  if (!creds) return { ok: false, error: "Configura tus credenciales de Meta primero" };
+
+  if (input.cards.length < 2) return { ok: false, error: "El carrusel necesita al menos 2 tarjetas" };
+  if (input.cards.some((c) => !c.handle || !c.assetId)) {
+    return { ok: false, error: "Cada tarjeta necesita una imagen/video" };
+  }
+
+  const cards: CardInput[] = input.cards.map((c) => ({
+    header: { format: c.headerFormat, handle: c.handle },
+    body: { text: c.body, example: c.bodyExample ? [c.bodyExample] : undefined },
+    buttons: c.buttons.map((b) =>
+      b.type === "URL"
+        ? { type: "URL", text: b.text, url: b.url }
+        : b.type === "PHONE_NUMBER"
+          ? { type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number }
+          : { type: "QUICK_REPLY", text: b.text },
+    ),
+  }));
+
+  try {
+    const res = await createTemplate(creds, {
+      name: input.name,
+      language: input.language,
+      category: input.category,
+      body: { text: input.body, example: input.bodyExample ? [input.bodyExample] : undefined },
+      carousel: { cards },
+    });
+
+    // Clear existing card media rows for this template (re-submitting same name)
+    await db
+      .delete(templateCardMedia)
+      .where(
+        and(
+          eq(templateCardMedia.orgId, orgId),
+          eq(templateCardMedia.templateName, input.name),
+          eq(templateCardMedia.templateLanguage, input.language),
+        ),
+      );
+
+    // Insert new card media rows
+    await db.insert(templateCardMedia).values(
+      input.cards.map((c, i) => ({
+        orgId,
+        templateName: input.name,
+        templateLanguage: input.language,
+        cardIndex: i,
+        assetId: c.assetId,
+      })),
+    );
+
+    return { ok: true, status: res.status, name: input.name };
+  } catch (e) {
+    if (e instanceof MetaApiError) return { ok: false, error: e.message };
+    return { ok: false, error: e instanceof Error ? e.message : "Error al crear" };
+  }
 }

@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { listBodyVariableIndices } from "@/lib/template-vars";
-import { createTemplateAction } from "./actions";
+import { createTemplateAction, createCarouselTemplateAction } from "./actions";
+import { CarouselBuilder, emptyCard, type CarouselValue } from "./carousel-builder";
 
 type ButtonKind = "QUICK_REPLY" | "URL";
 type ButtonState = { id: string; kind: ButtonKind; text: string; url: string };
@@ -58,6 +59,9 @@ const CATEGORIES = [
 const NAME_REGEX = /^[a-z0-9_]*$/;
 
 export function TemplateForm() {
+  const [mode, setMode] = useState<"standard" | "carousel">("standard");
+  const [carousel, setCarousel] = useState<CarouselValue>({ cards: [emptyCard(), emptyCard()] });
+
   const [name, setName] = useState("");
   const [language, setLanguage] = useState("es_CO");
   const [category, setCategory] = useState("UTILITY");
@@ -144,10 +148,63 @@ export function TemplateForm() {
   }
 
   function submit() {
+    // Common validation
     if (!NAME_REGEX.test(name) || name.length < 3) {
       toast.error("El nombre debe tener 3+ caracteres en minúsculas");
       return;
     }
+
+    if (mode === "carousel") {
+      // Carousel mode validation and submit
+      if (carousel.cards.length < 2) {
+        toast.error("El carrusel necesita al menos 2 tarjetas");
+        return;
+      }
+      if (carousel.cards.some((c) => !c.handle || !c.assetId)) {
+        toast.error("Cada tarjeta necesita una imagen/video");
+        return;
+      }
+      if (!bodyText.trim()) {
+        toast.error("El body del carrusel es obligatorio");
+        return;
+      }
+
+      const payload = {
+        name,
+        language,
+        category: category as "UTILITY" | "MARKETING" | "AUTHENTICATION",
+        body: bodyText,
+        bodyExample: "",
+        cards: carousel.cards.map((c) => ({
+          headerFormat: c.headerFormat,
+          handle: c.handle!,
+          assetId: c.assetId!,
+          body: c.body,
+          bodyExample: c.bodyExample,
+          buttons: c.buttons,
+        })),
+      };
+
+      startTransition(async () => {
+        const res = await createCarouselTemplateAction(payload);
+        if (!res.ok) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success(
+          `Plantilla carrusel "${res.name}" enviada a Meta (${res.status}). Aparecerá en la lista cuando se apruebe.`,
+          { duration: 8000 },
+        );
+        setName("");
+        setBodyText("");
+        setBodyExample({});
+        setCarousel({ cards: [emptyCard(), emptyCard()] });
+        setMode("standard");
+      });
+      return;
+    }
+
+    // Standard mode validation and submit
     if (!bodyText.trim()) {
       toast.error("El body es obligatorio");
       return;
@@ -293,8 +350,67 @@ export function TemplateForm() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Header (opcional)</CardTitle>
+            <CardTitle className="text-base">Tipo de plantilla</CardTitle>
           </CardHeader>
+          <CardContent className="flex gap-2">
+            <Button
+              type="button"
+              variant={mode === "standard" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMode("standard")}
+            >
+              Estándar
+            </Button>
+            <Button
+              type="button"
+              variant={mode === "carousel" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMode("carousel")}
+            >
+              Carrusel
+            </Button>
+          </CardContent>
+        </Card>
+
+        {mode === "carousel" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Cuerpo del carrusel (opcional)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <Label htmlFor="carousel-body">
+                  Texto que aparece antes de las tarjetas (máx 160)
+                </Label>
+                <Input
+                  id="carousel-body"
+                  value={bodyText}
+                  onChange={(e) => setBodyText(e.target.value)}
+                  maxLength={160}
+                  placeholder="Selecciona una opción..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {mode === "carousel" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Tarjetas del carrusel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CarouselBuilder value={carousel} onChange={setCarousel} />
+            </CardContent>
+          </Card>
+        )}
+
+        {mode === "standard" && (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Header (opcional)</CardTitle>
+              </CardHeader>
           <CardContent className="space-y-3">
             <div>
               <Label>Tipo</Label>
@@ -540,6 +656,8 @@ export function TemplateForm() {
             </p>
           </CardContent>
         </Card>
+          </>
+        )}
 
         <div className="flex items-center justify-end gap-3">
           <Link
