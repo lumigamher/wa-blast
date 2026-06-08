@@ -31,6 +31,37 @@ export function buildSendComponents(plan: ComponentPlan, vars: Record<string, st
     if (plan.bodyVarKeys.length === 0) return [];
     return [{ type: "body", parameters: textParams(plan.bodyVarKeys, vars) }];
   }
-  // carousel handled in Task 1.2
-  return [];
+
+  const components: SendComponent[] = [];
+  if (plan.bodyVarKeys.length > 0) {
+    components.push({ type: "body", parameters: textParams(plan.bodyVarKeys, vars) });
+  }
+  const cards: SendCard[] = plan.cards.map((card, ci) => {
+    const comps: SendComponent[] = [];
+    const fmt = card.headerFormat === "IMAGE" ? "image" : "video";
+    comps.push({
+      type: "header",
+      parameters: [
+        fmt === "image"
+          ? { type: "image", image: { link: card.headerLink } }
+          : { type: "video", video: { link: card.headerLink } },
+      ],
+    });
+    if (card.bodyVarKeys.length > 0) {
+      comps.push({ type: "body", parameters: textParams(card.bodyVarKeys, vars) });
+    }
+    card.buttons.forEach((btn, bi) => {
+      if (btn.dynamicUrlSuffixKey) {
+        comps.push({
+          type: "button",
+          sub_type: "url",
+          index: String(bi),
+          parameters: [{ type: "text", text: vars[btn.dynamicUrlSuffixKey] ?? "" }],
+        });
+      }
+    });
+    return { card_index: ci, components: comps };
+  });
+  components.push({ type: "carousel", cards });
+  return components;
 }
