@@ -35,10 +35,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
         <div className="flex items-center gap-3 border-b px-5 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold shadow-sm">
-            M
+            W
           </div>
           <div>
-            <div className="text-sm font-semibold leading-tight">Milujo Blast</div>
+            <div className="text-sm font-semibold leading-tight">wa-blast</div>
             <div className="text-[11px] text-muted-foreground">Envíos masivos</div>
           </div>
         </div>

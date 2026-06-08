@@ -15,8 +15,8 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Milujo 18k · Envíos masivos",
-  description: "Panel de envíos masivos de WhatsApp para Milujo 18k",
+  title: "wa-blast · Envíos masivos",
+  description: "Plataforma de envíos masivos de WhatsApp",
 };
 
 export default function RootLayout({

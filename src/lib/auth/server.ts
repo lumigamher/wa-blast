@@ -17,7 +17,7 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       await sendEmail(
         user.email,
-        "Reset your Milujo Blast password",
+        "Reset your wa-blast password",
         `<p>Click to reset: <a href="${url}">${url}</a></p>`,
       );
     },
@@ -28,7 +28,7 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail(
         user.email,
-        "Verify your Milujo Blast email",
+        "Verify your wa-blast email",
         `<p>Welcome! Verify your address: <a href="${url}">${url}</a></p>`,
       );
     },
