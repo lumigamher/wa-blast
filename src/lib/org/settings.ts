@@ -7,6 +7,7 @@ export type DecryptedSettings = {
   orgId: string;
   metaPhoneId: string | null;
   metaWabaId: string | null;
+  metaAppId: string | null;
   metaAccessToken: string | null;
   metaAppSecret: string | null;
   metaVerifyToken: string | null;
@@ -23,6 +24,7 @@ export async function getOrgSettings(db: DB, orgId: string): Promise<DecryptedSe
     orgId: row.orgId,
     metaPhoneId: row.metaPhoneId,
     metaWabaId: row.metaWabaId,
+    metaAppId: row.metaAppId,
     metaAccessToken: row.metaAccessTokenEnc ? decrypt(row.metaAccessTokenEnc) : null,
     metaAppSecret: row.metaAppSecretEnc ? decrypt(row.metaAppSecretEnc) : null,
     metaVerifyToken: row.metaVerifyToken,
@@ -39,6 +41,7 @@ export async function saveMetaCreds(
   input: {
     metaPhoneId: string;
     metaWabaId: string;
+    metaAppId: string;
     metaAccessToken: string;
     metaAppSecret: string;
     metaVerifyToken: string;
@@ -49,6 +52,7 @@ export async function saveMetaCreds(
     .set({
       metaPhoneId: input.metaPhoneId,
       metaWabaId: input.metaWabaId,
+      metaAppId: input.metaAppId,
       metaAccessTokenEnc: encrypt(input.metaAccessToken),
       metaAppSecretEnc: encrypt(input.metaAppSecret),
       metaVerifyToken: input.metaVerifyToken,

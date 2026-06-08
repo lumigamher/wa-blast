@@ -55,6 +55,12 @@ export default async function MetaSettingsPage() {
               <Field label="Phone Number ID" name="metaPhoneId" defaultValue={s.metaPhoneId ?? ""} />
               <Field label="WABA ID" name="metaWabaId" defaultValue={s.metaWabaId ?? ""} />
               <Field
+                label="App ID"
+                name="metaAppId"
+                defaultValue={s.metaAppId ?? ""}
+                hint="Meta App ID para carga de medios"
+              />
+              <Field
                 label="Access Token"
                 name="metaAccessToken"
                 type="password"

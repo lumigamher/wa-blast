@@ -18,6 +18,7 @@ describe("org settings", () => {
     await saveMetaCreds(db, orgId, {
       metaPhoneId: "111",
       metaWabaId: "222",
+      metaAppId: "333",
       metaAccessToken: "secret-token",
       metaAppSecret: "secret-app",
       metaVerifyToken: "v",

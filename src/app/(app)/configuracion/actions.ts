@@ -9,6 +9,7 @@ import { saveForwardUrl, saveMetaCreds, saveOptoutKeywords } from "@/lib/org/set
 const metaSchema = z.object({
   metaPhoneId: z.string().min(1),
   metaWabaId: z.string().min(1),
+  metaAppId: z.string().min(1),
   metaAccessToken: z.string().min(10),
   metaAppSecret: z.string().min(10),
   metaVerifyToken: z.string().min(4),

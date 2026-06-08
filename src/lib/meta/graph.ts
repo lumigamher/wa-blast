@@ -250,12 +250,13 @@ export function credsFromSettings(settings: {
   metaAccessToken: string | null;
   metaWabaId: string | null;
   metaPhoneId: string | null;
+  metaAppId: string | null;
 }): GraphCreds | null {
   if (!settings.metaAccessToken || !settings.metaWabaId || !settings.metaPhoneId) return null;
   return {
     accessToken: settings.metaAccessToken,
     wabaId: settings.metaWabaId,
     phoneId: settings.metaPhoneId,
-    appId: process.env.META_APP_ID,
+    appId: settings.metaAppId ?? process.env.META_APP_ID,
   };
 }
