@@ -4,6 +4,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings } from "@/lib/org/settings";
 import { MEDIA_LIMITS, MetaApiError, credsFromSettings, uploadMedia } from "@/lib/meta/graph";
 import type { MediaFormat } from "@/lib/meta/types";
+import { saveMediaAsset, publicMediaUrl } from "@/lib/media/store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,7 +55,8 @@ export async function POST(req: Request) {
   try {
     const bytes = await file.arrayBuffer();
     const handle = await uploadMedia(creds, bytes, { fileName: file.name, mimeType: file.type });
-    return NextResponse.json({ ok: true, handle, format });
+    const asset = await saveMediaAsset(db, { orgId, bytes, mime: file.type });
+    return NextResponse.json({ ok: true, handle, format, assetId: asset.id, publicUrl: publicMediaUrl(asset.id) });
   } catch (e) {
     if (e instanceof MetaApiError) {
       return NextResponse.json({ ok: false, error: e.message, code: e.code }, { status: 400 });
