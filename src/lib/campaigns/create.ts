@@ -10,6 +10,8 @@ export type CreateCampaignInput = {
   templateLanguage: string;
   headerType: "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
   headerHandle?: string | null;
+  templateType?: "standard" | "carousel";
+  componentPlanJson?: string | null;
   source: "segment" | "adhoc";
   segmentId?: string | null;
   scheduledAt?: Date | null;
@@ -45,6 +47,8 @@ export async function createCampaign(
       templateLanguage: input.templateLanguage,
       headerType: input.headerType,
       headerHandle: input.headerHandle ?? null,
+      templateType: input.templateType ?? "standard",
+      componentPlanJson: input.componentPlanJson ?? null,
       source: input.source,
       segmentId: input.segmentId ?? null,
       scheduledAt: input.scheduledAt ?? null,
