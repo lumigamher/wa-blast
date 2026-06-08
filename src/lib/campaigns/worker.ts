@@ -3,6 +3,7 @@ import type { DB } from "@/lib/db/client";
 import { campaignRecipients, campaigns } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { sendTemplate } from "@/lib/meta/client";
+import { buildSendComponents, type ComponentPlan } from "./component-plan";
 import { TokenBucket } from "./rate-limit";
 
 export interface SenderWorker {
@@ -30,15 +31,15 @@ export class InProcessSenderWorker implements SenderWorker {
       await bucket.take();
 
       const params = JSON.parse(rec.params) as Record<string, string>;
-      const components =
-        Object.keys(params).length > 0
-          ? [
-              {
-                type: "body",
-                parameters: Object.values(params).map((v) => ({ type: "text", text: v })),
-              },
-            ]
-          : [];
+      let components: unknown[];
+      if (camp.componentPlanJson) {
+        components = buildSendComponents(JSON.parse(camp.componentPlanJson) as ComponentPlan, params);
+      } else {
+        components =
+          Object.keys(params).length > 0
+            ? [{ type: "body", parameters: Object.values(params).map((v) => ({ type: "text", text: v })) }]
+            : [];
+      }
 
       const result = await sendTemplate(settings, {
         to: rec.phone,
