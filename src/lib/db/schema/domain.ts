@@ -7,6 +7,7 @@ export const organizationSettings = sqliteTable("organization_settings", {
     .references(() => organization.id, { onDelete: "cascade" }),
   metaPhoneId: text("meta_phone_id"),
   metaWabaId: text("meta_waba_id"),
+  metaAppId: text("meta_app_id"),
   metaAccessTokenEnc: text("meta_access_token_enc"),
   metaAppSecretEnc: text("meta_app_secret_enc"),
   metaVerifyToken: text("meta_verify_token"),
@@ -79,6 +80,8 @@ export const campaigns = sqliteTable(
     templateLanguage: text("template_language").notNull(),
     headerType: text("header_type").notNull().default("NONE"),
     headerHandle: text("header_handle"),
+    templateType: text("template_type").notNull().default("standard"),
+    componentPlanJson: text("component_plan_json"),
     source: text("source").notNull(),
     segmentId: text("segment_id").references(() => segments.id, { onDelete: "set null" }),
     scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
@@ -142,5 +145,33 @@ export const templateFavorites = sqliteTable(
   },
   (t) => ({
     pk: primaryKey({ columns: [t.orgId, t.userId, t.templateName, t.templateLanguage] }),
+  }),
+);
+
+export const mediaAssets = sqliteTable(
+  "media_assets",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // "image" | "video"
+    mime: text("mime").notNull(),
+    path: text("path").notNull(),
+    bytes: integer("bytes").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("media_assets_org_idx").on(t.orgId) }),
+);
+
+export const templateCardMedia = sqliteTable(
+  "template_card_media",
+  {
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    templateName: text("template_name").notNull(),
+    templateLanguage: text("template_language").notNull(),
+    cardIndex: integer("card_index").notNull(),
+    assetId: text("asset_id").notNull().references(() => mediaAssets.id, { onDelete: "cascade" }),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.orgId, t.templateName, t.templateLanguage, t.cardIndex] }),
   }),
 );
