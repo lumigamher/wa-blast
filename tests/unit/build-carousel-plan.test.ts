@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { buildCarouselPlan } from "@/lib/campaigns/build-carousel-plan";
 import type { ParsedCarousel } from "@/lib/meta/carousel";
 
