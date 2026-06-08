@@ -17,10 +17,10 @@ export async function deleteTag(db: DB, orgId: string, tagId: string) {
 }
 
 export async function setContactTags(db: DB, contactId: string, tagIds: string[]) {
-  await db.transaction(async (tx) => {
-    await tx.delete(contactTags).where(eq(contactTags.contactId, contactId));
+  db.transaction((tx) => {
+    tx.delete(contactTags).where(eq(contactTags.contactId, contactId)).run();
     if (tagIds.length > 0) {
-      await tx.insert(contactTags).values(tagIds.map((t) => ({ contactId, tagId: t })));
+      tx.insert(contactTags).values(tagIds.map((t) => ({ contactId, tagId: t }))).run();
     }
   });
 }

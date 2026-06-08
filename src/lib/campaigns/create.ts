@@ -38,8 +38,8 @@ export async function createCampaign(
 
   const filtered = input.recipients.filter((r) => !(r.contactId && optedOut.has(r.contactId)));
 
-  await db.transaction(async (tx) => {
-    await tx.insert(campaigns).values({
+  db.transaction((tx) => {
+    tx.insert(campaigns).values({
       id: campaignId,
       orgId: input.orgId,
       name: input.name,
@@ -56,9 +56,9 @@ export async function createCampaign(
       total: filtered.length,
       createdBy: input.createdBy,
       createdAt: now,
-    });
+    }).run();
     if (filtered.length > 0) {
-      await tx.insert(campaignRecipients).values(
+      tx.insert(campaignRecipients).values(
         filtered.map((r) => ({
           campaignId,
           contactId: r.contactId ?? null,
@@ -67,7 +67,7 @@ export async function createCampaign(
           params: JSON.stringify(r.params),
           status: "pending" as const,
         })),
-      );
+      ).run();
     }
   });
 

@@ -28,11 +28,11 @@ export async function upsertContacts(db: DB, orgId: string, rows: ContactInput[]
   let inserted = 0;
   let updated = 0;
 
-  await db.transaction(async (tx) => {
+  db.transaction((tx) => {
     for (const r of rows) {
       const existingId = existingByPhone.get(r.phone);
       if (existingId) {
-        await tx
+        tx
           .update(contacts)
           .set({
             name: r.name ?? null,
@@ -40,10 +40,11 @@ export async function upsertContacts(db: DB, orgId: string, rows: ContactInput[]
             customFields: JSON.stringify(r.customFields ?? {}),
             updatedAt: now,
           })
-          .where(eq(contacts.id, existingId));
+          .where(eq(contacts.id, existingId))
+          .run();
         updated++;
       } else {
-        await tx.insert(contacts).values({
+        tx.insert(contacts).values({
           id: `c_${crypto.randomUUID()}`,
           orgId,
           phone: r.phone,
@@ -52,7 +53,7 @@ export async function upsertContacts(db: DB, orgId: string, rows: ContactInput[]
           customFields: JSON.stringify(r.customFields ?? {}),
           createdAt: now,
           updatedAt: now,
-        });
+        }).run();
         inserted++;
       }
     }

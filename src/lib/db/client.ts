@@ -1,6 +1,6 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { env } from "@/lib/env";
@@ -10,9 +10,9 @@ if (env.DATABASE_URL !== ":memory:") {
   mkdirSync(dirname(env.DATABASE_URL), { recursive: true });
 }
 
-const sqlite = new Database(env.DATABASE_URL, { create: true });
-sqlite.exec("PRAGMA journal_mode = WAL");
-sqlite.exec("PRAGMA foreign_keys = ON");
+const sqlite = new Database(env.DATABASE_URL);
+sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite, { schema, casing: "snake_case" });
 export type DB = typeof db;
