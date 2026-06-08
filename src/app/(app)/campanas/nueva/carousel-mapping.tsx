@@ -20,7 +20,8 @@ export function CarouselMapping({
   const allKeys = [...parsed.topBodyVarKeys, ...parsed.cards.flatMap((c) => [...c.bodyVarKeys, ...c.buttons.flatMap((b) => (b.dynamicUrlSuffixKey ? [b.dynamicUrlSuffixKey] : []))])];
 
   function setVar(key: string, patch: Partial<{ kind: "field" | "literal"; value: string }>) {
-    onChange({ ...value, vars: { ...value.vars, [key]: { ...value.vars[key], kind: "literal", value: "", ...patch } } });
+    const base = value.vars[key] ?? { kind: "literal" as const, value: "" };
+    onChange({ ...value, vars: { ...value.vars, [key]: { ...base, ...patch } } });
   }
 
   return (
