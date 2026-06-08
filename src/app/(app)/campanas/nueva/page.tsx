@@ -2,9 +2,10 @@ import Link from "next/link";
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
-import { tags, contactTags } from "@/lib/db/schema";
+import { tags, contactTags, templateCardMedia } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
+import { publicMediaUrl } from "@/lib/media/store";
 import { Wizard } from "./wizard";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function NuevaCampanaPage() {
     );
   }
 
-  const [templates, tagRows] = await Promise.all([
+  const [templates, tagRows, cardMediaRows] = await Promise.all([
     listTemplates(creds).catch(() => []),
     db
       .select({
@@ -42,7 +43,23 @@ export default async function NuevaCampanaPage() {
       .leftJoin(contactTags, eq(contactTags.tagId, tags.id))
       .where(eq(tags.orgId, orgId))
       .groupBy(tags.id),
+    db
+      .select({
+        name: templateCardMedia.templateName,
+        lang: templateCardMedia.templateLanguage,
+        idx: templateCardMedia.cardIndex,
+        assetId: templateCardMedia.assetId,
+      })
+      .from(templateCardMedia)
+      .where(eq(templateCardMedia.orgId, orgId)),
   ]);
+
+  // Build prefill media map keyed by "<name>|<language>"
+  const prefillMedia: Record<string, Record<number, string>> = {};
+  for (const r of cardMediaRows) {
+    const k = `${r.name}|${r.lang}`;
+    (prefillMedia[k] ??= {})[r.idx] = publicMediaUrl(r.assetId);
+  }
 
   return (
     <div className="space-y-6">
@@ -55,6 +72,7 @@ export default async function NuevaCampanaPage() {
       <Wizard
         templates={templates}
         tags={tagRows.map((t) => ({ id: t.id, name: t.name, color: t.color, count: Number(t.count) }))}
+        prefillMedia={prefillMedia}
       />
     </div>
   );

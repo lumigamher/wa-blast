@@ -14,6 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { WhatsAppBubble } from "@/components/whatsapp-bubble";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
 import { extractVariables } from "@/lib/templates";
+import { isCarousel, parseCarousel } from "@/lib/meta/carousel";
+import { CarouselMapping, type CarouselMappingValue } from "./carousel-mapping";
+import { CarouselPreview } from "@/components/carousel-preview";
+import { buildCarouselPlan } from "@/lib/campaigns/build-carousel-plan";
 import { createCampaignAction } from "./actions";
 
 type Step = 1 | 2 | 3;
@@ -23,7 +27,15 @@ type TagRow = { id: string; name: string; color: string; count: number };
 
 type AdhocRow = { phone: string; name: string; params: Record<string, string> };
 
-export function Wizard({ templates, tags }: { templates: WhatsAppTemplate[]; tags: TagRow[] }) {
+export function Wizard({
+  templates,
+  tags,
+  prefillMedia = {},
+}: {
+  templates: WhatsAppTemplate[];
+  tags: TagRow[];
+  prefillMedia?: Record<string, Record<number, string>>;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [isPending, startTransition] = useTransition();
@@ -37,6 +49,10 @@ export function Wizard({ templates, tags }: { templates: WhatsAppTemplate[]; tag
     [approved, selectedKey],
   );
   const vars = useMemo(() => (selected ? extractVariables(selected) : []), [selected]);
+  const carousel = useMemo(
+    () => (selected && isCarousel(selected) ? parseCarousel(selected) : null),
+    [selected],
+  );
 
   const [source, setSource] = useState<Source>("tags");
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
@@ -44,6 +60,10 @@ export function Wizard({ templates, tags }: { templates: WhatsAppTemplate[]; tag
 
   const [name, setName] = useState("");
   const [bulkParams, setBulkParams] = useState<Record<string, string>>({});
+  const [carouselMapping, setCarouselMapping] = useState<CarouselMappingValue>({
+    vars: {},
+    cardMedia: {},
+  });
   const [scheduleMode, setScheduleMode] = useState<"now" | "later">("now");
   const [scheduledAt, setScheduledAt] = useState<string>("");
 
@@ -85,6 +105,60 @@ export function Wizard({ templates, tags }: { templates: WhatsAppTemplate[]; tag
     if (!selected) return toast.error("Selecciona una plantilla");
     if (!name.trim()) return toast.error("Ponle un nombre a la campaña");
 
+    // Carousel flow
+    if (carousel) {
+      const prefill = prefillMedia[`${selected.name}|${selected.language}`] ?? {};
+      const cardMedia: Record<number, string> = {};
+      carousel.cards.forEach((_, i) => {
+        cardMedia[i] = carouselMapping.cardMedia[i] ?? prefill[i] ?? "";
+      });
+
+      // Validate media
+      for (const [idx, url] of Object.entries(cardMedia)) {
+        if (!url.trim()) {
+          return toast.error(`Tarjeta ${Number(idx) + 1}: añade una URL de media`);
+        }
+      }
+
+      const { plan } = buildCarouselPlan({
+        parsed: carousel,
+        vars: carouselMapping.vars,
+        cardMedia,
+      });
+
+      const payload = {
+        name: name.trim(),
+        templateName: selected.name,
+        templateLanguage: selected.language,
+        source,
+        tagIds: source === "tags" ? [...selectedTagIds] : undefined,
+        adhocRows:
+          source === "adhoc"
+            ? adhocRows.map((r) => ({
+                phone: r.phone,
+                name: r.name,
+                params: r.params,
+              }))
+            : undefined,
+        templateType: "carousel" as const,
+        componentPlanJson: JSON.stringify(plan),
+        varMapping: carouselMapping.vars,
+        scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      };
+
+      startTransition(async () => {
+        const res = await createCampaignAction(payload);
+        if (!res.ok) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success(res.scheduled ? "Campaña programada" : "Campaña disparada");
+        router.push(`/campanas/${res.campaignId}`);
+      });
+      return;
+    }
+
+    // Standard flow
     const paramsByContact: Record<string, Record<string, string>> | undefined =
       source === "tags" && Object.keys(bulkParams).length > 0 ? undefined : undefined;
 
@@ -274,25 +348,38 @@ export function Wizard({ templates, tags }: { templates: WhatsAppTemplate[]; tag
                   />
                 </div>
 
-                {vars.length > 0 && (
+                {carousel ? (
                   <div className="space-y-2">
-                    <Label>Variables</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Valor por defecto para todos (los CSV pueden traer sus propios valores en columnas numeradas).
-                    </p>
-                    {vars.map((v) => (
-                      <div key={v.index} className="flex items-center gap-2">
-                        <code className="w-14 shrink-0 font-mono text-xs">{v.placeholder}</code>
-                        <Input
-                          placeholder={v.example || `valor para ${v.placeholder}`}
-                          value={bulkParams[String(v.index)] ?? ""}
-                          onChange={(e) =>
-                            setBulkParams({ ...bulkParams, [String(v.index)]: e.target.value })
-                          }
-                        />
-                      </div>
-                    ))}
+                    <Label>Mapeo de variables y media</Label>
+                    <CarouselMapping
+                      parsed={carousel}
+                      prefillMedia={prefillMedia[`${selected!.name}|${selected!.language}`] ?? {}}
+                      value={carouselMapping}
+                      onChange={setCarouselMapping}
+                    />
                   </div>
+                ) : (
+                  vars.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Variables</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Valor por defecto para todos (los CSV pueden traer sus propios valores en columnas
+                        numeradas).
+                      </p>
+                      {vars.map((v) => (
+                        <div key={v.index} className="flex items-center gap-2">
+                          <code className="w-14 shrink-0 font-mono text-xs">{v.placeholder}</code>
+                          <Input
+                            placeholder={v.example || `valor para ${v.placeholder}`}
+                            value={bulkParams[String(v.index)] ?? ""}
+                            onChange={(e) =>
+                              setBulkParams({ ...bulkParams, [String(v.index)]: e.target.value })
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
 
                 <div className="space-y-2">
@@ -334,7 +421,11 @@ export function Wizard({ templates, tags }: { templates: WhatsAppTemplate[]; tag
           )}
 
           <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={() => setStep((s) => (s > 1 ? ((s - 1) as Step) : s))} disabled={step === 1}>
+            <Button
+              variant="outline"
+              onClick={() => setStep((s) => (s > 1 ? ((s - 1) as Step) : s))}
+              disabled={step === 1}
+            >
               Atrás
             </Button>
             {step < 3 ? (
@@ -361,7 +452,25 @@ export function Wizard({ templates, tags }: { templates: WhatsAppTemplate[]; tag
             </CardHeader>
             <CardContent>
               {selected ? (
-                <WhatsAppBubble template={selected} highlightVars size="md" />
+                carousel ? (
+                  <CarouselPreview
+                    topBody={
+                      selected.components.find((c) => c.type === "BODY")?.text ??
+                      ""
+                    }
+                    cards={carousel.cards.map((c, i) => ({
+                      mediaUrl: carouselMapping.cardMedia[i] ?? (prefillMedia[`${selected.name}|${selected.language}`]?.[i] ?? null),
+                      body:
+                        selected.components
+                          .find((comp) => comp.type === "CAROUSEL")
+                          ?.cards?.[i]?.components?.find((cc) => cc.type === "BODY")
+                          ?.text ?? "",
+                      buttons: [],
+                    }))}
+                  />
+                ) : (
+                  <WhatsAppBubble template={selected} highlightVars size="md" />
+                )
               ) : (
                 <div className="text-sm text-muted-foreground">Elige una plantilla</div>
               )}
@@ -378,7 +487,12 @@ function StepsHeader({ step, total }: { step: Step; total: number }) {
     <ol className="flex items-center gap-2 text-sm">
       <StepDot n={1} label="Plantilla" active={step >= 1} current={step === 1} />
       <ChevronRightIcon className="size-3 text-muted-foreground" />
-      <StepDot n={2} label={`Destinatarios${total ? ` (${total})` : ""}`} active={step >= 2} current={step === 2} />
+      <StepDot
+        n={2}
+        label={`Destinatarios${total ? ` (${total})` : ""}`}
+        active={step >= 2}
+        current={step === 2}
+      />
       <ChevronRightIcon className="size-3 text-muted-foreground" />
       <StepDot n={3} label="Revisar" active={step >= 3} current={step === 3} />
     </ol>
@@ -387,7 +501,9 @@ function StepsHeader({ step, total }: { step: Step; total: number }) {
 
 function StepDot({ n, label, active, current }: { n: number; label: string; active: boolean; current: boolean }) {
   return (
-    <div className={`flex items-center gap-2 ${current ? "font-semibold" : active ? "text-foreground" : "text-muted-foreground"}`}>
+    <div
+      className={`flex items-center gap-2 ${current ? "font-semibold" : active ? "text-foreground" : "text-muted-foreground"}`}
+    >
       <span
         className={`flex size-6 items-center justify-center rounded-full text-xs ${
           current ? "bg-primary text-primary-foreground" : active ? "bg-muted" : "bg-muted/50"

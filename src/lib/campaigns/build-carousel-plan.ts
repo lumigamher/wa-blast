@@ -4,6 +4,14 @@ import type { ParsedCarousel } from "@/lib/meta/carousel";
 export type VarMapping = Record<string, { kind: "field" | "literal"; value: string }>;
 type Contact = Record<string, string>;
 
+export function resolveVarMapping(vars: VarMapping, contact: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, m] of Object.entries(vars)) {
+    out[key] = m.kind === "field" ? contact[m.value] ?? "" : m.value;
+  }
+  return out;
+}
+
 export function buildCarouselPlan(input: { parsed: ParsedCarousel; vars: VarMapping; cardMedia: Record<number, string> }): {
   plan: ComponentPlan;
   resolve: (contact: Contact) => Record<string, string>;
@@ -19,12 +27,6 @@ export function buildCarouselPlan(input: { parsed: ParsedCarousel; vars: VarMapp
       buttons: c.buttons,
     })),
   };
-  const resolve = (contact: Contact): Record<string, string> => {
-    const out: Record<string, string> = {};
-    for (const [key, m] of Object.entries(vars)) {
-      out[key] = m.kind === "field" ? contact[m.value] ?? "" : m.value;
-    }
-    return out;
-  };
+  const resolve = (contact: Contact): Record<string, string> => resolveVarMapping(vars, contact);
   return { plan, resolve };
 }

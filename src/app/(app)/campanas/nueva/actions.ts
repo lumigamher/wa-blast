@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { createCampaign } from "@/lib/campaigns/create";
 import { getWorker } from "@/lib/campaigns/worker";
+import { resolveVarMapping } from "@/lib/campaigns/build-carousel-plan";
 import { contactTags, contacts } from "@/lib/db/schema";
 
 const inputSchema = z.object({
@@ -24,6 +25,14 @@ const inputSchema = z.object({
     )
     .optional(),
   paramsByContact: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+  templateType: z.enum(["standard", "carousel"]).optional(),
+  componentPlanJson: z.string().optional().nullable(),
+  varMapping: z
+    .record(
+      z.string(),
+      z.object({ kind: z.enum(["field", "literal"]), value: z.string() }),
+    )
+    .optional(),
   scheduledAt: z.string().optional().nullable(),
 });
 
@@ -61,20 +70,55 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
       .from(contacts)
       .where(and(eq(contacts.orgId, orgId), inArray(contacts.id, uniqueIds), isNull(contacts.optOutAt)));
 
-    recipients = rows.map((c) => ({
-      contactId: c.id,
-      phone: c.phone,
-      name: c.name,
-      params: data.paramsByContact?.[c.id] ?? {},
-    }));
+    recipients = rows.map((c) => {
+      let params: Record<string, string>;
+
+      if (data.templateType === "carousel" && data.varMapping) {
+        // Server-side resolution for carousel
+        const fields = {
+          name: c.name ?? "",
+          phone: c.phone,
+          email: c.email ?? "",
+        };
+        params = resolveVarMapping(data.varMapping, fields);
+      } else {
+        // Standard flow
+        params = data.paramsByContact?.[c.id] ?? {};
+      }
+
+      return {
+        contactId: c.id,
+        phone: c.phone,
+        name: c.name,
+        params,
+      };
+    });
   } else {
     const adhoc = data.adhocRows ?? [];
     if (adhoc.length === 0) return { ok: false, error: "No hay destinatarios" };
-    recipients = adhoc.map((r) => ({
-      phone: r.phone,
-      name: r.name ?? null,
-      params: r.params,
-    }));
+
+    recipients = adhoc.map((r) => {
+      let params: Record<string, string>;
+
+      if (data.templateType === "carousel" && data.varMapping) {
+        // Server-side resolution for carousel
+        const fields = {
+          name: r.name ?? "",
+          phone: r.phone,
+          email: "",
+        };
+        params = resolveVarMapping(data.varMapping, fields);
+      } else {
+        // Standard flow
+        params = r.params;
+      }
+
+      return {
+        phone: r.phone,
+        name: r.name ?? null,
+        params,
+      };
+    });
   }
 
   if (recipients.length === 0) return { ok: false, error: "No hay destinatarios válidos" };
@@ -86,6 +130,8 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
     templateName: data.templateName,
     templateLanguage: data.templateLanguage,
     headerType: "NONE",
+    templateType: data.templateType ?? "standard",
+    componentPlanJson: data.componentPlanJson ?? null,
     source: data.source === "tags" ? "segment" : "adhoc",
     scheduledAt,
     recipients,
