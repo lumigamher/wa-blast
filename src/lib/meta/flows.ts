@@ -45,3 +45,11 @@ export async function createAndPublishFlow(creds: GraphCreds, input: { name: str
   await publishFlow(creds, id);
   return { id, status: "PUBLISHED" };
 }
+
+export async function getFlowPreview(creds: GraphCreds, flowId: string): Promise<{ previewUrl: string }> {
+  const res = await flowRequest<{ preview?: { preview_url?: string } }>(creds, `/${flowId}?fields=preview.invalidate(false)`);
+  if (!res.preview?.preview_url) {
+    throw new MetaApiError(0, undefined, res, "Meta no devolvió preview_url");
+  }
+  return { previewUrl: res.preview.preview_url };
+}

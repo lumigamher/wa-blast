@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, MetaApiError } from "@/lib/meta/graph";
-import { createAndPublishFlow, type FlowCategory } from "@/lib/meta/flows";
+import { createAndPublishFlow, createFlow, getFlowPreview, type FlowCategory } from "@/lib/meta/flows";
 import { generateFlowJson } from "@/lib/flow-ai";
 
 export type GenerateFlowResult = { ok: true; flowJson: string } | { ok: false; error: string };
@@ -36,5 +36,26 @@ export async function createFlowAction(input: { name: string; category: FlowCate
   } catch (e) {
     if (e instanceof MetaApiError) return { ok: false, error: e.message };
     return { ok: false, error: e instanceof Error ? e.message : "Error al crear" };
+  }
+}
+
+export type PreviewFlowResult = { ok: true; flowId: string; previewUrl: string } | { ok: false; error: string };
+export async function previewFlowAction(input: { name: string; flowJson: string }): Promise<PreviewFlowResult> {
+  const { orgId } = await requireOrg();
+  const settings = await getOrgSettings(db, orgId);
+  const creds = credsFromSettings(settings);
+  if (!creds) return { ok: false, error: "Configura tus credenciales de Meta primero" };
+  try {
+    JSON.parse(input.flowJson);
+  } catch {
+    return { ok: false, error: "El Flow JSON no es válido" };
+  }
+  try {
+    const { id } = await createFlow(creds, { name: input.name || "Borrador preview", categories: ["LEAD_GENERATION"], flowJson: input.flowJson });
+    const { previewUrl } = await getFlowPreview(creds, id);
+    return { ok: true, flowId: id, previewUrl };
+  } catch (e) {
+    if (e instanceof MetaApiError) return { ok: false, error: e.message };
+    return { ok: false, error: e instanceof Error ? e.message : "Error al previsualizar" };
   }
 }

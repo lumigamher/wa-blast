@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { generateFlowAction, createFlowAction } from "./actions";
+import { generateFlowAction, createFlowAction, previewFlowAction } from "./actions";
 import type { FlowCategory } from "@/lib/meta/flows";
 
 const CATEGORIES: { value: FlowCategory; label: string }[] = [
@@ -32,6 +32,7 @@ export function FlowForm() {
   const [flowJson, setFlowJson] = useState(SAMPLE);
   const [generating, startGen] = useTransition();
   const [creating, startCreate] = useTransition();
+  const [previewing, startPreview] = useTransition();
 
   const jsonValid = (() => { try { JSON.parse(flowJson); return true; } catch { return false; } })();
 
@@ -50,6 +51,15 @@ export function FlowForm() {
       if (!res.ok) { toast.error(res.error); return; }
       toast.success(`Flow "${name}" creado (${res.status}) · id ${res.id}`, { duration: 8000 });
       setName(""); setRequest(""); setFlowJson(SAMPLE);
+    });
+  }
+
+  function preview() {
+    startPreview(async () => {
+      const res = await previewFlowAction({ name, flowJson });
+      if (!res.ok) { toast.error(res.error); return; }
+      window.open(res.previewUrl, "_blank");
+      toast.success("Vista previa abierta en otra pestaña");
     });
   }
 
@@ -85,11 +95,15 @@ export function FlowForm() {
           <textarea value={flowJson} onChange={(e) => setFlowJson(e.target.value)} rows={18} spellCheck={false}
             className="w-full rounded-md border bg-background px-3 py-2 font-mono text-xs" />
           <p className={`text-[11px] ${jsonValid ? "text-muted-foreground" : "text-destructive"}`}>{jsonValid ? "JSON válido. Meta lo validará al publicar." : "JSON inválido"}</p>
+          <p className="text-[11px] text-muted-foreground">Crea un borrador en Meta y abre su vista previa oficial.</p>
         </CardContent>
       </Card>
 
       <div className="flex items-center justify-end gap-3">
         <Link href="/flows" className="text-sm text-muted-foreground hover:underline">Cancelar</Link>
+        <Button variant="outline" onClick={preview} disabled={previewing || !jsonValid} size="lg">
+          {previewing ? "Previsualizando…" : "Previsualizar"}
+        </Button>
         <Button onClick={create} disabled={creating || !jsonValid || !name.trim()} size="lg">{creating ? "Publicando…" : "Crear y publicar en Meta"}</Button>
       </div>
     </div>
