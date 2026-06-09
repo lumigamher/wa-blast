@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings } from "@/lib/org/settings";
-import { TemplateForm } from "./form";
+import { TemplateWizard } from "./template-wizard";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export default async function NuevaPlantillaPage() {
         </p>
       </header>
       {configured ? (
-        <TemplateForm />
+        <TemplateWizard />
       ) : (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
           Configura tus credenciales de Meta en{" "}
