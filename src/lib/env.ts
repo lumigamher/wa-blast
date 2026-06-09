@@ -23,6 +23,8 @@ const schema = z.object({
 
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
+
+  ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-").optional(),
 });
 
 export const env = schema.parse(process.env);
