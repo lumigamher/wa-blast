@@ -8,6 +8,7 @@ import {
   TagIcon,
   UsersIcon,
   LayersIcon,
+  WorkflowIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/contactos", icon: UsersIcon, label: "Contactos" },
   { href: "/contactos/tags", icon: TagIcon, label: "Tags" },
   { href: "/plantillas", icon: FileTextIcon, label: "Plantillas" },
+  { href: "/flows", icon: WorkflowIcon, label: "Flows" },
   { href: "/salud", icon: HeartPulseIcon, label: "Salud WhatsApp" },
   { href: "/configuracion", icon: SettingsIcon, label: "Configuración" },
 ];
