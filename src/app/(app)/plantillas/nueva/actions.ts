@@ -21,6 +21,7 @@ const variableListSchema = z.array(z.string().min(1)).max(20);
 const buttonSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("QUICK_REPLY"), text: z.string().min(1).max(25) }),
   z.object({ type: z.literal("URL"), text: z.string().min(1).max(25), url: z.string().url() }),
+  z.object({ type: z.literal("FLOW"), text: z.string().min(1).max(25), flow_id: z.string().min(1) }),
 ]);
 
 const inputSchema = z.object({

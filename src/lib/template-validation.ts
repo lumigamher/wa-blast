@@ -30,11 +30,12 @@ export function validateContenido(d: {
   return errs;
 }
 
-export function validateBotones(buttons: Array<{ id: string; kind: "QUICK_REPLY" | "URL"; text: string; url: string }>): string[] {
+export function validateBotones(buttons: Array<{ id: string; kind: "QUICK_REPLY" | "URL" | "FLOW"; text: string; url: string; flowId?: string }>): string[] {
   const errs: string[] = [];
   for (const b of buttons) {
     if (!b.text.trim()) errs.push("Todos los botones necesitan texto");
     if (b.kind === "URL" && !/^https?:\/\/.+/.test(b.url)) errs.push("Las URLs de botón deben empezar con http(s)://");
+    if (b.kind === "FLOW" && !b.flowId) errs.push("Todos los botones Flow necesitan un Flow seleccionado");
   }
   return errs;
 }

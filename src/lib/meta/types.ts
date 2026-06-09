@@ -32,7 +32,8 @@ export type TemplateCategory = "UTILITY" | "MARKETING" | "AUTHENTICATION";
 export type ButtonSpec =
   | { type: "QUICK_REPLY"; text: string }
   | { type: "URL"; text: string; url: string; example?: string[] }
-  | { type: "PHONE_NUMBER"; text: string; phone_number: string };
+  | { type: "PHONE_NUMBER"; text: string; phone_number: string }
+  | { type: "FLOW"; text: string; flow_id: string };
 
 export type MediaFormat = "IMAGE" | "VIDEO" | "DOCUMENT";
 

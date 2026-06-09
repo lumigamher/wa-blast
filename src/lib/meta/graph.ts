@@ -78,6 +78,7 @@ export async function deleteTemplate(creds: GraphCreds, name: string): Promise<v
 function metaButton(b: ButtonSpec): Record<string, unknown> {
   if (b.type === "QUICK_REPLY") return { type: "QUICK_REPLY", text: b.text };
   if (b.type === "PHONE_NUMBER") return { type: "PHONE_NUMBER", text: b.text, phone_number: b.phone_number };
+  if (b.type === "FLOW") return { type: "FLOW", text: b.text, flow_id: b.flow_id };
   const out: Record<string, unknown> = { type: "URL", text: b.text, url: b.url };
   if (/\{\{\d+\}\}/.test(b.url) && b.example?.length) out.example = b.example;
   return out;

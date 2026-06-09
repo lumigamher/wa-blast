@@ -17,7 +17,8 @@ import { StepBotones } from "./steps/step-botones";
 import { StepTarjetas } from "./steps/step-tarjetas";
 import { StepRevisar } from "./steps/step-revisar";
 
-export type ButtonState = { id: string; kind: "QUICK_REPLY" | "URL"; text: string; url: string };
+export type ButtonState = { id: string; kind: "QUICK_REPLY" | "URL" | "FLOW"; text: string; url: string; flowId?: string };
+export type FlowOption = { id: string; name: string };
 export type TemplateDraft = {
   type: "standard" | "carousel";
   name: string;
@@ -64,7 +65,11 @@ const STEP_LABEL: Record<StepId, string> = {
   revisar: "Revisar",
 };
 
-export function TemplateWizard() {
+export interface TemplateWizardProps {
+  flows?: FlowOption[];
+}
+
+export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
   const [draft, setDraft] = useState<TemplateDraft>(INITIAL);
   const [uploading, setUploading] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -135,7 +140,11 @@ export function TemplateWizard() {
         bodyText: draft.bodyText,
         bodyExample: listExamples(draft),
         footerText: draft.hasFooter ? draft.footerText.trim() : null,
-        buttons: draft.buttons.map((b) => (b.kind === "URL" ? { type: "URL" as const, text: b.text, url: b.url } : { type: "QUICK_REPLY" as const, text: b.text })),
+        buttons: draft.buttons.map((b) =>
+          b.kind === "URL" ? { type: "URL" as const, text: b.text, url: b.url } :
+          b.kind === "FLOW" ? { type: "FLOW" as const, text: b.text, flow_id: b.flowId ?? "" } :
+          { type: "QUICK_REPLY" as const, text: b.text }
+        ),
       });
       if (!res.ok) {
         toast.error(res.error);
@@ -167,7 +176,7 @@ export function TemplateWizard() {
             {current === "type" && <StepType draft={draft} update={update} />}
             {current === "datos" && <StepDatos draft={draft} update={update} />}
             {current === "contenido" && <StepContenido draft={draft} update={update} uploading={uploading} setUploading={setUploading} />}
-            {current === "botones" && <StepBotones draft={draft} update={update} />}
+            {current === "botones" && <StepBotones draft={draft} update={update} flows={flows} />}
             {current === "tarjetas" && <StepTarjetas draft={draft} update={update} />}
             {current === "revisar" && <StepRevisar draft={draft} />}
 

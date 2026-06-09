@@ -5,16 +5,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { TemplateDraft, ButtonState } from "../template-wizard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { TemplateDraft, ButtonState, FlowOption } from "../template-wizard";
 
 export function StepBotones({
   draft,
   update,
+  flows = [],
 }: {
   draft: TemplateDraft;
   update: (p: Partial<TemplateDraft>) => void;
+  flows?: FlowOption[];
 }) {
-  function addButton(kind: "QUICK_REPLY" | "URL") {
+  function addButton(kind: "QUICK_REPLY" | "URL" | "FLOW") {
     if (draft.buttons.length >= 3) return;
     if (kind === "URL" && draft.buttons.filter((b) => b.kind === "URL").length >= 2)
       return;
@@ -26,6 +35,7 @@ export function StepBotones({
           kind,
           text: "",
           url: "",
+          flowId: kind === "FLOW" ? flows[0]?.id : undefined,
         },
       ],
     });
@@ -58,7 +68,7 @@ export function StepBotones({
           <div className="min-w-[100px]">
             <Label className="text-[11px]">Tipo</Label>
             <Badge variant="secondary" className="mt-1 block w-fit">
-              {b.kind === "URL" ? "URL" : "Respuesta rápida"}
+              {b.kind === "URL" ? "URL" : b.kind === "FLOW" ? "Flow" : "Respuesta rápida"}
             </Badge>
           </div>
           <div className="min-w-[150px] flex-1">
@@ -77,6 +87,23 @@ export function StepBotones({
                 placeholder="https://..."
                 onChange={(e) => updateButton(b.id, { url: e.target.value })}
               />
+            </div>
+          )}
+          {b.kind === "FLOW" && (
+            <div className="min-w-[200px] flex-1">
+              <Label className="text-[11px]">Flow</Label>
+              <Select value={(b.flowId as string) || ""} onValueChange={(flowId: string | null) => {if (flowId) updateButton(b.id, { flowId })}}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un Flow" />
+                </SelectTrigger>
+                <SelectContent>
+                  {flows.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
           <Button
@@ -112,9 +139,20 @@ export function StepBotones({
         >
           + Botón URL
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => addButton("FLOW")}
+          disabled={draft.buttons.length >= 3 || flows.length === 0}
+          title={flows.length === 0 ? "Crea y publica un Flow primero en /flows" : undefined}
+        >
+          + Botón Flow
+        </Button>
       </div>
       <p className="text-[11px] text-muted-foreground">
         Máx 3 botones. Si hay URL, solo se permiten hasta 2 de URL.
+        {flows.length === 0 && <> Crea y publica un Flow primero en /flows para usar botones Flow.</>}
       </p>
     </div>
   );
