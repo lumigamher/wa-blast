@@ -4,10 +4,21 @@ export type TemplateVariable = {
   index: number;
   placeholder: string;
   example: string;
+  context: string;
 };
 
 export function getBodyComponent(template: WhatsAppTemplate) {
   return template.components.find((c) => c.type === "BODY");
+}
+
+function buildContext(text: string, placeholder: string): string {
+  const i = text.indexOf(placeholder);
+  if (i === -1) return "";
+  const start = Math.max(0, i - 28);
+  const end = Math.min(text.length, i + placeholder.length + 28);
+  const before = text.slice(start, i).replace(/\s+/g, " ");
+  const after = text.slice(i + placeholder.length, end).replace(/\s+/g, " ");
+  return `${start > 0 ? "…" : ""}${before}「${placeholder}」${after}${end < text.length ? "…" : ""}`;
 }
 
 export function extractVariables(template: WhatsAppTemplate): TemplateVariable[] {
@@ -25,6 +36,7 @@ export function extractVariables(template: WhatsAppTemplate): TemplateVariable[]
         index: idx,
         placeholder: m[0],
         example: examples[idx - 1] ?? "",
+        context: buildContext(body.text, m[0]),
       });
     }
   }

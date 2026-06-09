@@ -367,15 +367,22 @@ export function Wizard({
                         numeradas).
                       </p>
                       {vars.map((v) => (
-                        <div key={v.index} className="flex items-center gap-2">
-                          <code className="w-14 shrink-0 font-mono text-xs">{v.placeholder}</code>
-                          <Input
-                            placeholder={v.example || `valor para ${v.placeholder}`}
-                            value={bulkParams[String(v.index)] ?? ""}
-                            onChange={(e) =>
-                              setBulkParams({ ...bulkParams, [String(v.index)]: e.target.value })
-                            }
-                          />
+                        <div key={v.index} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <code className="w-14 shrink-0 font-mono text-xs">{v.placeholder}</code>
+                            <Input
+                              placeholder={v.example || `valor para ${v.placeholder}`}
+                              value={bulkParams[String(v.index)] ?? ""}
+                              onChange={(e) =>
+                                setBulkParams({ ...bulkParams, [String(v.index)]: e.target.value })
+                              }
+                            />
+                          </div>
+                          {v.context && (
+                            <p className="text-[11px] text-muted-foreground leading-snug pl-14">
+                              En el mensaje: <span className="font-mono">{v.context}</span>
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
