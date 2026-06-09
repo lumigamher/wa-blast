@@ -1,4 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { env } from "@/lib/env";
 
 export function extractFlowJson(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -24,19 +25,19 @@ Esquema (Flow JSON version "6.3", estático, sin data_api_version ni endpoint):
 Reglas: ≥1 pantalla; exactamente una terminal (la última) con "terminal":true y "success":true; "name" de componentes en snake_case minúsculas; ids de pantalla en MAYÚSCULAS_SNAKE; incluye los campos pedidos + por defecto nombre y teléfono si no se especifican; etiquetas en español salvo que la petición esté en otro idioma.`;
 
 export async function generateFlowJson(request: string): Promise<string> {
-  const { env } = await import("@/lib/env");
-  if (!env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY no configurada");
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY no configurada");
+  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  const model = env.OPENAI_MODEL ?? "gpt-5-mini";
   async function ask(extra?: string): Promise<string> {
-    const res = await client.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 8000,
-      thinking: { type: "adaptive" },
-      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: `Genera el Flow JSON para: ${request}${extra ? `\n\n${extra}` : ""}` }],
+    const res = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: `Genera el Flow JSON para: ${request}${extra ? `\n\n${extra}` : ""}` },
+      ],
+      response_format: { type: "json_object" },
     });
-    const block = res.content.find((b) => b.type === "text");
-    return block && block.type === "text" ? block.text : "";
+    return res.choices[0]?.message?.content ?? "";
   }
   const first = await ask();
   try {

@@ -25,6 +25,9 @@ const schema = z.object({
   META_APP_SECRET: z.string().optional(),
 
   ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-").optional(),
+
+  OPENAI_API_KEY: z.string().startsWith("sk-").optional(),
+  OPENAI_MODEL: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);
