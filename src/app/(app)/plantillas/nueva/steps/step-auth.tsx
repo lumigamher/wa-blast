@@ -48,7 +48,7 @@ export function StepAuth({ draft, update }: { draft: TemplateDraft; update: (p: 
           onCheckedChange={(v) => update({ addSecurityRecommendation: v === true })}
         />
         <Label htmlFor="security-rec" className="text-sm font-normal cursor-pointer">
-          Añadir recomendación de seguridad ("no compartas este código")
+          Añadir recomendación de seguridad (&quot;no compartas este código&quot;)
         </Label>
       </div>
     </div>
