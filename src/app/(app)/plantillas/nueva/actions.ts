@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings } from "@/lib/org/settings";
-import { MetaApiError, credsFromSettings, createTemplate } from "@/lib/meta/graph";
+import { MetaApiError, credsFromSettings, createTemplate, createAuthTemplate } from "@/lib/meta/graph";
 import { templateCardMedia } from "@/lib/db/schema";
 import type { CardInput } from "@/lib/meta/types";
 
@@ -181,5 +181,62 @@ export async function createCarouselTemplateAction(input: {
   } catch (e) {
     if (e instanceof MetaApiError) return { ok: false, error: e.message };
     return { ok: false, error: e instanceof Error ? e.message : "Error al crear" };
+  }
+}
+
+export type CreateAuthResult =
+  | { ok: true; id: string; status: string; name: string }
+  | { ok: false; error: string; code?: number };
+
+export async function createAuthTemplateAction(input: {
+  name: string;
+  language: string;
+  buttonText: string;
+  codeExpirationMinutes: number | null;
+  addSecurityRecommendation: boolean;
+}): Promise<CreateAuthResult> {
+  const { orgId } = await requireOrg();
+  const settings = await getOrgSettings(db, orgId);
+  const creds = credsFromSettings(settings);
+  if (!creds) return { ok: false, error: "Configura tus credenciales de Meta primero" };
+
+  const parsed = nameSchema.safeParse(input.name);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: `Nombre: ${parsed.error.issues[0]?.message || "inválido"}`,
+    };
+  }
+
+  if (!input.buttonText.trim()) {
+    return { ok: false, error: "El texto del botón es obligatorio" };
+  }
+
+  if (input.codeExpirationMinutes !== null && (input.codeExpirationMinutes < 1 || input.codeExpirationMinutes > 90)) {
+    return { ok: false, error: "La caducidad debe estar entre 1 y 90 minutos (o vacío)" };
+  }
+
+  try {
+    const res = await createAuthTemplate(creds, {
+      name: input.name,
+      language: input.language,
+      buttonText: input.buttonText,
+      codeExpirationMinutes: input.codeExpirationMinutes,
+      addSecurityRecommendation: input.addSecurityRecommendation,
+    });
+    return {
+      ok: true,
+      id: res.id,
+      status: res.status,
+      name: input.name,
+    };
+  } catch (e) {
+    if (e instanceof MetaApiError) {
+      return { ok: false, error: e.message, code: e.code };
+    }
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al crear",
+    };
   }
 }

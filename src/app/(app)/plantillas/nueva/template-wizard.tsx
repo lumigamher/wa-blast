@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listBodyVariableIndices } from "@/lib/template-vars";
-import { validateDatos, validateContenido, validateBotones, validateTarjetas } from "@/lib/template-validation";
-import { createTemplateAction, createCarouselTemplateAction } from "./actions";
+import { validateDatos, validateContenido, validateBotones, validateTarjetas, validateAuth } from "@/lib/template-validation";
+import { createTemplateAction, createCarouselTemplateAction, createAuthTemplateAction } from "./actions";
 import { CarouselValue, emptyCard } from "./carousel-builder";
 import { LivePreview } from "./live-preview";
 import { StepType } from "./steps/step-type";
@@ -15,12 +15,13 @@ import { StepDatos } from "./steps/step-datos";
 import { StepContenido } from "./steps/step-contenido";
 import { StepBotones } from "./steps/step-botones";
 import { StepTarjetas } from "./steps/step-tarjetas";
+import { StepAuth } from "./steps/step-auth";
 import { StepRevisar } from "./steps/step-revisar";
 
 export type ButtonState = { id: string; kind: "QUICK_REPLY" | "URL" | "FLOW"; text: string; url: string; flowId?: string };
 export type FlowOption = { id: string; name: string };
 export type TemplateDraft = {
-  type: "standard" | "carousel";
+  type: "standard" | "carousel" | "auth";
   name: string;
   language: string;
   category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
@@ -35,6 +36,9 @@ export type TemplateDraft = {
   footerText: string;
   buttons: ButtonState[];
   carousel: CarouselValue;
+  otpButtonText: string;
+  codeExpirationMinutes: number | null;
+  addSecurityRecommendation: boolean;
 };
 
 const INITIAL: TemplateDraft = {
@@ -53,15 +57,19 @@ const INITIAL: TemplateDraft = {
   footerText: "",
   buttons: [],
   carousel: { cards: [emptyCard(), emptyCard()] },
+  otpButtonText: "Copiar código",
+  codeExpirationMinutes: 10,
+  addSecurityRecommendation: true,
 };
 
-type StepId = "type" | "datos" | "contenido" | "botones" | "tarjetas" | "revisar";
+type StepId = "type" | "datos" | "contenido" | "botones" | "tarjetas" | "auth" | "revisar";
 const STEP_LABEL: Record<StepId, string> = {
   type: "Tipo",
   datos: "Datos",
   contenido: "Contenido",
   botones: "Botones",
   tarjetas: "Tarjetas",
+  auth: "Autenticación",
   revisar: "Revisar",
 };
 
@@ -75,10 +83,20 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
   const [stepIdx, setStepIdx] = useState(0);
   const [pending, startTransition] = useTransition();
 
-  const update = (patch: Partial<TemplateDraft>) => setDraft((d) => ({ ...d, ...patch }));
+  const update = (patch: Partial<TemplateDraft>) => {
+    // Auto-set category to AUTHENTICATION when type is auth
+    if (patch.type === "auth" && !patch.category) {
+      patch = { ...patch, category: "AUTHENTICATION" };
+    }
+    setDraft((d) => ({ ...d, ...patch }));
+  };
 
   const steps: StepId[] = useMemo(
-    () => (draft.type === "carousel" ? ["type", "datos", "tarjetas", "revisar"] : ["type", "datos", "contenido", "botones", "revisar"]),
+    () => {
+      if (draft.type === "carousel") return ["type", "datos", "tarjetas", "revisar"];
+      if (draft.type === "auth") return ["type", "datos", "auth", "revisar"];
+      return ["type", "datos", "contenido", "botones", "revisar"];
+    },
     [draft.type],
   );
   const current = steps[Math.min(stepIdx, steps.length - 1)];
@@ -88,6 +106,7 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
     if (id === "contenido") return validateContenido({ ...draft, uploading });
     if (id === "botones") return validateBotones(draft.buttons);
     if (id === "tarjetas") return validateTarjetas(draft.carousel);
+    if (id === "auth") return validateAuth(draft);
     return [];
   };
   const canAdvance = stepErrors(current).length === 0;
@@ -101,6 +120,24 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
     const blocking = steps.flatMap(stepErrors);
     if (blocking.length > 0) {
       toast.error(blocking[0]);
+      return;
+    }
+    if (draft.type === "auth") {
+      startTransition(async () => {
+        const res = await createAuthTemplateAction({
+          name: draft.name,
+          language: draft.language,
+          buttonText: draft.otpButtonText,
+          codeExpirationMinutes: draft.codeExpirationMinutes && draft.codeExpirationMinutes >= 1 ? draft.codeExpirationMinutes : null,
+          addSecurityRecommendation: draft.addSecurityRecommendation,
+        });
+        if (!res.ok) {
+          toast.error(res.error);
+          return;
+        }
+        toast.success(`Plantilla "${res.name}" enviada a Meta (${res.status}).`, { duration: 8000 });
+        reset();
+      });
       return;
     }
     if (draft.type === "carousel") {
@@ -178,6 +215,7 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
             {current === "contenido" && <StepContenido draft={draft} update={update} uploading={uploading} setUploading={setUploading} />}
             {current === "botones" && <StepBotones draft={draft} update={update} flows={flows} />}
             {current === "tarjetas" && <StepTarjetas draft={draft} update={update} />}
+            {current === "auth" && <StepAuth draft={draft} update={update} />}
             {current === "revisar" && <StepRevisar draft={draft} />}
 
             {stepErrors(current).length > 0 && current !== "type" && (

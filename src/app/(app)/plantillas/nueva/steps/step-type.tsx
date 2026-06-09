@@ -7,7 +7,7 @@ const TYPES = [
   { id: "standard", label: "Estándar", desc: "Texto, imagen/video, botones", Icon: MessageSquareIcon, enabled: true },
   { id: "carousel", label: "Carrusel", desc: "Tarjetas deslizables con media", Icon: LayoutGridIcon, enabled: true },
   { id: "flow", label: "Flow", desc: "Formularios interactivos", Icon: Layers2Icon, enabled: false },
-  { id: "auth", label: "Auth / OTP", desc: "Códigos de verificación", Icon: ShieldCheckIcon, enabled: false },
+  { id: "auth", label: "Autenticación / OTP", desc: "Código de verificación con botón Copiar código", Icon: ShieldCheckIcon, enabled: true },
 ] as const;
 
 export function StepType({ draft, update }: { draft: TemplateDraft; update: (p: Partial<TemplateDraft>) => void }) {

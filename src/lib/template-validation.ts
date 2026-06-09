@@ -46,3 +46,15 @@ export function validateTarjetas(carousel: CarouselValue): string[] {
   if (carousel.cards.some((c) => !c.handle || !c.assetId)) errs.push("Cada tarjeta necesita una imagen o video");
   return errs;
 }
+
+export function validateAuth(d: { name: string; language: string; category: string; otpButtonText: string; codeExpirationMinutes: number | null }): string[] {
+  const errs: string[] = [];
+  if (!/^[a-z0-9_]{3,}$/.test(d.name)) errs.push("El nombre debe tener 3+ caracteres (minúsculas, números, _)");
+  if (!d.language) errs.push("Elige un idioma");
+  if (!d.category) errs.push("Elige una categoría");
+  if (!d.otpButtonText.trim()) errs.push("El texto del botón es obligatorio");
+  if (d.codeExpirationMinutes !== null && (d.codeExpirationMinutes < 1 || d.codeExpirationMinutes > 90)) {
+    errs.push("La caducidad debe estar entre 1 y 90 minutos");
+  }
+  return errs;
+}

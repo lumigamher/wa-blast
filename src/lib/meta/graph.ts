@@ -247,6 +247,38 @@ export async function getPhoneHealth(creds: GraphCreds): Promise<PhoneHealth> {
   );
 }
 
+export async function createAuthTemplate(
+  creds: GraphCreds,
+  input: { name: string; language: string; buttonText: string; codeExpirationMinutes: number | null; addSecurityRecommendation: boolean },
+): Promise<{ id: string; status: string }> {
+  const components: Array<Record<string, unknown>> = [
+    { type: "BODY", add_security_recommendation: input.addSecurityRecommendation },
+  ];
+  if (input.codeExpirationMinutes && input.codeExpirationMinutes >= 1 && input.codeExpirationMinutes <= 90) {
+    components.push({ type: "FOOTER", code_expiration_minutes: input.codeExpirationMinutes });
+  }
+  components.push({
+    type: "BUTTONS",
+    buttons: [
+      {
+        type: "OTP",
+        otp_type: "COPY_CODE",
+        text: input.buttonText || "Copiar código",
+      },
+    ],
+  });
+  return request(creds, `/${creds.wabaId}/message_templates`, {
+    method: "POST",
+    body: JSON.stringify({
+      name: input.name,
+      language: input.language,
+      category: "AUTHENTICATION",
+      allow_category_change: false,
+      components,
+    }),
+  });
+}
+
 export function credsFromSettings(settings: {
   metaAccessToken: string | null;
   metaWabaId: string | null;

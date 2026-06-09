@@ -20,6 +20,30 @@ export function LivePreview({ draft }: { draft: TemplateDraft }) {
     );
   }
 
+  if (draft.type === "auth") {
+    return (
+      <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+        <div className="space-y-2">
+          <p className="text-sm font-medium">WhatsApp</p>
+          <div className="rounded-lg bg-slate-50 p-3 text-sm space-y-2">
+            <p><strong>123456</strong> es tu código de verificación.</p>
+            {draft.addSecurityRecommendation && (
+              <p className="text-xs text-muted-foreground">Por tu seguridad, no compartas este código.</p>
+            )}
+            {draft.codeExpirationMinutes && (
+              <p className="text-xs text-muted-foreground">Este código caduca en {draft.codeExpirationMinutes} minutos.</p>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button className="flex-1 rounded border border-slate-300 bg-white py-2 px-3 text-xs font-medium hover:bg-slate-50 transition">
+            {draft.otpButtonText || "Copiar código"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const bodyVars = listBodyVariableIndices(draft.bodyText);
   const headerComponent =
     draft.headerKind === "TEXT" && draft.headerText
