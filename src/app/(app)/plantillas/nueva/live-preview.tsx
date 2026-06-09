@@ -44,6 +44,50 @@ export function LivePreview({ draft }: { draft: TemplateDraft }) {
     );
   }
 
+  if (draft.type === "flow") {
+    const bodyVars = listBodyVariableIndices(draft.bodyText);
+    const headerComponent =
+      draft.headerKind === "TEXT" && draft.headerText
+        ? { type: "HEADER" as const, format: "TEXT", text: draft.headerText }
+        : draft.headerKind === "IMAGE" || draft.headerKind === "VIDEO" || draft.headerKind === "DOCUMENT"
+          ? { type: "HEADER" as const, format: draft.headerKind }
+          : null;
+    const template: WhatsAppTemplate = {
+      id: "__preview__",
+      name: "preview",
+      category: "UTILITY",
+      language: "es_CO",
+      status: "APPROVED",
+      components: [
+        ...(headerComponent ? [headerComponent] : []),
+        { type: "BODY" as const, text: draft.bodyText || "…" },
+        ...(draft.hasFooter && draft.footerText ? [{ type: "FOOTER" as const, text: draft.footerText }] : []),
+        {
+          type: "BUTTONS" as const,
+          buttons: [{ type: "FLOW", text: draft.flowButtonText || "(botón)" }],
+        },
+      ],
+    };
+    const values: Record<string, string> = {};
+    for (const idx of bodyVars) {
+      const v = draft.bodyExample[idx];
+      if (v?.trim()) values[String(idx)] = v;
+    }
+    return (
+      <WhatsAppBubble
+        template={template}
+        values={values}
+        highlightVars
+        size="md"
+        mediaPreview={
+          draft.headerPreviewUrl || draft.headerFileName
+            ? { url: draft.headerPreviewUrl ?? undefined, fileName: draft.headerFileName ?? undefined }
+            : undefined
+        }
+      />
+    );
+  }
+
   const bodyVars = listBodyVariableIndices(draft.bodyText);
   const headerComponent =
     draft.headerKind === "TEXT" && draft.headerText

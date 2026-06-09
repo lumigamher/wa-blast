@@ -16,12 +16,13 @@ import { StepContenido } from "./steps/step-contenido";
 import { StepBotones } from "./steps/step-botones";
 import { StepTarjetas } from "./steps/step-tarjetas";
 import { StepAuth } from "./steps/step-auth";
+import { StepFlowBtn } from "./steps/step-flowbtn";
 import { StepRevisar } from "./steps/step-revisar";
 
 export type ButtonState = { id: string; kind: "QUICK_REPLY" | "URL" | "FLOW"; text: string; url: string; flowId?: string };
 export type FlowOption = { id: string; name: string };
 export type TemplateDraft = {
-  type: "standard" | "carousel" | "auth";
+  type: "standard" | "carousel" | "auth" | "flow";
   name: string;
   language: string;
   category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
@@ -39,6 +40,8 @@ export type TemplateDraft = {
   otpButtonText: string;
   codeExpirationMinutes: number | null;
   addSecurityRecommendation: boolean;
+  flowButtonFlowId: string;
+  flowButtonText: string;
 };
 
 const INITIAL: TemplateDraft = {
@@ -60,9 +63,11 @@ const INITIAL: TemplateDraft = {
   otpButtonText: "Copiar código",
   codeExpirationMinutes: 10,
   addSecurityRecommendation: true,
+  flowButtonFlowId: "",
+  flowButtonText: "Abrir formulario",
 };
 
-type StepId = "type" | "datos" | "contenido" | "botones" | "tarjetas" | "auth" | "revisar";
+type StepId = "type" | "datos" | "contenido" | "botones" | "tarjetas" | "auth" | "flowbtn" | "revisar";
 const STEP_LABEL: Record<StepId, string> = {
   type: "Tipo",
   datos: "Datos",
@@ -70,6 +75,7 @@ const STEP_LABEL: Record<StepId, string> = {
   botones: "Botones",
   tarjetas: "Tarjetas",
   auth: "Autenticación",
+  flowbtn: "Botón Flow",
   revisar: "Revisar",
 };
 
@@ -95,6 +101,7 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
     () => {
       if (draft.type === "carousel") return ["type", "datos", "tarjetas", "revisar"];
       if (draft.type === "auth") return ["type", "datos", "auth", "revisar"];
+      if (draft.type === "flow") return ["type", "datos", "contenido", "flowbtn", "revisar"];
       return ["type", "datos", "contenido", "botones", "revisar"];
     },
     [draft.type],
@@ -107,6 +114,12 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
     if (id === "botones") return validateBotones(draft.buttons);
     if (id === "tarjetas") return validateTarjetas(draft.carousel);
     if (id === "auth") return validateAuth(draft);
+    if (id === "flowbtn") {
+      const errors: string[] = [];
+      if (!draft.flowButtonFlowId.trim()) errors.push("Elige un Flow publicado");
+      if (!draft.flowButtonText.trim()) errors.push("El texto del botón es obligatorio");
+      return errors;
+    }
     return [];
   };
   const canAdvance = stepErrors(current).length === 0;
@@ -166,6 +179,29 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
       });
       return;
     }
+    if (draft.type === "flow") {
+      startTransition(async () => {
+        const res = await createTemplateAction({
+          name: draft.name,
+          language: draft.language,
+          category: draft.category,
+          headerType: draft.headerKind,
+          headerText: draft.headerKind === "TEXT" ? draft.headerText.trim() : null,
+          headerHandle: draft.headerHandle ?? null,
+          bodyText: draft.bodyText,
+          bodyExample: listExamples(draft),
+          footerText: draft.hasFooter ? draft.footerText.trim() : null,
+          buttons: [{ type: "FLOW" as const, text: draft.flowButtonText, flow_id: draft.flowButtonFlowId }],
+        });
+        if (!res.ok) {
+          toast.error(res.error);
+        } else {
+          toast.success(`Plantilla "${res.name}" enviada a Meta (${res.status}).`, { duration: 8000 });
+          reset();
+        }
+      });
+      return;
+    }
     startTransition(async () => {
       const res = await createTemplateAction({
         name: draft.name,
@@ -216,6 +252,7 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
             {current === "botones" && <StepBotones draft={draft} update={update} flows={flows} />}
             {current === "tarjetas" && <StepTarjetas draft={draft} update={update} />}
             {current === "auth" && <StepAuth draft={draft} update={update} />}
+            {current === "flowbtn" && <StepFlowBtn draft={draft} update={update} flows={flows} />}
             {current === "revisar" && <StepRevisar draft={draft} />}
 
             {stepErrors(current).length > 0 && current !== "type" && (
