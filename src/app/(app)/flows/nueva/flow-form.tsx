@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { SparklesIcon } from "lucide-react";
+import { SparklesIcon, ExternalLinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,7 @@ export function FlowForm() {
   const [generating, startGen] = useTransition();
   const [creating, startCreate] = useTransition();
   const [previewing, startPreview] = useTransition();
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const jsonValid = (() => { try { JSON.parse(flowJson); return true; } catch { return false; } })();
 
@@ -58,8 +59,8 @@ export function FlowForm() {
     startPreview(async () => {
       const res = await previewFlowAction({ name, flowJson });
       if (!res.ok) { toast.error(res.error); return; }
-      window.open(res.previewUrl, "_blank");
-      toast.success("Vista previa abierta en otra pestaña");
+      setPreviewUrl(res.previewUrl);
+      toast.success("Vista previa lista abajo");
     });
   }
 
@@ -95,9 +96,26 @@ export function FlowForm() {
           <textarea value={flowJson} onChange={(e) => setFlowJson(e.target.value)} rows={18} spellCheck={false}
             className="w-full rounded-md border bg-background px-3 py-2 font-mono text-xs" />
           <p className={`text-[11px] ${jsonValid ? "text-muted-foreground" : "text-destructive"}`}>{jsonValid ? "JSON válido. Meta lo validará al publicar." : "JSON inválido"}</p>
-          <p className="text-[11px] text-muted-foreground">Crea un borrador en Meta y abre su vista previa oficial.</p>
+          <p className="text-[11px] text-muted-foreground">Crea un borrador en Meta y muestra su vista previa oficial aquí abajo (interactiva).</p>
         </CardContent>
       </Card>
+
+      {previewUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Vista previa</span>
+              <a href={previewUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground hover:underline">
+                Abrir en pestaña <ExternalLinkIcon className="size-3" />
+              </a>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <iframe src={previewUrl} title="Vista previa del Flow" className="w-full rounded-md border bg-white" style={{ height: 640 }} />
+            <p className="mt-2 text-[11px] text-muted-foreground">Vista interactiva oficial de Meta — recorre las pantallas del Flow aquí mismo.</p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex items-center justify-end gap-3">
         <Link href="/flows" className="text-sm text-muted-foreground hover:underline">Cancelar</Link>
