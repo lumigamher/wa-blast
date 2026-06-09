@@ -24,7 +24,8 @@ export function StepDatos({ draft, update }: { draft: TemplateDraft; update: (p:
         <Input
           id="tpl-name"
           value={draft.name}
-          onChange={(e) => update({ name: normalizeTemplateName(e.target.value) })}
+          onChange={(e) => update({ name: normalizeTemplateName(e.target.value, { live: true }) })}
+          onBlur={() => update({ name: normalizeTemplateName(draft.name) })}
           placeholder="Promo Oro Día"
           className="font-mono"
         />
