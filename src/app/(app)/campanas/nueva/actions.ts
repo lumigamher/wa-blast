@@ -1,13 +1,13 @@
 "use server";
 
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { createCampaign } from "@/lib/campaigns/create";
 import { getWorker } from "@/lib/campaigns/worker";
 import { resolveVarMapping } from "@/lib/campaigns/build-carousel-plan";
-import { contactTags, contacts } from "@/lib/db/schema";
+import { campaignRecipients, campaigns, contactTags, contacts } from "@/lib/db/schema";
 
 const inputSchema = z.object({
   name: z.string().min(1),
@@ -34,11 +34,41 @@ const inputSchema = z.object({
     )
     .optional(),
   scheduledAt: z.string().optional().nullable(),
+  force: z.boolean().optional(),
 });
 
 export type CreateCampaignResult =
   | { ok: true; campaignId: string; scheduled: boolean }
-  | { ok: false; error: string };
+  | { ok: false; error: string; duplicate?: boolean };
+
+/**
+ * Anti-footgun: si en los últimos 10 min ya salió una campaña con la misma plantilla
+ * y ≥50% de los mismos números, casi seguro es un doble click / reenvío accidental.
+ */
+async function findRecentDuplicate(
+  orgId: string,
+  templateName: string,
+  phones: string[],
+): Promise<{ name: string; overlap: number } | null> {
+  if (phones.length === 0) return null;
+  const since = new Date(Date.now() - 10 * 60_000);
+  const recent = await db
+    .select({ id: campaigns.id, name: campaigns.name })
+    .from(campaigns)
+    .where(and(eq(campaigns.orgId, orgId), eq(campaigns.templateName, templateName), gt(campaigns.createdAt, since)));
+  if (recent.length === 0) return null;
+
+  const newSet = new Set(phones);
+  for (const camp of recent) {
+    const rows = await db
+      .select({ phone: campaignRecipients.phone })
+      .from(campaignRecipients)
+      .where(eq(campaignRecipients.campaignId, camp.id));
+    const overlap = rows.filter((r) => newSet.has(r.phone)).length;
+    if (overlap / newSet.size >= 0.5) return { name: camp.name, overlap };
+  }
+  return null;
+}
 
 export async function createCampaignAction(input: unknown): Promise<CreateCampaignResult> {
   const { orgId, session } = await requireOrg();
@@ -122,6 +152,17 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
   }
 
   if (recipients.length === 0) return { ok: false, error: "No hay destinatarios válidos" };
+
+  if (!data.force) {
+    const dup = await findRecentDuplicate(orgId, data.templateName, recipients.map((r) => r.phone));
+    if (dup) {
+      return {
+        ok: false,
+        duplicate: true,
+        error: `Hace menos de 10 minutos enviaste "${dup.name}" con esta misma plantilla a ${dup.overlap} de estos números. ¿Enviar de todas formas?`,
+      };
+    }
+  }
 
   const { campaignId } = await createCampaign(db, {
     orgId,

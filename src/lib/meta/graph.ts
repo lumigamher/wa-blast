@@ -42,8 +42,16 @@ async function request<T>(creds: GraphCreds, path: string, init: RequestInit = {
   const text = await res.text();
   const body = text ? safeJson(text) : null;
   if (!res.ok) {
-    const err = (body as { error?: { message?: string; code?: number; error_subcode?: number } } | null)?.error;
-    throw new MetaApiError(err?.code ?? res.status, err?.error_subcode, body, err?.message ?? `Meta ${res.status}`);
+    const err = (body as {
+      error?: { message?: string; code?: number; error_subcode?: number; error_user_title?: string; error_user_msg?: string };
+    } | null)?.error;
+    // error_user_msg trae la causa concreta (p.ej. qué parámetro es inválido); sin él
+    // solo llega el genérico "(#100) Invalid parameter".
+    const detail = [err?.message ?? `Meta ${res.status}`, err?.error_user_title, err?.error_user_msg]
+      .filter(Boolean)
+      .join(" — ");
+    console.error(`[meta] ${init.method ?? "GET"} ${path} → ${res.status}:`, text);
+    throw new MetaApiError(err?.code ?? res.status, err?.error_subcode, body, detail);
   }
   return body as T;
 }

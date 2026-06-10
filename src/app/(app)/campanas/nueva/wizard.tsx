@@ -101,6 +101,26 @@ export function Wizard({
     toast.success(`${parsed.length} filas cargadas`);
   }
 
+  function launch(payload: Record<string, unknown> & { force?: boolean }) {
+    startTransition(async () => {
+      const res = await createCampaignAction(payload);
+      if (!res.ok) {
+        if (res.duplicate) {
+          // Posible doble envío: pedir confirmación explícita antes de repetir.
+          toast.warning(res.error, {
+            duration: 15000,
+            action: { label: "Enviar igual", onClick: () => launch({ ...payload, force: true }) },
+          });
+          return;
+        }
+        toast.error(res.error);
+        return;
+      }
+      toast.success(res.scheduled ? "Campaña programada" : "Campaña disparada");
+      router.push(`/campanas/${res.campaignId}`);
+    });
+  }
+
   function submit() {
     if (!selected) return toast.error("Selecciona una plantilla");
     if (!name.trim()) return toast.error("Ponle un nombre a la campaña");
@@ -146,15 +166,7 @@ export function Wizard({
         scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
       };
 
-      startTransition(async () => {
-        const res = await createCampaignAction(payload);
-        if (!res.ok) {
-          toast.error(res.error);
-          return;
-        }
-        toast.success(res.scheduled ? "Campaña programada" : "Campaña disparada");
-        router.push(`/campanas/${res.campaignId}`);
-      });
+      launch(payload);
       return;
     }
 
@@ -180,15 +192,7 @@ export function Wizard({
       scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
     };
 
-    startTransition(async () => {
-      const res = await createCampaignAction(payload);
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success(res.scheduled ? "Campaña programada" : "Campaña disparada");
-      router.push(`/campanas/${res.campaignId}`);
-    });
+    launch(payload);
   }
 
   if (approved.length === 0) {

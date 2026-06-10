@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeftIcon, DownloadIcon, RotateCcwIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { retryFailedAction } from "./actions";
 
 type Campaign = {
   id: string;
@@ -33,6 +37,8 @@ type Recipient = {
 export function Live({ campaignId, initial }: { campaignId: string; initial: Campaign }) {
   const [data, setData] = useState(initial);
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [retrying, startRetry] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     let active = true;
@@ -112,11 +118,43 @@ export function Live({ campaignId, initial }: { campaignId: string; initial: Cam
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Destinatarios</CardTitle>
-          <CardDescription className="text-xs">
-            {isTerminal ? "Detalle final." : "Actualiza automáticamente."}
-          </CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <CardTitle className="text-sm">Destinatarios</CardTitle>
+            <CardDescription className="text-xs">
+              {isTerminal ? "Detalle final." : "Actualiza automáticamente."}
+            </CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={`/api/campaigns/${campaignId}/export`}
+              download
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <DownloadIcon className="size-3.5" /> Exportar CSV
+            </a>
+            {isTerminal && data.failed > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={retrying}
+                onClick={() =>
+                  startRetry(async () => {
+                    const res = await retryFailedAction(campaignId);
+                    if (!res.ok) {
+                      toast.error(res.error);
+                      return;
+                    }
+                    toast.success(`Reintentando ${res.total} fallidos en una campaña nueva.`);
+                    router.push(`/campanas/${res.campaignId}`);
+                  })
+                }
+              >
+                <RotateCcwIcon className="size-3.5" />
+                {retrying ? "Creando…" : `Reintentar fallidos (${data.failed})`}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-hidden rounded-md border">
