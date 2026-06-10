@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeftIcon, DownloadIcon, RotateCcwIcon } from "lucide-react";
+import { ArrowLeftIcon, CopyIcon, DownloadIcon, RotateCcwIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -126,6 +126,12 @@ export function Live({ campaignId, initial }: { campaignId: string; initial: Cam
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            <Link
+              href={`/campanas/nueva?template=${encodeURIComponent(`${data.templateName}|${data.templateLanguage}`)}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <CopyIcon className="size-3.5" /> Duplicar
+            </Link>
             <a
               href={`/api/campaigns/${campaignId}/export`}
               download

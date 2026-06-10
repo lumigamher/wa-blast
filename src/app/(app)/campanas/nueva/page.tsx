@@ -10,7 +10,12 @@ import { Wizard } from "./wizard";
 
 export const dynamic = "force-dynamic";
 
-export default async function NuevaCampanaPage() {
+export default async function NuevaCampanaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ template?: string }>;
+}) {
+  const { template: initialTemplateKey } = await searchParams;
   const { orgId } = await requireOrg();
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
@@ -73,6 +78,7 @@ export default async function NuevaCampanaPage() {
         templates={templates}
         tags={tagRows.map((t) => ({ id: t.id, name: t.name, color: t.color, count: Number(t.count) }))}
         prefillMedia={prefillMedia}
+        initialTemplateKey={initialTemplateKey}
       />
     </div>
   );

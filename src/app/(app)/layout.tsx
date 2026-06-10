@@ -13,6 +13,7 @@ import {
 import { requireSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { NavGroup, NavLink } from "./_components/nav-link";
 
 const NAV_ITEMS = [
@@ -63,6 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <div className="truncate text-xs font-medium">{session.user.name ?? session.user.email}</div>
               <div className="truncate text-[10px] text-muted-foreground">{session.user.email}</div>
             </div>
+            <ThemeToggle />
             <form action={logoutAction}>
               <button
                 type="submit"

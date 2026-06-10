@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { SearchIcon, UploadIcon, UsersIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { listContactsAction } from "./actions";
+import { OptOutToggle } from "./_optout-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -89,11 +89,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{r.email ?? "—"}</td>
                       <td className="px-3 py-2">
-                        {r.optOutAt ? (
-                          <Badge variant="destructive">opt-out</Badge>
-                        ) : (
-                          <Badge variant="outline">activo</Badge>
-                        )}
+                        <OptOutToggle contactId={r.id} optedOut={Boolean(r.optOutAt)} />
                       </td>
                     </tr>
                   ))}

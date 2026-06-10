@@ -102,3 +102,21 @@ export async function commitImportAction(
 	revalidatePath("/contactos");
 	return { ...result, totalValid: valid.length };
 }
+
+export async function toggleOptOutAction(
+	contactId: string,
+): Promise<{ ok: boolean; optedOut?: boolean }> {
+	const { orgId } = await requireOrg();
+	const [row] = await db
+		.select({ id: contacts.id, optOutAt: contacts.optOutAt })
+		.from(contacts)
+		.where(and(eq(contacts.orgId, orgId), eq(contacts.id, contactId)));
+	if (!row) return { ok: false };
+	const optedOut = !row.optOutAt;
+	await db
+		.update(contacts)
+		.set({ optOutAt: optedOut ? new Date() : null })
+		.where(eq(contacts.id, contactId));
+	revalidatePath("/contactos");
+	return { ok: true, optedOut };
+}

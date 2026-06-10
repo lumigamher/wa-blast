@@ -31,19 +31,24 @@ export function Wizard({
   templates,
   tags,
   prefillMedia = {},
+  initialTemplateKey,
 }: {
   templates: WhatsAppTemplate[];
   tags: TagRow[];
   prefillMedia?: Record<string, Record<number, string>>;
+  initialTemplateKey?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [isPending, startTransition] = useTransition();
 
   const approved = useMemo(() => templates.filter((t) => t.status === "APPROVED"), [templates]);
-  const [selectedKey, setSelectedKey] = useState<string>(
-    approved[0] ? `${approved[0].name}|${approved[0].language}` : "",
-  );
+  const [selectedKey, setSelectedKey] = useState<string>(() => {
+    if (initialTemplateKey && approved.some((t) => `${t.name}|${t.language}` === initialTemplateKey)) {
+      return initialTemplateKey;
+    }
+    return approved[0] ? `${approved[0].name}|${approved[0].language}` : "";
+  });
   const selected = useMemo(
     () => approved.find((t) => `${t.name}|${t.language}` === selectedKey),
     [approved, selectedKey],
