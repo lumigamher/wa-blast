@@ -37,6 +37,16 @@ export const auth = betterAuth({
     organization({
       allowUserToCreateOrganization: true,
       creatorRole: "owner",
+      async sendInvitationEmail(data) {
+        const url = `${env.BETTER_AUTH_URL}/aceptar-invitacion/${data.id}`;
+        await sendEmail(
+          data.email,
+          `Te invitaron a ${data.organization.name} en wa-blast`,
+          `<p>${data.inviter.user.name ?? data.inviter.user.email} te invitó a unirte a <b>${data.organization.name}</b> en wa-blast.</p>
+           <p><a href="${url}">Aceptar invitación</a></p>
+           <p style="color:#666;font-size:12px">Si no tienes cuenta, créala primero con este mismo correo y vuelve a abrir el enlace.</p>`,
+        );
+      },
     }),
     nextCookies(),
   ],
