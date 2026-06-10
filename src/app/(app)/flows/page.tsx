@@ -7,6 +7,7 @@ import { listFlows, type Flow } from "@/lib/meta/flows";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { SendFlowForm } from "./send-flow-form";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function FlowsPage() {
           {flows.map((flow) => (
             <Card key={flow.id} className="p-4">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1">
                   <h2 className="font-medium text-sm">{flow.name}</h2>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {flow.categories?.map((cat: string) => (
@@ -63,6 +64,7 @@ export default async function FlowsPage() {
                       </Badge>
                     ))}
                   </div>
+                  {flow.status === "PUBLISHED" && <SendFlowForm flowId={flow.id} flowName={flow.name} />}
                 </div>
                 <Badge variant={flow.status === "PUBLISHED" ? "default" : "secondary"} className="text-xs">
                   {flow.status}
