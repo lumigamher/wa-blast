@@ -2,8 +2,8 @@ import { and, eq, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { campaignRecipients, campaigns } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
-import { sendTemplate } from "@/lib/meta/client";
-import { buildSendComponents, type ComponentPlan } from "./component-plan";
+import { sendTemplate, sendFlow } from "@/lib/meta/client";
+import { buildSendComponents, type ComponentPlan, type FlowPlan } from "./component-plan";
 import { TokenBucket } from "./rate-limit";
 
 export interface SenderWorker {
@@ -30,23 +30,36 @@ export class InProcessSenderWorker implements SenderWorker {
     for (const rec of pending) {
       await bucket.take();
 
-      const params = JSON.parse(rec.params) as Record<string, string>;
-      let components: unknown[];
-      if (camp.componentPlanJson) {
-        components = buildSendComponents(JSON.parse(camp.componentPlanJson) as ComponentPlan, params);
-      } else {
-        components =
-          Object.keys(params).length > 0
-            ? [{ type: "body", parameters: Object.values(params).map((v) => ({ type: "text", text: v })) }]
-            : [];
-      }
+      const plan = camp.componentPlanJson ? JSON.parse(camp.componentPlanJson) as ComponentPlan : null;
+      let result;
 
-      const result = await sendTemplate(settings, {
-        to: rec.phone,
-        templateName: camp.templateName,
-        language: camp.templateLanguage,
-        components,
-      });
+      if (plan && plan.kind === "flow") {
+        const flowPlan = plan as FlowPlan;
+        result = await sendFlow(settings, {
+          to: rec.phone,
+          flowId: flowPlan.flowId,
+          cta: flowPlan.cta,
+          bodyText: flowPlan.bodyText,
+        });
+      } else {
+        const params = JSON.parse(rec.params) as Record<string, string>;
+        let components: unknown[];
+        if (plan && (plan.kind === "standard" || plan.kind === "carousel")) {
+          components = buildSendComponents(plan, params);
+        } else {
+          components =
+            Object.keys(params).length > 0
+              ? [{ type: "body", parameters: Object.values(params).map((v) => ({ type: "text", text: v })) }]
+              : [];
+        }
+
+        result = await sendTemplate(settings, {
+          to: rec.phone,
+          templateName: camp.templateName,
+          language: camp.templateLanguage,
+          components,
+        });
+      }
 
       const now = new Date();
       if ("error" in result) {

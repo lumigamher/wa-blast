@@ -7,6 +7,13 @@ export type SendTemplateParams = {
   components?: unknown[];
 };
 
+export type SendFlowParams = {
+  to: string;
+  flowId: string;
+  cta: string;
+  bodyText: string;
+};
+
 export type MetaError = {
   code: number;
   message: string;
@@ -35,6 +42,50 @@ export async function sendTemplate(
         name: p.templateName,
         language: { code: p.language },
         components: p.components ?? [],
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: { code: number; message: string } };
+    return { error: classify(body.error?.code, body.error?.message) };
+  }
+  const body = (await res.json()) as { messages: { id: string }[] };
+  return { wamid: body.messages[0].id };
+}
+
+export async function sendFlow(
+  settings: DecryptedSettings,
+  p: SendFlowParams,
+): Promise<{ wamid: string } | { error: MetaError }> {
+  if (!settings.metaPhoneId || !settings.metaAccessToken) {
+    return { error: { code: 0, message: "Meta creds not configured", type: "auth" } };
+  }
+  const url = `https://graph.facebook.com/v22.0/${settings.metaPhoneId}/messages`;
+  const flowToken = `flow_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${settings.metaAccessToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: p.to.replace(/^\+/, ""),
+      type: "interactive",
+      interactive: {
+        type: "flow",
+        body: { text: p.bodyText },
+        action: {
+          name: "flow",
+          parameters: {
+            flow_message_version: "3",
+            flow_id: p.flowId,
+            flow_token: flowToken,
+            flow_cta: p.cta,
+            flow_action: "navigate",
+          },
+        },
       },
     }),
   });
