@@ -32,7 +32,8 @@ export async function createFlow(creds: GraphCreds, input: { name: string; categ
 }
 
 export async function publishFlow(creds: GraphCreds, flowId: string): Promise<{ success?: boolean }> {
-  return flowRequest(creds, `/${flowId}`, { method: "POST", body: JSON.stringify({ status: "PUBLISHED" }) });
+  // El endpoint de publicación es /{flowId}/publish (NO /{flowId} con status).
+  return flowRequest(creds, `/${flowId}/publish`, { method: "POST" });
 }
 
 export async function listFlows(creds: GraphCreds): Promise<Flow[]> {
