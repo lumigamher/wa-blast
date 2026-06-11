@@ -5,6 +5,7 @@ import { z } from "zod";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
+import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { getOrgSettings } from "@/lib/org/settings";
 import { MetaApiError, credsFromSettings, createTemplate, createAuthTemplate } from "@/lib/meta/graph";
 import { templateCardMedia } from "@/lib/db/schema";
@@ -50,6 +51,9 @@ function countBodyVariables(text: string): number {
 
 export async function createTemplateAction(input: unknown): Promise<CreateTemplateResult> {
   const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
   if (!creds) return { ok: false, error: "Configura credenciales de Meta en Configuración" };
@@ -125,6 +129,9 @@ export async function createCarouselTemplateAction(input: {
   cards: CarouselCardPayload[];
 }): Promise<CreateCarouselResult> {
   const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
   if (!creds) return { ok: false, error: "Configura tus credenciales de Meta primero" };
@@ -196,6 +203,9 @@ export async function createAuthTemplateAction(input: {
   addSecurityRecommendation: boolean;
 }): Promise<CreateAuthResult> {
   const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
   if (!creds) return { ok: false, error: "Configura tus credenciales de Meta primero" };

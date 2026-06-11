@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
+import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, MetaApiError } from "@/lib/meta/graph";
 import { createAndPublishFlow, createFlow, getFlowPreview, type FlowCategory } from "@/lib/meta/flows";
@@ -24,6 +25,9 @@ export async function generateFlowAction(request: string): Promise<GenerateFlowR
 export type CreateFlowResult = { ok: true; id: string; status: string } | { ok: false; error: string };
 export async function createFlowAction(input: { name: string; category: FlowCategory; flowJson: string }): Promise<CreateFlowResult> {
   const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
   if (!creds) return { ok: false, error: "Configura tus credenciales de Meta primero" };
@@ -45,6 +49,9 @@ export async function createFlowAction(input: { name: string; category: FlowCate
 export type PreviewFlowResult = { ok: true; flowId: string; previewUrl: string } | { ok: false; error: string };
 export async function previewFlowAction(input: { name: string; flowJson: string }): Promise<PreviewFlowResult> {
   const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
   if (!creds) return { ok: false, error: "Configura tus credenciales de Meta primero" };
@@ -72,6 +79,9 @@ export async function sendFlowAction(input: {
   bodyText: string;
 }): Promise<SendFlowResult> {
   const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const settings = await getOrgSettings(db, orgId);
 
   const to = input.to.trim();
@@ -109,6 +119,8 @@ export async function sendFlowBatchAction(input: {
   phones: string[];
 }): Promise<SendFlowBatchResult> {
   const { orgId, session } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
 
   if (!input.cta.trim()) return { ok: false, error: "Falta el texto del botón (CTA)" };
   if (!input.bodyText.trim()) return { ok: false, error: "Falta el mensaje" };

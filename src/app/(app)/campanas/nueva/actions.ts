@@ -4,6 +4,7 @@ import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
+import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { createCampaign } from "@/lib/campaigns/create";
 import { getWorker } from "@/lib/campaigns/worker";
 import { resolveVarMapping } from "@/lib/campaigns/build-carousel-plan";
@@ -72,6 +73,9 @@ async function findRecentDuplicate(
 
 export async function createCampaignAction(input: unknown): Promise<CreateCampaignResult> {
   const { orgId, session } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   const parsed = inputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Input inválido" };
   const data = parsed.data;
