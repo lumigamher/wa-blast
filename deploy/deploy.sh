@@ -6,7 +6,9 @@ HOST="${WA_BLAST_HOST:-root@158.220.123.213}"
 DIR=/opt/wa-blast
 
 echo "→ Empaquetando main y subiendo…"
-git archive main | ssh "$HOST" "mkdir -p $DIR && tar -x -C $DIR"
+# rm -rf src/drizzle antes de extraer: tar no borra archivos movidos/renombrados
+# (sin esto, un page.tsx viejo puede chocar con el nuevo y romper el build)
+git archive main | ssh "$HOST" "mkdir -p $DIR && rm -rf $DIR/src $DIR/drizzle && tar -x -C $DIR"
 
 echo "→ Build remoto…"
 ssh "$HOST" "cd $DIR && \
