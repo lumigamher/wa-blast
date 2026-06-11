@@ -13,7 +13,10 @@ import { getWorker } from "@/lib/campaigns/worker";
 
 export type GenerateFlowResult = { ok: true; flowJson: string } | { ok: false; error: string };
 export async function generateFlowAction(request: string): Promise<GenerateFlowResult> {
-  await requireOrg();
+  const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
   if (!request.trim()) return { ok: false, error: "Describe el formulario que quieres" };
   try {
     return { ok: true, flowJson: await generateFlowJson(request) };
