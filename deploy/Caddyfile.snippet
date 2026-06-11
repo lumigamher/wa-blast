@@ -1,0 +1,5 @@
+# Añadir al Caddyfile del VPS (158.220.123.213) y: caddy validate && systemctl reload caddy
+luladev.com {
+	encode gzip
+	reverse_proxy 127.0.0.1:3010
+}
