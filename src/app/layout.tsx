@@ -16,7 +16,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "wa-blast · Envíos masivos",
+  title: "Lula — WhatsApp para vender más",
   description: "Plataforma de envíos masivos de WhatsApp",
 };
 

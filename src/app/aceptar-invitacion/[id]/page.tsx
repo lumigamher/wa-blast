@@ -26,7 +26,7 @@ export default function AceptarInvitacionPage({ params }: { params: Promise<{ id
       if (data?.invitation.organizationId) {
         await authClient.organization.setActive({ organizationId: data.invitation.organizationId });
       }
-      router.push("/");
+      router.push("/panel");
     });
   }
 
@@ -38,7 +38,7 @@ export default function AceptarInvitacionPage({ params }: { params: Promise<{ id
             <UsersIcon className="size-5" /> Invitación a un equipo
           </CardTitle>
           <CardDescription>
-            Te invitaron a colaborar en una organización de wa-blast.
+            Te invitaron a colaborar en una organización de Lula.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

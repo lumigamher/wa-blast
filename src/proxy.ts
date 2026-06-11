@@ -6,6 +6,9 @@ const PUBLIC_PATHS = ["/login", "/signup", "/verify", "/reset-password", "/api/a
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  if (pathname === "/") {
+    return NextResponse.next();
+  }
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }

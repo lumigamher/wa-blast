@@ -21,7 +21,7 @@ export async function startCheckoutAction(): Promise<{ error: string } | never> 
   try {
     const result = await createCheckout(creds, {
       amountCop: price,
-      description: "Suscripción mensual wa-blast",
+      description: "Suscripción mensual Lula",
       webhookUrl: `${base}/api/webhook/efipay`,
       returnUrl: `${base}/facturacion/retorno`,
       reference: orgId,

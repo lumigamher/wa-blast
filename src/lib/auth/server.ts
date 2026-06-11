@@ -17,7 +17,7 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       await sendEmail(
         user.email,
-        "Reset your wa-blast password",
+        "Reset your Lula password",
         `<p>Click to reset: <a href="${url}">${url}</a></p>`,
       );
     },
@@ -28,7 +28,7 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail(
         user.email,
-        "Verify your wa-blast email",
+        "Verify your Lula email",
         `<p>Welcome! Verify your address: <a href="${url}">${url}</a></p>`,
       );
     },
@@ -41,8 +41,8 @@ export const auth = betterAuth({
         const url = `${env.BETTER_AUTH_URL}/aceptar-invitacion/${data.id}`;
         await sendEmail(
           data.email,
-          `Te invitaron a ${data.organization.name} en wa-blast`,
-          `<p>${data.inviter.user.name ?? data.inviter.user.email} te invitó a unirte a <b>${data.organization.name}</b> en wa-blast.</p>
+          `Te invitaron a ${data.organization.name} en Lula`,
+          `<p>${data.inviter.user.name ?? data.inviter.user.email} te invitó a unirte a <b>${data.organization.name}</b> en Lula.</p>
            <p><a href="${url}">Aceptar invitación</a></p>
            <p style="color:#666;font-size:12px">Si no tienes cuenta, créala primero con este mismo correo y vuelve a abrir el enlace.</p>`,
         );

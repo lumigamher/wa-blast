@@ -25,7 +25,7 @@ export default function LoginPage() {
       setError(res.error.message ?? "Credenciales inválidas");
       return;
     }
-    router.push("/");
+    router.push("/panel");
   }
 
   return (

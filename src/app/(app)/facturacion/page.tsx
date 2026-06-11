@@ -75,7 +75,7 @@ export default async function BillingPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Plan wa-blast</CardTitle>
+          <CardTitle className="text-base">Plan Lula</CardTitle>
           <CardDescription className="text-xs">
             Todo incluido: campañas, plantillas, carrusel y flows. Renueva cada 30 días.
           </CardDescription>
