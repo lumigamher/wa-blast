@@ -10,7 +10,7 @@ import { Reveal } from "./reveal";
 const features = [
   {
     title: "Campañas masivas",
-    description: "Envía templatas con carrusel, botones y formularios a miles de contactos al instante.",
+    description: "Envía plantillas con carrusel, botones y formularios a miles de contactos al instante.",
     icon: SendIcon,
     span: "md:col-span-2",
   },
@@ -28,7 +28,7 @@ const features = [
   },
   {
     title: "Plantillas inteligentes",
-    description: "Diseña y vista previa tus mensajes antes de enviar.",
+    description: "Diseña tus plantillas y vista previa antes de enviar.",
     icon: FileTextIcon,
     span: "md:col-span-1",
   },
