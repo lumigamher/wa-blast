@@ -6,7 +6,7 @@ import {
   updateMessageStatusByWamid, markConversationRead, listConversations, getThread,
 } from "@/lib/inbox/store";
 
-async function seed(db: any) {
+async function seed(db: ReturnType<typeof makeTestDb>["db"]) {
   await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
   await db.insert(contacts).values({ id: "c1", orgId: "o1", phone: "+573001112233", name: "Ana", createdAt: new Date(), updatedAt: new Date() });
 }

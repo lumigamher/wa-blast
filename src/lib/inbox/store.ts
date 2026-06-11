@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, like, or, sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { DB } from "@/lib/db/client";
 import { contacts, conversations, messages } from "@/lib/db/schema";
@@ -79,7 +79,7 @@ export type ConversationListItem = {
 };
 
 export async function listConversations(db: DB, orgId: string, opts: { q?: string; unreadOnly?: boolean }): Promise<ConversationListItem[]> {
-  const conditions = [eq(conversations.orgId, orgId)];
+  const conditions: SQL<unknown>[] = [eq(conversations.orgId, orgId)];
 
   if (opts.unreadOnly) {
     conditions.push(gt(conversations.unreadCount, 0));
@@ -87,12 +87,13 @@ export async function listConversations(db: DB, orgId: string, opts: { q?: strin
 
   if (opts.q) {
     const qLower = `%${(opts.q ?? "").toLowerCase()}%`;
-    conditions.push(
-      or(
-        like(sql`lower(${contacts.name})`, qLower),
-        like(sql`lower(${conversations.phone})`, qLower),
-      )
+    const orCondition = or(
+      like(sql`lower(${contacts.name})`, qLower),
+      like(sql`lower(${conversations.phone})`, qLower),
     );
+    if (orCondition) {
+      conditions.push(orCondition);
+    }
   }
 
   return db.select({

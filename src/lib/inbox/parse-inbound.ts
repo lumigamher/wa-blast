@@ -5,6 +5,7 @@ export type ParsedInbound = {
   payloadJson: string | null;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMsg = Record<string, any>;
 const MEDIA_TYPES = ["image", "video", "audio", "document", "sticker"] as const;
 
