@@ -83,7 +83,18 @@ panel super admin para operar todo manualmente cuando haga falta.
   bloqueo al expirar `paidUntil`.
 - Webhook EfiPay: firma inválida rechazada; idempotencia de cargos.
 
-## Fuera de alcance (fases siguientes)
+## Fuera de alcance — roadmap de fases siguientes (decisión Luis 2026-06-10)
 
-Embedded Signup de Meta, tiers/límites de uso, RSA por-org para Flows
-data-exchange, Meta Calling API, facturación electrónica.
+La visión de producto es una **solución integral de comunicación WhatsApp**
+(no un CRM completo). Orden acordado:
+
+- **Fase 2 — Administrador de mensajes (inbox estilo Chatwoot):** bandeja de
+  conversaciones bidireccional por org con las capacidades de Meta
+  (texto/media/reacciones/respuestas, ventana 24h, plantillas fuera de
+  ventana), multi-agente. Depende de Fase 1: el webhook proxy firmado ya
+  existe y con HTTPS empieza a recibir entrantes. Spec propio.
+- **Fase 3 — Meta Calling API:** llamadas WhatsApp (WebRTC). Disponibilidad
+  limitada de Meta y aprobación por WABA/número — empieza con investigación
+  de elegibilidad. Spec propio.
+- También fuera de v1: Embedded Signup de Meta, tiers/límites de uso, RSA
+  por-org para Flows data-exchange, facturación electrónica.
