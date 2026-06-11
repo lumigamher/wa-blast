@@ -4,7 +4,6 @@ import {
   FileTextIcon,
   UsersIcon,
   BarChart3Icon,
-  ShieldCheckIcon,
 } from "lucide-react";
 import { Reveal } from "./reveal";
 
