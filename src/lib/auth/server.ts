@@ -5,7 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/email/resend";
-import { assignFirstUserToDefaultOrg } from "./hooks";
+import { createOrgForNewUser } from "./hooks";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "sqlite" }),
@@ -54,7 +54,7 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          await assignFirstUserToDefaultOrg(db, user.id);
+          await createOrgForNewUser(db, user);
         },
       },
     },
