@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     for (const change of entry.changes) {
       const v = change.value;
       if (v.statuses) {
-        for (const s of v.statuses) await handleStatusEvent(db, s);
+        for (const s of v.statuses) await handleStatusEvent(db, settings.orgId, s);
       }
       if (v.messages) {
         for (const m of v.messages) await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords);

@@ -62,7 +62,7 @@ async function seed() {
 describe("status event", () => {
   test("delivered increments delivered and writes event", async () => {
     const db = await seed();
-    await handleStatusEvent(db, {
+    await handleStatusEvent(db, "o", {
       id: "wamid.AAA",
       status: "delivered",
       timestamp: "1",

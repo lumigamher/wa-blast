@@ -5,6 +5,7 @@ import { matchOptOut } from "@/lib/optout/match";
 
 export async function handleStatusEvent(
   db: DB,
+  orgId: string,
   status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id: string },
 ) {
   const ts = new Date(Number(status.timestamp) * 1000);
@@ -17,6 +18,10 @@ export async function handleStatusEvent(
 
   const [rec] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, status.id));
   if (!rec) return;
+
+  // Verify the campaign belongs to this org
+  const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, rec.campaignId));
+  if (!camp || camp.orgId !== orgId) return;
 
   if (status.status === "delivered") {
     await db
