@@ -18,21 +18,32 @@ export function efipayCredsFromEnv(): EfipayCreds | null {
 
 export async function createCheckout(
   creds: EfipayCreds,
-  input: { amountCop: number; description: string; webhookUrl: string },
+  input: { amountCop: number; description: string; webhookUrl: string; returnUrl: string; reference: string },
 ): Promise<{ checkoutUrl: string; transactionId: string }> {
   const res = await fetch(`${creds.baseUrl}/payment/generate-payment`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${creds.apiToken}`,
       "Content-Type": "application/json",
+      Accept: "application/json",
     },
     body: JSON.stringify({
-      description: input.description,
-      amount: input.amountCop,
-      currency_type: "COP",
-      checkout_type: "redirect",
-      office: creds.officeId,
-      webhook_url: input.webhookUrl,
+      payment: {
+        description: input.description,
+        amount: input.amountCop,
+        currency_type: "COP",
+        checkout_type: "redirect",
+      },
+      advanced_options: {
+        references: [input.reference],
+        result_urls: {
+          approved: input.returnUrl,
+          rejected: input.returnUrl,
+          pending: input.returnUrl,
+          webhook: input.webhookUrl,
+        },
+      },
+      office: Number(creds.officeId),
     }),
   });
 
@@ -42,11 +53,12 @@ export async function createCheckout(
   }
 
   const json = (await res.json()) as Record<string, unknown>;
-  const checkoutUrl = String(json.checkout_url ?? "");
-  const transactionId = String(json.transaction_id ?? "");
+  const checkoutUrl = String(json.url ?? "");
+  const transactionId = String(json.payment_id ?? "");
 
   if (!checkoutUrl || !transactionId) {
-    throw new Error("EfiPay: respuesta sin checkout_url/transaction_id");
+    const bodyStr = JSON.stringify(json).slice(0, 300);
+    throw new Error(`EfiPay: respuesta sin url/payment_id: ${bodyStr}`);
   }
 
   return { checkoutUrl, transactionId };
@@ -66,20 +78,55 @@ export function verifyWebhookSignature(
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-const APPROVED = new Set(["approved", "active", "success", "paid"]);
+const APPROVED = new Set(["aprobada", "approved", "active", "success", "paid"]);
 const APPROVED_EVENTS = new Set(["renew", "renewed"]);
 
-export function parseWebhookEvent(
-  payload: unknown,
-): { chargeId: string; approved: boolean } | null {
+export type EfipayEvent = { chargeId: string; approved: boolean; candidateIds: string[] };
+
+export function parseWebhookEvent(payload: unknown): EfipayEvent | null {
   if (typeof payload !== "object" || payload === null) return null;
   const p = payload as Record<string, unknown>;
-  const chargeId = String(p.transaction_id ?? p.transactionId ?? "");
+
+  // Handle nested shape (real contract): { transaction: {...}, checkout: {...} }
+  // Also handle flat shape (legacy): { transaction_id, status, ... }
+  const transaction = typeof p.transaction === "object" && p.transaction !== null
+    ? (p.transaction as Record<string, unknown>)
+    : p;
+  const checkout = typeof p.checkout === "object" && p.checkout !== null
+    ? (p.checkout as Record<string, unknown>)
+    : null;
+
+  // Extract chargeId
+  const transactionId = transaction.transaction_id ?? transaction.transactionId;
+  const chargeId = transactionId !== undefined ? String(transactionId) : "";
   if (!chargeId) return null;
-  const status = String(p.status ?? "").toLowerCase();
-  const event = String(p.event ?? "").toLowerCase();
-  return {
-    chargeId,
-    approved: APPROVED.has(status) || APPROVED_EVENTS.has(event),
-  };
+
+  // Extract approved status
+  const status = String(transaction.status ?? "").toLowerCase();
+  const event = String(transaction.event ?? "").toLowerCase();
+  const approved = APPROVED.has(status) || APPROVED_EVENTS.has(event);
+
+  // Build candidateIds: all unique non-empty strings that could identify the checkout in billingCheckouts.id
+  const candidateSet = new Set<string>();
+  if (chargeId) candidateSet.add(chargeId);
+  if (checkout?.id) candidateSet.add(String(checkout.id));
+  if (checkout?.payment_referenceable_id) candidateSet.add(String(checkout.payment_referenceable_id));
+  if (checkout?.payment_gateway_id) candidateSet.add(String(checkout.payment_gateway_id));
+
+  // Also check for references array in transaction or checkout
+  const references = (transaction.references ?? checkout?.references) as unknown[];
+  if (Array.isArray(references)) {
+    for (const ref of references) {
+      if (ref && typeof ref === "object") {
+        const refObj = ref as Record<string, unknown>;
+        if (refObj.id) candidateSet.add(String(refObj.id));
+      } else if (typeof ref === "string" && ref) {
+        candidateSet.add(ref);
+      }
+    }
+  }
+
+  const candidateIds = Array.from(candidateSet);
+
+  return { chargeId, approved, candidateIds };
 }

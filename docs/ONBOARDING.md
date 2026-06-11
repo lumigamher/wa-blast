@@ -23,8 +23,9 @@ RESEND_API_KEY=
 EMAIL_FROM=
 ADMIN_EMAILS=
 EFIPAY_API_TOKEN=    # entre comillas si contiene | (formato 942|...)
-EFIPAY_OFFICE_ID=
-EFIPAY_WEBHOOK_TOKEN=
+EFIPAY_OFFICE_ID=4279  # Entero. GET /api/v1/offices/get para obtener el office_id correcto (requiere token EfiPay)
+EFIPAY_WEBHOOK_TOKEN=  # Token de webhooks del dashboard EfiPay (Documentación → token para webhooks)
+EFIPAY_BASE_URL=https://sag.efipay.co/api/v1  # Por defecto. Cambiar si EfiPay lo requiere
 OPENAI_API_KEY=       # opcional, para Generar Flow con IA
 OPENAI_MODEL=gpt-4-mini
 

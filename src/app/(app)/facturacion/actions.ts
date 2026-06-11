@@ -23,6 +23,8 @@ export async function startCheckoutAction(): Promise<{ error: string } | never> 
       amountCop: price,
       description: "Suscripción mensual wa-blast",
       webhookUrl: `${base}/api/webhook/efipay`,
+      returnUrl: `${base}/facturacion/retorno`,
+      reference: orgId,
     });
     await db.insert(billingCheckouts).values({ id: result.transactionId, orgId, createdAt: new Date() });
     checkoutUrl = result.checkoutUrl;
