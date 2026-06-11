@@ -2,11 +2,12 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { campaignRecipients, campaigns, contacts, messageEvents } from "@/lib/db/schema";
 import { matchOptOut } from "@/lib/optout/match";
+import { updateMessageStatusByWamid } from "@/lib/inbox/store";
 
 export async function handleStatusEvent(
   db: DB,
   orgId: string,
-  status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id: string },
+  status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id: string; errors?: Array<{ message?: string }> },
 ) {
   const ts = new Date(Number(status.timestamp) * 1000);
   await db.insert(messageEvents).values({
@@ -15,6 +16,9 @@ export async function handleStatusEvent(
     timestamp: ts,
     payload: JSON.stringify(status),
   });
+
+  // Update inbox message status
+  await updateMessageStatusByWamid(db, status.id, status.status, status.errors?.[0]?.message);
 
   const [rec] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, status.id));
   if (!rec) return;
@@ -47,7 +51,7 @@ export async function handleStatusEvent(
 export async function handleInboundMessage(
   db: DB,
   orgId: string,
-  msg: { from: string; id: string; timestamp: string; type: string; text?: { body: string } },
+  msg: { from: string; id: string; timestamp: string; type: string; text?: { body: string } } & Record<string, unknown>,
   optoutKeywords: string[],
 ) {
   const phone = "+" + msg.from.replace(/^\+/, "");
@@ -82,4 +86,9 @@ export async function handleInboundMessage(
     timestamp: ts,
     payload: JSON.stringify({ from: msg.from, preview: body.slice(0, 40) }),
   });
+
+  // Persist inbound message to inbox
+  const { parseInboundMessage } = await import("@/lib/inbox/parse-inbound");
+  const { recordInboundMessage } = await import("@/lib/inbox/store");
+  await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed: parseInboundMessage(msg), ts });
 }

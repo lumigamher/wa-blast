@@ -9,6 +9,8 @@ import {
   organization,
   organizationSettings,
   user,
+  conversations,
+  messages,
 } from "@/lib/db/schema";
 import { handleInboundMessage, handleStatusEvent } from "@/lib/meta/webhook-handlers";
 
@@ -102,5 +104,67 @@ describe("inbound message", () => {
 
     const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, "camp"));
     expect(camp.replied).toBe(1);
+  });
+
+  test("text inbound creates conversation and message", async () => {
+    const db = await seed();
+    await handleInboundMessage(
+      db,
+      "o",
+      { from: "573001234567", id: "wamid.TEXT1", timestamp: "1", type: "text", text: { body: "hola desde webhook" } },
+      ["STOP"],
+    );
+
+    const convs = await db.select().from(conversations).where(eq(conversations.orgId, "o"));
+    expect(convs).toHaveLength(1);
+    expect(convs[0].phone).toBe("+573001234567");
+    expect(convs[0].unreadCount).toBe(1);
+
+    const msgs = await db.select().from(messages).where(eq(messages.conversationId, convs[0].id));
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].type).toBe("text");
+    expect(msgs[0].body).toBe("hola desde webhook");
+    expect(msgs[0].direction).toBe("in");
+    expect(msgs[0].wamid).toBe("wamid.TEXT1");
+  });
+
+  test("media inbound stores mediaId", async () => {
+    const db = await seed();
+    await handleInboundMessage(
+      db,
+      "o",
+      { from: "573001234567", id: "wamid.IMG1", timestamp: "1", type: "image", image: { id: "MEDIA123", mime_type: "image/jpeg", caption: "foto linda" } },
+      ["STOP"],
+    );
+
+    const msgs = await db.select().from(messages);
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0].type).toBe("image");
+    expect(msgs[0].mediaId).toBe("MEDIA123");
+    expect(msgs[0].body).toBe("foto linda");
+  });
+
+  test("status delivered updates outbound message", async () => {
+    const db = await seed();
+    const { recordOutboundMessage } = await import("@/lib/inbox/store");
+    const { getOrCreateConversation } = await import("@/lib/inbox/store");
+
+    // Create a conversation first
+    const conv = await getOrCreateConversation(db, "o", "+573001234567", new Date());
+
+    // Record an outbound message
+    const ts = new Date();
+    await recordOutboundMessage(db, { orgId: "o", conversationId: conv.id, wamid: "wamid.OUT1", type: "text", body: "hola respuesta" });
+
+    // Now trigger status update
+    await handleStatusEvent(db, "o", {
+      id: "wamid.OUT1",
+      status: "delivered",
+      timestamp: String(Math.floor(ts.getTime() / 1000)),
+      recipient_id: "573001234567",
+    });
+
+    const msgs = await db.select().from(messages).where(eq(messages.wamid, "wamid.OUT1"));
+    expect(msgs[0].status).toBe("delivered");
   });
 });
