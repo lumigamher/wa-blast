@@ -202,3 +202,49 @@ export const appConfig = sqliteTable("app_config", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
 });
+
+export const conversations = sqliteTable(
+  "conversations",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    phone: text("phone").notNull(),
+    contactId: text("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    lastMessageAt: integer("last_message_at", { mode: "timestamp" }).notNull(),
+    lastIncomingAt: integer("last_incoming_at", { mode: "timestamp" }),
+    unreadCount: integer("unread_count").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({
+    orgPhoneUnique: uniqueIndex("conversations_org_phone").on(t.orgId, t.phone),
+  }),
+);
+
+export const messages = sqliteTable(
+  "messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    direction: text("direction", { enum: ["in", "out"] }).notNull(),
+    wamid: text("wamid"),
+    type: text("type").notNull(),
+    body: text("body"),
+    mediaId: text("media_id"),
+    status: text("status", { enum: ["pending", "sent", "delivered", "read", "failed"] }),
+    errorMessage: text("error_message"),
+    payloadJson: text("payload_json"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({
+    convCreatedIdx: index("messages_conv_created").on(t.conversationId, t.createdAt),
+    orgWamidIdx: index("messages_org_wamid").on(t.orgId, t.wamid),
+  }),
+);
+
+export const inboxMediaCache = sqliteTable("inbox_media_cache", {
+  metaMediaId: text("meta_media_id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  assetId: text("asset_id").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});

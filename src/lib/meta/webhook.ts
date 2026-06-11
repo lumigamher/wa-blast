@@ -37,7 +37,7 @@ export const webhookPayloadSchema = z.object({
                   type: z.string(),
                   text: z.object({ body: z.string() }).optional(),
                   context: z.object({ id: z.string() }).optional(),
-                }),
+                }).passthrough(),
               )
               .optional(),
             statuses: z
@@ -47,6 +47,7 @@ export const webhookPayloadSchema = z.object({
                   status: z.enum(["sent", "delivered", "read", "failed"]),
                   timestamp: z.string(),
                   recipient_id: z.string(),
+                  errors: z.array(z.object({ message: z.string().optional(), title: z.string().optional() })).optional(),
                 }),
               )
               .optional(),
