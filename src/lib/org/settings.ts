@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { randomBytes } from "node:crypto";
 import type { DB } from "@/lib/db/client";
 import { organizationSettings } from "@/lib/db/schema";
 import { decrypt, encrypt } from "@/lib/crypto/encrypt";
@@ -44,21 +45,21 @@ export async function saveMetaCreds(
     metaAppId: string;
     metaAccessToken: string;
     metaAppSecret: string;
-    metaVerifyToken: string;
+    metaVerifyToken?: string;
   },
 ) {
-  await db
-    .update(organizationSettings)
-    .set({
-      metaPhoneId: input.metaPhoneId,
-      metaWabaId: input.metaWabaId,
-      metaAppId: input.metaAppId,
-      metaAccessTokenEnc: encrypt(input.metaAccessToken),
-      metaAppSecretEnc: encrypt(input.metaAppSecret),
-      metaVerifyToken: input.metaVerifyToken,
-      updatedAt: new Date(),
-    })
-    .where(eq(organizationSettings.orgId, orgId));
+  const update: Record<string, unknown> = {
+    metaPhoneId: input.metaPhoneId,
+    metaWabaId: input.metaWabaId,
+    metaAppId: input.metaAppId,
+    metaAccessTokenEnc: encrypt(input.metaAccessToken),
+    metaAppSecretEnc: encrypt(input.metaAppSecret),
+    updatedAt: new Date(),
+  };
+  if (input.metaVerifyToken) {
+    update.metaVerifyToken = input.metaVerifyToken;
+  }
+  await db.update(organizationSettings).set(update).where(eq(organizationSettings.orgId, orgId));
 }
 
 export async function saveForwardUrl(db: DB, orgId: string, url: string | null) {
@@ -73,4 +74,20 @@ export async function saveOptoutKeywords(db: DB, orgId: string, keywords: string
     .update(organizationSettings)
     .set({ optoutKeywords: JSON.stringify(keywords), updatedAt: new Date() })
     .where(eq(organizationSettings.orgId, orgId));
+}
+
+export async function ensureVerifyToken(db: DB, orgId: string): Promise<string> {
+  const row = (
+    await db
+      .select()
+      .from(organizationSettings)
+      .where(eq(organizationSettings.orgId, orgId))
+  )[0];
+  if (row?.metaVerifyToken) return row.metaVerifyToken;
+  const token = `lula_${randomBytes(8).toString("hex")}`;
+  await db
+    .update(organizationSettings)
+    .set({ metaVerifyToken: token, updatedAt: new Date() })
+    .where(eq(organizationSettings.orgId, orgId));
+  return token;
 }

@@ -7,16 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
-import { getOrgSettings } from "@/lib/org/settings";
+import { getOrgSettings, ensureVerifyToken } from "@/lib/org/settings";
+import { env } from "@/lib/env";
 import { saveForwardUrlAction, saveMetaCredsAction, saveOptoutKeywordsAction } from "../actions";
-import { TestConnectionButton } from "./_test-button";
+import { CopyField } from "./_components/copy-field";
+import { TestConnection } from "./_components/test-connection";
 
 export const dynamic = "force-dynamic";
 
 export default async function MetaSettingsPage() {
   const { orgId } = await requireOrg();
   const s = await getOrgSettings(db, orgId);
+  const verifyToken = await ensureVerifyToken(db, orgId);
   const configured = Boolean(s.metaPhoneId && s.metaAccessToken && s.metaWabaId);
+  const webhookUrl = `${env.PUBLIC_BASE_URL ?? env.BETTER_AUTH_URL}/api/webhook/meta`;
 
   return (
     <div className="space-y-6">
@@ -39,12 +43,51 @@ export default async function MetaSettingsPage() {
         <p className="text-sm text-muted-foreground">
           Estas credenciales se almacenan encriptadas (AES-256-GCM) y solo se descifran al llamar a la API de Meta.
         </p>
-        {configured && <TestConnectionButton />}
       </header>
+
+      <Card className="border-2 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/10">
+        <CardHeader>
+          <CardTitle className="text-base">Conecta tu WhatsApp</CardTitle>
+          <CardDescription className="text-xs">
+            Sigue estos pasos para apuntar los webhooks de Meta a tu instancia de Lula.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <CopyField label="Webhook URL" value={webhookUrl} />
+          <CopyField label="Verify token" value={verifyToken} />
+
+          <div className="rounded-lg bg-background p-3">
+            <p className="mb-2 text-xs font-medium text-foreground">Pasos a seguir:</p>
+            <ol className="space-y-2 text-xs text-muted-foreground">
+              <li className="flex gap-2">
+                <span className="font-semibold">1.</span>
+                <span>
+                  En Meta Business Manager → tu App → WhatsApp → Configuration, busca la sección{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">Webhooks</code>.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold">2.</span>
+                <span>
+                  En <code className="rounded bg-muted px-1 text-foreground">Edit Callback URL</code>, pega la URL de
+                  arriba y el Verify token. Dale{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">Verify and Save</code>.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold">3.</span>
+                <span>
+                  Suscríbete al evento <code className="rounded bg-muted px-1 text-foreground">messages</code>.
+                </span>
+              </li>
+            </ol>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Credenciales</CardTitle>
+          <CardTitle className="text-base">Tus credenciales de Meta</CardTitle>
           <CardDescription className="text-xs">
             Encuéntralas en Meta Business Manager → WhatsApp → API Setup.
           </CardDescription>
@@ -74,17 +117,23 @@ export default async function MetaSettingsPage() {
                 defaultValue={s.metaAppSecret ?? ""}
                 hint="Para verificar firmas de webhooks"
               />
-              <Field
-                label="Webhook Verify Token"
-                name="metaVerifyToken"
-                defaultValue={s.metaVerifyToken ?? ""}
-                hint="Cualquier string — lo pegarás en Meta → Webhooks"
-              />
             </div>
             <div className="flex justify-end">
               <Button type="submit">Guardar credenciales</Button>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Probar conexión</CardTitle>
+          <CardDescription className="text-xs">
+            Verifica que tus credenciales sean correctas y que tu número esté activo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TestConnection />
         </CardContent>
       </Card>
 
@@ -132,23 +181,6 @@ export default async function MetaSettingsPage() {
               <Button type="submit">Guardar palabras</Button>
             </div>
           </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Cómo apuntar Meta a Lula</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>
-            En Meta Business Manager → WhatsApp → Configuration → Webhooks, pon como Callback URL:{" "}
-            <code className="rounded bg-muted px-1 text-foreground">https://tu-dominio.com/api/webhook/meta</code>
-          </p>
-          <p>
-            Como Verify Token, usa el que guardaste arriba en el campo{" "}
-            <code className="rounded bg-muted px-1 text-foreground">Webhook Verify Token</code>.
-          </p>
-          <p>Suscríbete a los eventos: <b>messages</b>.</p>
         </CardContent>
       </Card>
     </div>
