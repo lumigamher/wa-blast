@@ -47,13 +47,12 @@ export default async function BillingReturnPage() {
                 La confirmación puede tardar unos segundos. Refresca esta página; si no se activa en unos minutos, escríbenos.
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  variant="outline"
-                  onClick={() => location.reload()}
-                  className="flex-1"
-                >
-                  Recargar
-                </Button>
+                {/* anchor plano: fuerza recarga completa sin handlers de cliente */}
+                <a href="/facturacion/retorno" className="flex-1">
+                  <Button variant="outline" className="w-full">
+                    Recargar
+                  </Button>
+                </a>
                 <Link href="/facturacion" className="flex-1">
                   <Button variant="ghost" className="w-full">
                     Volver

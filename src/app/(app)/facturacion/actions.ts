@@ -17,16 +17,19 @@ export async function startCheckoutAction(): Promise<{ error: string } | never> 
   const price = await getPlanPriceCop(db);
   const base = env.PUBLIC_BASE_URL ?? env.BETTER_AUTH_URL;
 
+  let checkoutUrl: string;
   try {
-    const { checkoutUrl, transactionId } = await createCheckout(creds, {
+    const result = await createCheckout(creds, {
       amountCop: price,
       description: "Suscripción mensual wa-blast",
       webhookUrl: `${base}/api/webhook/efipay`,
     });
-    await db.insert(billingCheckouts).values({ id: transactionId, orgId, createdAt: new Date() });
-    redirect(checkoutUrl);
+    await db.insert(billingCheckouts).values({ id: result.transactionId, orgId, createdAt: new Date() });
+    checkoutUrl = result.checkoutUrl;
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error al crear el pago";
     return { error: `No pudimos procesar tu pago: ${message}` };
   }
+  // redirect lanza NEXT_REDIRECT — debe quedar fuera del try/catch
+  redirect(checkoutUrl);
 }
