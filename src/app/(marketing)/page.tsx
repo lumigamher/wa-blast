@@ -32,6 +32,21 @@ export default async function MarketingPage() {
             </div>
           </div>
 
+          {/* Velo de legibilidad: difumina/aclara el LULA justo detrás del texto,
+              nítido en los bordes. backdrop-blur con máscara radial central. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-[5] backdrop-blur-[2px]"
+            style={{
+              maskImage:
+                "radial-gradient(ellipse 60% 55% at 50% 50%, black 35%, transparent 78%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 60% 55% at 50% 50%, black 35%, transparent 78%)",
+              background:
+                "radial-gradient(ellipse 55% 50% at 50% 50%, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.45) 50%, transparent 80%)",
+            }}
+          />
+
           <div className="pointer-events-none mx-auto max-w-6xl px-6 md:px-10 relative z-10">
             <Reveal>
               <div className="space-y-8 max-w-3xl mx-auto text-center">
