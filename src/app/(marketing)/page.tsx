@@ -20,7 +20,17 @@ export default async function MarketingPage() {
       <main className="w-full bg-white">
         {/* Hero Section */}
         <section className="relative overflow-hidden py-20 md:py-28 border-b border-neutral-200">
-          <div className="mx-auto max-w-6xl px-6 md:px-10">
+          {/* LULA backdrop - interactive, behind content */}
+          <div
+            className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden"
+            aria-hidden="true"
+          >
+            <div className="absolute inset-0 h-full w-full opacity-20 md:opacity-[0.15]">
+              <TextHoverEffect text="LULA" />
+            </div>
+          </div>
+
+          <div className="mx-auto max-w-6xl px-6 md:px-10 relative z-10">
             <Reveal>
               <div className="space-y-8 max-w-3xl mx-auto text-center">
                 {/* Eyebrow */}
@@ -472,12 +482,6 @@ export default async function MarketingPage() {
           </div>
         </section>
 
-        {/* Wordmark gigante interactivo (gradiente sigue el mouse) */}
-        <section aria-hidden="true" className="hidden md:block border-b border-neutral-200">
-          <div className="h-[24rem] lg:h-[32rem] flex items-center justify-center">
-            <TextHoverEffect text="LULA" />
-          </div>
-        </section>
 
         {/* Footer */}
         <footer className="border-t border-neutral-200 bg-white py-12">

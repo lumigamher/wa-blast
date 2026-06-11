@@ -115,9 +115,9 @@ export function UsecaseTabs() {
           transition={{ duration: 0.2 }}
           className="rounded-2xl border border-neutral-200 bg-neutral-50 p-8 md:p-10"
         >
-          <div className="grid md:grid-cols-3 gap-8 items-start">
+          <div className="grid lg:grid-cols-5 gap-10 items-start">
             {/* Left: Info */}
-            <div className="md:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-200 text-neutral-950">
@@ -154,8 +154,8 @@ export function UsecaseTabs() {
               </a>
             </div>
 
-            {/* Right: Real screenshots or vignette */}
-            <div className="md:col-span-1">
+            {/* Right: Real screenshots or vignette - larger, more prominent */}
+            <div className="lg:col-span-3 lg:scale-110 lg:origin-top-left">
               {activeTab === "campaigns" && (
                 <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-200 shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
                   <div className="bg-neutral-100 border-b border-neutral-200 px-3 py-2 flex items-center gap-2">
