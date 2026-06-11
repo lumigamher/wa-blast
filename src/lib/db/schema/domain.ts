@@ -248,3 +248,15 @@ export const inboxMediaCache = sqliteTable("inbox_media_cache", {
   assetId: text("asset_id").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
+
+export const quickReplies = sqliteTable(
+  "quick_replies",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    shortcut: text("shortcut").notNull(),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => [index("quick_replies_org").on(t.orgId)],
+);
