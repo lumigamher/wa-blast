@@ -14,7 +14,7 @@ ssh "$HOST" "cd $DIR && \
   rm -rf .next/cache && \
   bun run build && \
   set -a && . ./.env.local && set +a && \
-  bunx drizzle-kit migrate && \
+  bun run db:migrate && \
   systemctl restart wa-blast && \
   sleep 3 && systemctl is-active wa-blast"
 # (set -a sourcea .env.local porque drizzle-kit NO lo carga solo — sin esto
