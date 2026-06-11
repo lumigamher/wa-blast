@@ -11,6 +11,7 @@ import {
   LayersIcon,
   WorkflowIcon,
   CreditCardIcon,
+  MessageSquareIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { isAdminEmail } from "@/lib/auth/admin";
@@ -21,6 +22,7 @@ import { NavGroup, NavLink } from "./_components/nav-link";
 
 const NAV_ITEMS = [
   { href: "/", icon: HomeIcon, label: "Inicio" },
+  { href: "/inbox", icon: MessageSquareIcon, label: "Inbox" },
   { href: "/campanas/nueva", icon: SendIcon, label: "Nuevo envío" },
   { href: "/campanas", icon: LayersIcon, label: "Campañas" },
   { href: "/contactos", icon: UsersIcon, label: "Contactos" },
