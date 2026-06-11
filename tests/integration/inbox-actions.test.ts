@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { DecryptedSettings } from "@/lib/org/settings";
 import { makeTestDb } from "@/lib/db/test-db";
 import { contacts, organization } from "@/lib/db/schema";
 import { listConversations } from "@/lib/inbox/store";
@@ -25,15 +26,6 @@ vi.mock("@/lib/db/client", () => {
   return { db: testDb.db };
 });
 
-async function setupTestData() {
-  const { db } = makeTestDb();
-  await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
-  await db.insert(contacts).values({
-    id: "c1", orgId: "o1", phone: "+573001112233", name: "Ana",
-    createdAt: new Date(), updatedAt: new Date(),
-  });
-  return db;
-}
 
 describe("inbox actions integration", () => {
   beforeEach(() => {
@@ -84,7 +76,7 @@ describe("inbox actions integration", () => {
 
   it("sendText with replyTo includes context in payload", async () => {
     const { sendText } = await import("@/lib/meta/client");
-    const settings = { metaPhoneId: "PHONE1", metaAccessToken: "TOK" } as any;
+    const settings = { metaPhoneId: "PHONE1", metaAccessToken: "TOK" } as unknown as DecryptedSettings;
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ messages: [{ id: "wamid.TEST" }] }), { status: 200 }),
@@ -102,8 +94,8 @@ describe("inbox actions integration", () => {
   });
 
   it("markRead and uploadMedia and sendMedia and sendReaction all work", async () => {
-    const { markRead, uploadMedia, sendMedia, sendReaction } = await import("@/lib/meta/client");
-    const settings = { metaPhoneId: "PHONE1", metaAccessToken: "TOK" } as any;
+    const { markRead } = await import("@/lib/meta/client");
+    const settings = { metaPhoneId: "PHONE1", metaAccessToken: "TOK" } as unknown as DecryptedSettings;
 
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(JSON.stringify({ success: true, id: "M1", messages: [{ id: "w1" }] }), { status: 200 }));

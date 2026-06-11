@@ -10,9 +10,10 @@ import { isWindowOpen } from "@/lib/inbox/window";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { extractVariables } from "@/lib/templates";
+import { listQuickReplies } from "@/lib/inbox/quick-replies";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
-import { Thread } from "./_components/thread";
-import { Composer } from "./_components/composer";
+import { ThreadAndComposer } from "./_components/thread-and-composer";
+import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { Poller } from "../_components/poller";
 
 export const dynamic = "force-dynamic";
@@ -80,6 +81,9 @@ export default async function InboxThreadPage({
       bodyText: (t.components.find((c) => c.type === "BODY")?.text ?? "").substring(0, 100),
       varCount: extractVariables(t).length,
     }));
+
+  // Get quick replies
+  const quickReplies = await listQuickReplies(db, orgId);
 
   const windowOpen = isWindowOpen(thread.conversation.lastIncomingAt);
 
@@ -195,20 +199,18 @@ export default async function InboxThreadPage({
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <Thread messages={thread.messages} />
-          </div>
-
-          {/* Composer */}
-          <Composer
+          {/* Messages and Composer */}
+          <ThreadAndComposer
             conversationId={conversationId}
+            messages={thread.messages}
             windowOpen={windowOpen}
             templates={approvedTemplates}
+            quickReplies={quickReplies}
           />
         </div>
       </div>
 
+      <MarkReadOnOpen conversationId={conversationId} />
       <Poller />
     </div>
   );

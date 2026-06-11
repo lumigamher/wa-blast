@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { DB } from "@/lib/db/client";
 import { makeTestDb } from "@/lib/db/test-db";
 import { organization } from "@/lib/db/schema";
 import { createQuickReply, deleteQuickReply, listQuickReplies } from "@/lib/inbox/quick-replies";
 
-async function seed(db: any, id = "o1") {
+async function seed(db: DB, id = "o1") {
   await db.insert(organization).values({ id, name: id, slug: id, createdAt: new Date() });
   return id;
 }

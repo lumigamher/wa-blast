@@ -1,7 +1,8 @@
+import type { DecryptedSettings } from "@/lib/org/settings";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { markRead, sendMedia, sendReaction, uploadMedia } from "@/lib/meta/client";
 
-const settings = { metaPhoneId: "PHONE1", metaAccessToken: "TOK" } as any;
+const settings = { metaPhoneId: "PHONE1", metaAccessToken: "TOK" } as unknown as DecryptedSettings;
 afterEach(() => vi.restoreAllMocks());
 
 describe("meta client inbox methods", () => {

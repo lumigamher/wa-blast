@@ -1,12 +1,19 @@
 "use client";
 
-import { AlertCircleIcon, CheckIcon, CheckCheckIcon, FileIcon } from "lucide-react";
+import { useState } from "react";
+import { AlertCircleIcon, CheckIcon, CheckCheckIcon, FileIcon, MoreVerticalIcon, SmileIcon } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
+import { sendReactionAction } from "../../actions";
 import type { InferSelectModel } from "drizzle-orm";
 
 type Message = InferSelectModel<typeof messagesSchema>;
 
-export function Thread({ messages }: { messages: Message[] }) {
+type ThreadProps = {
+  messages: Message[];
+  onReplyTo: (wamid: string) => void;
+};
+
+export function Thread({ messages, onReplyTo }: ThreadProps) {
   if (messages.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -18,26 +25,47 @@ export function Thread({ messages }: { messages: Message[] }) {
   return (
     <div className="flex flex-col gap-3">
       {messages.map((msg) => (
-        <MessageBubble key={msg.id} message={msg} />
+        <MessageBubble key={msg.id} message={msg} onReplyTo={onReplyTo} />
       ))}
     </div>
   );
 }
 
-function MessageBubble({ message }: { message: Message }) {
+function MessageBubble({ message, onReplyTo }: { message: Message; onReplyTo: (wamid: string) => void }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactionsLoading, setReactionsLoading] = useState(false);
   const isOutbound = message.direction === "out";
   const time = message.createdAt.toLocaleTimeString("es-CO", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
+  const emojis = ["👍", "❤️", "😂", "😮", "🙏"];
+
+  const handleReaction = async (emoji: string) => {
+    if (!message.wamid || isOutbound) return;
+    setReactionsLoading(true);
+    try {
+      await sendReactionAction(message.conversationId, { wamid: message.wamid, emoji });
+    } finally {
+      setReactionsLoading(false);
+      setShowEmojiPicker(false);
+    }
+  };
+
   const bubbleContent = renderMessageContent(message);
 
   return (
     <div
-      className={`flex gap-2 ${
+      className={`flex gap-2 group ${
         isOutbound ? "flex-row-reverse justify-start" : "flex-row"
       }`}
+      onMouseEnter={() => !isOutbound && setShowMenu(true)}
+      onMouseLeave={() => {
+        setShowMenu(false);
+        setShowEmojiPicker(false);
+      }}
     >
       <div
         className={`max-w-xs rounded-lg px-3 py-2 shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] ${
@@ -65,6 +93,54 @@ function MessageBubble({ message }: { message: Message }) {
           <span title={message.errorMessage}>
             <AlertCircleIcon className="size-3" />
           </span>
+        </div>
+      )}
+
+      {!isOutbound && (showMenu || showEmojiPicker) && message.wamid && (
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            title="Opciones"
+          >
+            <MoreVerticalIcon className="size-4" />
+          </button>
+
+          {showMenu && (
+            <div className="absolute right-0 mt-1 rounded-md border bg-background shadow-lg z-10 overflow-hidden">
+              <button
+                onClick={() => {
+                  onReplyTo(message.wamid!);
+                  setShowMenu(false);
+                }}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors"
+              >
+                Responder
+              </button>
+              <button
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <SmileIcon className="size-3" /> Reaccionar
+              </button>
+            </div>
+          )}
+
+          {showEmojiPicker && (
+            <div className="absolute right-0 mt-1 rounded-md border bg-background shadow-lg z-10 p-2 flex gap-1">
+              {emojis.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleReaction(emoji)}
+                  disabled={reactionsLoading}
+                  className="text-xl hover:scale-110 transition-transform disabled:opacity-50"
+                  title={`Reaccionar con ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
