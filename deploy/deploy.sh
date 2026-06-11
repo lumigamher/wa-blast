@@ -13,9 +13,12 @@ ssh "$HOST" "cd $DIR && \
   bun install --frozen-lockfile && \
   rm -rf .next/cache && \
   bun run build && \
+  set -a && . ./.env.local && set +a && \
   bunx drizzle-kit migrate && \
   systemctl restart wa-blast && \
   sleep 3 && systemctl is-active wa-blast"
+# (set -a sourcea .env.local porque drizzle-kit NO lo carga solo — sin esto
+#  migraría contra el fallback .data/wa-blast.db en vez de /var/lib/wa-blast)
 
 echo "→ Health check…"
 code=$(ssh "$HOST" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3010/login")
