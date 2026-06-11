@@ -28,6 +28,13 @@ const schema = z.object({
 
   OPENAI_API_KEY: z.string().startsWith("sk-").optional(),
   OPENAI_MODEL: z.string().optional(),
+
+  EFIPAY_API_TOKEN: z.string().optional(),
+  EFIPAY_OFFICE_ID: z.string().optional(),
+  EFIPAY_WEBHOOK_TOKEN: z.string().optional(),
+  EFIPAY_BASE_URL: z.string().url().default("https://efipay.co/api/v1"),
+
+  ADMIN_EMAILS: z.string().default(""),
 });
 
 export const env = schema.parse(process.env);
