@@ -9,6 +9,7 @@ import {
   UsersIcon,
   LayersIcon,
   WorkflowIcon,
+  CreditCardIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/plantillas", icon: FileTextIcon, label: "Plantillas" },
   { href: "/flows", icon: WorkflowIcon, label: "Flows" },
   { href: "/salud", icon: HeartPulseIcon, label: "Salud WhatsApp" },
+  { href: "/facturacion", icon: CreditCardIcon, label: "Facturación" },
   { href: "/configuracion", icon: SettingsIcon, label: "Configuración" },
 ];
 
