@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { DB } from "@/lib/db/client";
 import { makeTestDb } from "@/lib/db/test-db";
 import { organization } from "@/lib/db/schema";
 import { applyCharge, getSubscription, hasActiveSubscription, setSuspended } from "@/lib/billing/subscription";
 
-async function seedOrg(db: any, id = "org1") {
+async function seedOrg(db: DB, id = "org1") {
   await db.insert(organization).values({ id, name: id, createdAt: new Date() });
   return id;
 }
