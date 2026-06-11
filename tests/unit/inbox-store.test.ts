@@ -3,7 +3,7 @@ import { makeTestDb } from "@/lib/db/test-db";
 import { contacts, organization } from "@/lib/db/schema";
 import {
   getOrCreateConversation, recordInboundMessage, recordOutboundMessage,
-  updateMessageStatusByWamid, markConversationRead, listConversations, getThread,
+  updateMessageStatusByWamid, markConversationRead, listConversations, getThread, getLastInboundWamid,
 } from "@/lib/inbox/store";
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"]) {
@@ -78,5 +78,23 @@ describe("inbox store", () => {
     await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "w5", parsed: { type: "text", body: "a", mediaId: null, payloadJson: null }, ts: new Date() });
     const conv = (await listConversations(db, "o1", {}))[0];
     expect(await getThread(db, "otra-org", conv.id)).toBeNull();
+  });
+
+  it("getLastInboundWamid retorna el wamid más reciente entrante", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const conv = await getOrCreateConversation(db, "o1", "+573001112233", new Date());
+    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "wamid.in1", parsed: { type: "text", body: "primero", mediaId: null, payloadJson: null }, ts: new Date(Date.now() - 1000) });
+    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "wamid.in2", parsed: { type: "text", body: "segundo", mediaId: null, payloadJson: null }, ts: new Date() });
+    await recordOutboundMessage(db, { orgId: "o1", conversationId: conv.id, wamid: "wamid.out1", type: "text", body: "respuesta" });
+    const last = await getLastInboundWamid(db, "o1", conv.id);
+    expect(last).toBe("wamid.in2");
+  });
+
+  it("getLastInboundWamid retorna null si no hay inbound", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const conv = await getOrCreateConversation(db, "o1", "+573001112233", new Date());
+    expect(await getLastInboundWamid(db, "o1", conv.id)).toBeNull();
   });
 });

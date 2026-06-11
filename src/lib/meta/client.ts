@@ -10,6 +10,7 @@ export type SendTemplateParams = {
 export type SendTextParams = {
   to: string;
   body: string;
+  replyTo?: string;
 };
 
 export type SendFlowParams = {
@@ -33,18 +34,20 @@ export async function sendText(
     return { error: { code: 0, message: "Meta creds not configured", type: "auth" } };
   }
   const url = `https://graph.facebook.com/v22.0/${settings.metaPhoneId}/messages`;
+  const payload: Record<string, unknown> = {
+    messaging_product: "whatsapp",
+    to: p.to.replace(/^\+/, ""),
+    type: "text",
+    text: { body: p.body },
+  };
+  if (p.replyTo) payload.context = { message_id: p.replyTo };
   const res = await fetch(url, {
     method: "POST",
     headers: {
       authorization: `Bearer ${settings.metaAccessToken}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: p.to.replace(/^\+/, ""),
-      type: "text",
-      text: { body: p.body },
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

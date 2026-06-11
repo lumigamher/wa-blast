@@ -120,3 +120,11 @@ export async function getThread(db: DB, orgId: string, conversationId: string) {
   const contact = conv.contactId ? (await db.select().from(contacts).where(eq(contacts.id, conv.contactId)))[0] : null;
   return { conversation: conv, messages: msgs, contact: contact ?? null };
 }
+
+export async function getLastInboundWamid(db: DB, orgId: string, conversationId: string): Promise<string | null> {
+  const row = (await db.select({ wamid: messages.wamid }).from(messages)
+    .where(and(eq(messages.conversationId, conversationId), eq(messages.orgId, orgId), eq(messages.direction, "in")))
+    .orderBy(desc(messages.createdAt))
+    .limit(1))[0];
+  return row?.wamid ?? null;
+}
