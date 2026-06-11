@@ -39,7 +39,7 @@ Se completó auditoría exhaustiva de 50+ queries en src/app y src/lib buscando 
 | src/app/api/campaigns/[id]/export/route.ts | 15-20 | campaigns, campaignRecipients | `select().from(campaigns)...` `select().from(campaignRecipients)...` | OK FILTRADO | Campaign validado, recipients via campaignId |
 | src/app/api/cron/run-scheduled/route.ts | 19 | campaigns | `select().from(campaigns).where(and(...))` | OK DISEÑO | Cron global, intencional, CRON_SECRET protege |
 | src/app/api/webhook/meta/route.ts | 20 | organizationSettings | `db.query.organizationSettings.findFirst({where: eq(metaVerifyToken, token)})` | OK DISEÑO | Webhook externo resolveOrgByPhoneId, token único por org |
-| src/app/media/[id]/route.ts | 10 | mediaAssets | `getMediaAsset(db, id)` | **FIXED** | Agregado `requireOrg()` + validación `asset.orgId === orgId` |
+| src/app/media/[id]/route.ts | 10 | mediaAssets | `getMediaAsset(db, id)` | OK DISEÑO | PÚBLICA a propósito: los servidores de Meta descargan aquí la media de plantillas carrusel (por eso /media está en PUBLIC_PATHS). Gatearlo con sesión rompe el carrusel. ID = UUID inadivinable + cache immutable. Fix inicial 29ac44c REVERTIDO en 26e0afe. |
 | src/lib/auth/session.ts | 23 | member | `select().from(member).where(eq(member.userId, session.user.id))` | OK DISEÑO | Auth helper, intencional búsqueda global por user |
 | src/lib/auth/hooks.ts | 20 | member | `select().from(member).where(eq(member.userId, user.id))` | OK DISEÑO | Auth hook en registration, intencional |
 | src/lib/auth/hooks.ts | 26 | organization | `select().from(organization).where(eq(organization.slug, slug))` | OK DISEÑO | Auth slug uniqueness check, intencional global |
@@ -58,19 +58,21 @@ Se completó auditoría exhaustiva de 50+ queries en src/app y src/lib buscando 
 | src/lib/billing/subscription.ts | 58 | subscriptions | `select().from(subscriptions).where(eq(subscriptions.orgId, input.orgId))` | OK FILTRADO | Lookup filtra por orgId |
 | src/lib/billing/efipay-webhook.ts | 23 | billingCheckouts | `select().from(billingCheckouts).where(eq(billingCheckouts.id, event.chargeId))` | OK DISEÑO | Webhook externo, chargeId es UUID único, inmutable lookup |
 | src/lib/billing/config.ts | 9 | appConfig | `select().from(appConfig).where(eq(appConfig.key, KEY))` | OK DISEÑO | appConfig es tabla global (sin orgId), intentional |
-| src/lib/media/store.ts | 40 | mediaAssets | `getMediaAsset(db, id)` | **USED IN FIXED ROUTE** | Función helper, se usa en /media/[id] que ya fue corregida |
+| src/lib/media/store.ts | 40 | mediaAssets | `getMediaAsset(db, id)` | OK DISEÑO | Función helper usada por /media/[id] (ruta pública por diseño, ver arriba) |
 
 ---
 
 ## Vulnerabilidades Encontradas y Corregidas
 
-### 1. **FIXED: /media/[id] sin validación de orgId** 
+### 1. **NO-FIX (por diseño): /media/[id] es pública intencionalmente**
 - **Archivo**: src/app/media/[id]/route.ts
-- **Línea**: 10
-- **Problema**: `getMediaAsset(db, id)` retorna asset sin validar que belongs a current org. Con UUID unguessable está relativamente protegido pero viola patrón.
-- **Riesgo**: Si ID fuera predecible o leakeado, otra org podría acceder a assets.
-- **Fix**: Agregado `requireOrg()` + post-fetch validación `asset.orgId === orgId`
-- **Test**: mediaAssets en org-isolation.test.ts valida el patrón
+- **Contexto**: el fix inicial (29ac44c, `requireOrg()` + check de orgId) se REVIRTIÓ en 26e0afe.
+- **Razón**: esta ruta existe para que LOS SERVIDORES DE META descarguen la media
+  de las plantillas carrusel (header_handle por URL pública) — peticiones anónimas.
+  `requireOrg()` redirige a /login y rompe la creación/envío de carruseles.
+- **Mitigación vigente**: ID = `media_<uuid>` inadivinable; sin listado público; la
+  tabla mediaAssets solo se consulta por id exacto. Riesgo aceptado y documentado.
+- **Si algún día se necesita gatear**: usar URLs firmadas con expiración (no sesión).
 
 ### 2. **FIXED: handleStatusEvent sin orgId validation**
 - **Archivo**: src/lib/meta/webhook-handlers.ts
