@@ -15,6 +15,13 @@
       "when": 1780940737749,
       "tag": "0001_pale_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1781148011104,
+      "tag": "0002_productive_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }

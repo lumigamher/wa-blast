@@ -175,3 +175,30 @@ export const templateCardMedia = sqliteTable(
     pk: primaryKey({ columns: [t.orgId, t.templateName, t.templateLanguage, t.cardIndex] }),
   }),
 );
+
+export const subscriptions = sqliteTable("subscriptions", {
+  orgId: text("org_id").primaryKey().references(() => organization.id, { onDelete: "cascade" }),
+  status: text("status", { enum: ["none", "active", "suspended"] }).notNull().default("none"),
+  paidUntil: integer("paid_until", { mode: "timestamp" }),
+  efipaySubscriptionId: text("efipay_subscription_id"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const subscriptionCharges = sqliteTable("subscription_charges", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  amountCop: integer("amount_cop"),
+  source: text("source", { enum: ["efipay", "manual"] }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
+export const billingCheckouts = sqliteTable("billing_checkouts", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
+export const appConfig = sqliteTable("app_config", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
