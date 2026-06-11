@@ -20,17 +20,19 @@ export default async function MarketingPage() {
       <main className="w-full bg-white">
         {/* Hero Section */}
         <section className="relative overflow-hidden py-20 md:py-28 border-b border-neutral-200">
-          {/* LULA backdrop - interactive, behind content */}
+          {/* LULA backdrop - interactivo (sigue el cursor), detrás del contenido.
+              Recibe el mouse en toda el área del hero; el contenido va con
+              pointer-events-none y solo los CTAs reactivan los clicks. */}
           <div
-            className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden"
+            className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden"
             aria-hidden="true"
           >
-            <div className="absolute inset-0 h-full w-full opacity-20 md:opacity-[0.15]">
+            <div className="absolute inset-0 h-full w-full opacity-70">
               <TextHoverEffect text="LULA" />
             </div>
           </div>
 
-          <div className="mx-auto max-w-6xl px-6 md:px-10 relative z-10">
+          <div className="pointer-events-none mx-auto max-w-6xl px-6 md:px-10 relative z-10">
             <Reveal>
               <div className="space-y-8 max-w-3xl mx-auto text-center">
                 {/* Eyebrow */}
@@ -56,8 +58,8 @@ export default async function MarketingPage() {
                   Meta.
                 </p>
 
-                {/* CTAs */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                {/* CTAs — reactivan los clics sobre el backdrop interactivo */}
+                <div className="pointer-events-auto flex flex-col sm:flex-row gap-3 justify-center pt-4">
                   {!loggedIn && (
                     <>
                       <Link
