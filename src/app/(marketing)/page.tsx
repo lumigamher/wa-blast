@@ -1,13 +1,11 @@
 import { getSession } from "@/lib/auth/session";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { Nav } from "./_components/nav";
-import { HeroChat } from "./_components/hero-chat";
 import { Reveal } from "./_components/reveal";
-import { Bento } from "./_components/bento";
+import { CampaignDemo } from "./_components/campaign-demo";
+import { UsecaseTabs } from "./_components/usecase-tabs";
 import { FAQ } from "./_components/faq";
 import Link from "next/link";
-import { CheckCircle2Icon } from "lucide-react";
+import { Check } from "lucide-react";
 
 export default async function MarketingPage() {
   const session = await getSession();
@@ -17,37 +15,42 @@ export default async function MarketingPage() {
     <>
       <Nav loggedIn={loggedIn} />
 
-      <main className="w-full">
+      <main className="w-full bg-white">
         {/* Hero Section */}
-        <section className="relative overflow-hidden py-24 md:py-32">
-          {/* Background glows */}
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-[120px] -z-10" />
-          <div className="absolute bottom-1/3 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] -z-10" />
-
+        <section className="relative overflow-hidden py-20 md:py-28 border-b border-neutral-200">
           <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div className="space-y-8">
-                <div className="space-y-4">
-                  <h1 className="text-5xl md:text-7xl font-semibold tracking-tight leading-tight">
-                    <span className="bg-gradient-to-br from-white to-zinc-400 bg-clip-text text-transparent">
-                      Tu WhatsApp,
-                    </span>{" "}
-                    <span className="bg-gradient-to-br from-emerald-300 to-emerald-500 bg-clip-text text-transparent">
-                      máquina de ventas
-                    </span>
-                  </h1>
-                  <p className="text-lg text-zinc-300 leading-relaxed max-w-lg">
-                    Campañas masivas, inbox en tiempo real y formularios con IA.
-                    Todo sobre la API oficial de Meta. Sin permanencia, mes a mes.
-                  </p>
+            <Reveal>
+              <div className="space-y-8 max-w-3xl mx-auto text-center">
+                {/* Eyebrow */}
+                <div className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                  Plataforma de WhatsApp para negocios
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-4">
+                {/* H1 */}
+                <h1 className="text-5xl md:text-7xl tracking-tight font-medium leading-tight">
+                  Tu WhatsApp, convertido en{" "}
+                  <span
+                    className="italic text-neutral-950"
+                    style={{ fontFamily: "var(--font-instrument-serif)" }}
+                  >
+                    ventas
+                  </span>
+                </h1>
+
+                {/* Subtitle */}
+                <p className="text-lg text-neutral-600 leading-relaxed max-w-2xl mx-auto">
+                  Campañas masivas, bandeja de entrada en tiempo real y
+                  formularios generados con IA, todo sobre la API oficial de
+                  Meta.
+                </p>
+
+                {/* CTAs */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
                   {!loggedIn && (
                     <>
                       <Link
                         href="/signup"
-                        className={cn(buttonVariants({ size: "lg" }), "bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:shadow-[0_0_40px_rgba(16,185,129,0.6)] transition-shadow")}
+                        className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         Crear cuenta gratis
                       </Link>
@@ -55,7 +58,7 @@ export default async function MarketingPage() {
                         href="https://wa.me/573012463004"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={cn(buttonVariants({ size: "lg", variant: "outline" }), "border-white/10 text-white hover:bg-white/5 hover:text-white")}
+                        className="rounded-full border border-neutral-200 text-neutral-950 px-6 py-3 text-sm font-medium hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                       >
                         Escríbenos por WhatsApp
                       </a>
@@ -65,199 +68,314 @@ export default async function MarketingPage() {
                   {loggedIn && (
                     <Link
                       href="/panel"
-                      className={cn(buttonVariants({ size: "lg" }), "bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-[0_0_30px_rgba(16,185,129,0.4)]")}
+                      className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
                       Ir al panel
                     </Link>
                   )}
                 </div>
-              </div>
 
-              <div className="hidden md:flex justify-center items-center">
-                <HeroChat />
-              </div>
-            </div>
-
-            {/* Mobile hero chat */}
-            <div className="md:hidden mt-12">
-              <HeroChat />
-            </div>
-          </div>
-        </section>
-
-        {/* Trust Strip */}
-        <section className="border-y border-white/5 bg-zinc-900/30 py-8">
-          <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-sm text-zinc-400">
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
-                <span>API oficial de Meta</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
-                <span>Hecho en Colombia 🇨🇴</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
-                <span>Sin permanencia, mes a mes</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features - Bento Section */}
-        <section id="funciones" className="py-24 md:py-32">
-          <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <Reveal>
-              <div className="mb-16 space-y-4">
-                <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white">
-                  Funciones diseñadas para vender
-                </h2>
-                <p className="text-lg text-zinc-400 max-w-2xl">
-                  Todo lo que necesitas para convertir WhatsApp en tu canal de
-                  ventas más efectivo.
+                {/* Caption */}
+                <p className="text-xs text-neutral-500">
+                  Sobre la API oficial de WhatsApp Cloud · Sin permanencia ·
+                  Cancela cuando quieras
                 </p>
               </div>
             </Reveal>
-
-            <div className="mt-12">
-              <Bento />
-            </div>
           </div>
         </section>
 
-        {/* Cómo funciona Section */}
-        <section className="py-24 md:py-32 bg-zinc-950/40">
+        {/* Trust Chips */}
+        <section className="border-b border-neutral-200 bg-neutral-50 py-8">
           <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <Reveal>
-              <div className="mb-16 space-y-4">
-                <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white">
-                  Tres pasos para empezar
-                </h2>
-                <p className="text-lg text-zinc-400">
-                  De cero a tu primera campaña en minutos.
-                </p>
-              </div>
-            </Reveal>
-
-            <div className="grid md:grid-cols-3 gap-8 mt-12">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-8">
               {[
-                {
-                  step: 1,
-                  title: "Crea tu cuenta",
-                  description: "Regístrate con tu email. Toma menos de 2 minutos.",
-                },
-                {
-                  step: 2,
-                  title: "Conecta tu WhatsApp",
-                  description:
-                    "Vincula tu número actual. Te acompañamos en cada paso.",
-                },
-                {
-                  step: 3,
-                  title: "Lanza tu campaña",
-                  description:
-                    "Crea y envía tu primer mensaje a miles de contactos.",
-                },
-              ].map((item, idx) => (
-                <Reveal key={item.step} delay={idx * 0.1}>
-                  <div className="relative">
-                    <div className="flex flex-col items-start">
-                      <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-500/40 text-emerald-400 font-bold">
-                        {item.step}
-                      </div>
-                      <h3 className="font-semibold text-white mb-2">
-                        {item.title}
-                      </h3>
-                      <p className="text-sm text-zinc-400 leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-                    {idx < 2 && (
-                      <div className="absolute top-6 left-20 hidden md:block w-12 h-0.5 bg-gradient-to-r from-emerald-500/40 to-transparent" />
-                    )}
-                  </div>
-                </Reveal>
+                "API oficial de Meta",
+                "Hecho en Colombia",
+                "Multi-equipo",
+                "Opt-out automático",
+                "Métricas en vivo",
+              ].map((chip, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-sm text-neutral-700">
+                  <Check className="h-4 w-4 text-neutral-600" />
+                  <span>{chip}</span>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Pricing Section */}
-        <section id="precio" className="py-24 md:py-32">
-          <div className="mx-auto max-w-6xl px-6 md:px-10 flex flex-col items-center">
+        {/* Interactive Campaign Demo */}
+        <section id="funciones" className="py-20 md:py-28 border-b border-neutral-200">
+          <div className="mx-auto max-w-6xl px-6 md:px-10">
             <Reveal>
-              <div className="mb-16 text-center space-y-4">
-                <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white">
-                  Precio simple y justo
+              <div className="mb-16 space-y-4 text-center">
+                <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                  La campaña perfecta en segundos
                 </h2>
-                <p className="text-lg text-zinc-400">
-                  Un plan, todo incluido. Sin sorpresas.
+                <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+                  Personaliza tu mensaje, vista previa instantánea, envía a
+                  miles de contactos.
                 </p>
               </div>
             </Reveal>
 
             <Reveal delay={0.1}>
-              <div className="max-w-md w-full rounded-2xl border border-emerald-500/40 bg-zinc-900/40 p-8 space-y-8 ring-1 ring-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.1)]">
+              <CampaignDemo />
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Use-case Tabs */}
+        <section className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50">
+          <div className="mx-auto max-w-6xl px-6 md:px-10">
+            <Reveal>
+              <div className="mb-16 space-y-4">
+                <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                  Funciones que venden
+                </h2>
+                <p className="text-lg text-neutral-600 max-w-2xl">
+                  Campañas, inbox, formularios con IA, plantillas—todo en un
+                  lugar.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <UsecaseTabs />
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Deep Dive: Campañas */}
+        <section className="py-20 md:py-28 border-b border-neutral-200">
+          <div className="mx-auto max-w-6xl px-6 md:px-10">
+            <Reveal>
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                    Campañas que venden
+                  </h3>
+                  <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                    Masivo. Segmentado. Inteligente.
+                  </h2>
+                  <p className="text-lg text-neutral-600 max-w-2xl">
+                    Envía campañas a miles de contactos con carrusel, botones y
+                    formularios. Respeta ventanas de 24h. Reintentos
+                    automáticos. Anti-doble envío.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  {[
+                    "Plantillas con vista previa antes de enviar",
+                    "Segmentación por tags y propiedades personalizadas",
+                    "Carrusel de productos o promociones",
+                    "Botones interactivos y formularios",
+                  ].map((bullet, idx) => (
+                    <Reveal key={idx} delay={idx * 0.1}>
+                      <div className="flex items-start gap-3 text-neutral-700">
+                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
+                        {bullet}
+                      </div>
+                    </Reveal>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Deep Dive: Inbox + IA */}
+        <section className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50">
+          <div className="mx-auto max-w-6xl px-6 md:px-10">
+            <Reveal>
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                    Inbox + IA
+                  </h3>
+                  <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                    Responde en tiempo real
+                  </h2>
+                  <p className="text-lg text-neutral-600 max-w-2xl">
+                    Bandeja unificada para todos los mensajes. Respuesta rápida.
+                    Formularios generados con IA que se adaptan a tus
+                    necesidades.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  {[
+                    "Inbox en tiempo real con notificaciones",
+                    "Ventana 24h automática—no envíes fuera de horario",
+                    "Describe qué datos necesitas, IA genera el formulario",
+                    "Exporta contactos a CSV, integra con tu CRM",
+                  ].map((bullet, idx) => (
+                    <Reveal key={idx} delay={idx * 0.1}>
+                      <div className="flex items-start gap-3 text-neutral-700">
+                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
+                        {bullet}
+                      </div>
+                    </Reveal>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* AI Prompt → Form */}
+        <section className="py-20 md:py-28 border-b border-neutral-200">
+          <div className="mx-auto max-w-6xl px-6 md:px-10">
+            <Reveal>
+              <div className="rounded-2xl bg-neutral-950 text-white p-8 md:p-12">
+                <div className="grid md:grid-cols-2 gap-8">
+                  {/* Left: Prompt */}
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-[0.2em] text-neutral-400">
+                      Tú describes
+                    </p>
+                    <div className="font-mono text-sm space-y-2">
+                      <p className="text-neutral-300">
+                        &quot;Necesito capturar nombre, dirección, <br />
+                        teléfono y método de pago para <br />
+                        confirmar la entrega&quot;
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right: Generated form JSON-ish */}
+                  <div className="space-y-3">
+                    <p className="text-xs uppercase tracking-[0.2em] text-neutral-400">
+                      Lula genera
+                    </p>
+                    <div className="font-mono text-sm space-y-1.5 text-neutral-400">
+                      <p>
+                        <span className="text-neutral-300">fields: [</span>
+                      </p>
+                      <p className="ml-4">
+                        <span className="text-blue-400">&#123; name:</span>
+                        <span className="text-green-400">&quot;nombre&quot;</span>
+                        <span className="text-blue-400"> &#125;</span>
+                      </p>
+                      <p className="ml-4">
+                        <span className="text-blue-400">&#123; address:</span>
+                        <span className="text-green-400">&quot;dirección&quot;</span>
+                        <span className="text-blue-400"> &#125;</span>
+                      </p>
+                      <p className="ml-4">
+                        <span className="text-blue-400">&#123; phone:</span>
+                        <span className="text-green-400">&quot;teléfono&quot;</span>
+                        <span className="text-blue-400"> &#125;</span>
+                      </p>
+                      <p className="ml-4">
+                        <span className="text-blue-400">&#123; payment:</span>
+                        <span className="text-green-400">&quot;pago&quot;</span>
+                        <span className="text-blue-400"> &#125;</span>
+                      </p>
+                      <p>
+                        <span className="text-neutral-300">]</span>
+                        <span className="ml-2 inline-block w-2 h-4 bg-white/20 animate-pulse" />
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Pricing Section */}
+        <section id="precio" className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50">
+          <div className="mx-auto max-w-6xl px-6 md:px-10 flex flex-col items-center">
+            <Reveal>
+              <div className="mb-16 text-center space-y-4 max-w-2xl">
+                <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                  Precio simple
+                </h3>
+                <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                  Un plan, todo incluido
+                </h2>
+                <p className="text-lg text-neutral-600">
+                  Sin sorpresas. Sin permanencia. Cancela cuando quieras.
+                </p>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.1}>
+              <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 md:p-10 space-y-8">
                 <div className="space-y-2">
-                  <div className="text-5xl font-bold text-white">
+                  <div className="text-5xl font-medium text-neutral-950">
                     $250.000
                   </div>
-                  <p className="text-zinc-400">
+                  <p className="text-neutral-600">
                     COP / mes{" "}
                     <span className="text-sm">
-                      + IVA
+                      (+ IVA)
                     </span>
                   </p>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 border-t border-neutral-200 border-b pt-8 pb-8">
                   {[
                     "Campañas masivas ilimitadas",
                     "Inbox en tiempo real",
                     "Formularios con IA",
                     "Plantillas con preview",
-                    "Contactos y tags",
+                    "Contactos, tags y segmentación",
                     "Métricas en vivo",
                     "API oficial de Meta",
                     "Soporte por email",
                   ].map((feature) => (
                     <div
                       key={feature}
-                      className="flex items-start gap-3 text-sm text-zinc-300"
+                      className="flex items-start gap-3 text-sm text-neutral-700"
                     >
-                      <CheckCircle2Icon className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <Check className="h-5 w-5 text-neutral-600 shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </div>
                   ))}
                 </div>
 
-                <Link
-                  href="/signup"
-                  className={cn(buttonVariants({ size: "lg" }), "w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-[0_0_30px_rgba(16,185,129,0.4)]")}
-                >
-                  Empezar ahora
-                </Link>
+                <div className="space-y-3">
+                  {!loggedIn && (
+                    <Link
+                      href="/signup"
+                      className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    >
+                      Empezar ahora
+                    </Link>
+                  )}
+                  {loggedIn && (
+                    <Link
+                      href="/panel"
+                      className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                    >
+                      Ir al panel
+                    </Link>
+                  )}
 
-                <p className="text-center text-xs text-zinc-500">
-                  Sin permanencia. Cancela cuando quieras.
-                </p>
+                  <p className="text-center text-xs text-neutral-500">
+                    Sin contrato. Cancela cuando quieras.
+                  </p>
+                </div>
               </div>
             </Reveal>
           </div>
         </section>
 
         {/* FAQ Section */}
-        <section id="faq" className="py-24 md:py-32 bg-zinc-950/40">
+        <section id="faq" className="py-20 md:py-28 border-b border-neutral-200">
           <div className="mx-auto max-w-6xl px-6 md:px-10">
             <Reveal>
               <div className="mb-16 space-y-4">
-                <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white">
+                <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                  Dudas comunes
+                </h3>
+                <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
                   Preguntas frecuentes
                 </h2>
-                <p className="text-lg text-zinc-400">
-                  Respondemos las dudas más comunes.
-                </p>
               </div>
             </Reveal>
 
@@ -268,84 +386,91 @@ export default async function MarketingPage() {
         </section>
 
         {/* Final CTA Section */}
-        <section className="py-24 md:py-32">
-          <div className="mx-auto max-w-6xl px-6 md:px-10 text-center space-y-8">
+        <section className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50">
+          <div className="mx-auto max-w-6xl px-6 md:px-10 text-center">
             <Reveal>
-              <div className="space-y-4">
-                <h2 className="text-4xl md:text-5xl font-semibold tracking-tight text-white">
-                  ¿Listo para vender más por WhatsApp?
-                </h2>
-                <p className="text-lg text-zinc-400 max-w-2xl mx-auto">
-                  Únete a emprendedores y pymes que ya están usando Lula.
-                </p>
-              </div>
-            </Reveal>
+              <div className="space-y-8 max-w-3xl mx-auto">
+                <div className="space-y-4">
+                  <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                    Empieza hoy
+                  </h2>
+                  <p className="text-lg text-neutral-600">
+                    Tu primer envío en minutos. Sin código. Sin permanencia.
+                  </p>
+                </div>
 
-            <Reveal delay={0.1}>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                {!loggedIn && (
-                  <>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  {!loggedIn && (
+                    <>
+                      <Link
+                        href="/signup"
+                        className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        Crear cuenta gratis
+                      </Link>
+                      <a
+                        href="https://wa.me/573012463004"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-neutral-200 text-neutral-950 px-6 py-3 text-sm font-medium hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                      >
+                        Contactar por WhatsApp
+                      </a>
+                    </>
+                  )}
+                  {loggedIn && (
                     <Link
-                      href="/signup"
-                      className={cn(buttonVariants({ size: "lg" }), "bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-[0_0_30px_rgba(16,185,129,0.4)]")}
+                      href="/panel"
+                      className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
-                      Crear cuenta gratis
+                      Ir al panel
                     </Link>
-                    <a
-                      href="https://wa.me/573012463004"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={cn(buttonVariants({ size: "lg", variant: "outline" }), "border-white/10 text-white hover:bg-white/5")}
-                    >
-                      Escríbenos por WhatsApp
-                    </a>
-                    {/* TODO(luis): confirmar número WhatsApp comercial */}
-                  </>
-                )}
-                {loggedIn && (
-                  <Link
-                    href="/panel"
-                    className={cn(buttonVariants({ size: "lg" }), "bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-[0_0_30px_rgba(16,185,129,0.4)]")}
-                  >
-                    Ir al panel
-                  </Link>
-                )}
+                  )}
+                </div>
               </div>
             </Reveal>
           </div>
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-white/5 bg-zinc-950/60 py-12">
+        <footer className="border-t border-neutral-200 bg-white py-12">
           <div className="mx-auto max-w-6xl px-6 md:px-10">
             <div className="grid md:grid-cols-4 gap-8 mb-8">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-black font-bold text-sm">
-                    L
-                  </div>
-                  <span className="font-semibold text-white">Lula</span>
-                </div>
-                <p className="text-xs text-zinc-500">
+                <span className="text-sm font-medium text-neutral-950">
+                  Lula
+                </span>
+                <p className="text-xs text-neutral-500">
                   WhatsApp para vender más, desde Colombia.
                 </p>
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-white">Producto</h4>
-                <ul className="space-y-2 text-xs text-zinc-500">
+                <h4 className="text-sm font-medium text-neutral-950">
+                  Producto
+                </h4>
+                <ul className="space-y-2 text-xs text-neutral-500">
                   <li>
-                    <a href="#funciones" className="hover:text-white transition-colors">
+                    <a
+                      href="#funciones"
+                      className="hover:text-neutral-950 transition-colors"
+                    >
                       Funciones
                     </a>
                   </li>
                   <li>
-                    <a href="#precio" className="hover:text-white transition-colors">
+                    <a
+                      href="#precio"
+                      className="hover:text-neutral-950 transition-colors"
+                    >
                       Precio
                     </a>
                   </li>
                   <li>
-                    <a href="#faq" className="hover:text-white transition-colors">
+                    <a
+                      href="#faq"
+                      className="hover:text-neutral-950 transition-colors"
+                    >
                       FAQ
                     </a>
                   </li>
@@ -353,15 +478,21 @@ export default async function MarketingPage() {
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-white">Legal</h4>
-                <ul className="space-y-2 text-xs text-zinc-500">
+                <h4 className="text-sm font-medium text-neutral-950">Legal</h4>
+                <ul className="space-y-2 text-xs text-neutral-500">
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a
+                      href="#"
+                      className="hover:text-neutral-950 transition-colors"
+                    >
                       Privacidad
                     </a>
                   </li>
                   <li>
-                    <a href="#" className="hover:text-white transition-colors">
+                    <a
+                      href="#"
+                      className="hover:text-neutral-950 transition-colors"
+                    >
                       Términos
                     </a>
                   </li>
@@ -369,14 +500,16 @@ export default async function MarketingPage() {
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-white">Contacto</h4>
-                <ul className="space-y-2 text-xs text-zinc-500">
+                <h4 className="text-sm font-medium text-neutral-950">
+                  Contacto
+                </h4>
+                <ul className="space-y-2 text-xs text-neutral-500">
                   <li>
                     <a
                       href="https://wa.me/573012463004"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-white transition-colors"
+                      className="hover:text-neutral-950 transition-colors"
                     >
                       WhatsApp
                     </a>
@@ -385,11 +518,11 @@ export default async function MarketingPage() {
               </div>
             </div>
 
-            <div className="border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-xs text-zinc-600">
+            <div className="border-t border-neutral-200 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs text-neutral-500">
                 © 2026 Lula. Todos los derechos reservados.
               </p>
-              <p className="text-xs text-zinc-600">luladev.com</p>
+              <p className="text-xs text-neutral-500">luladev.com</p>
             </div>
           </div>
         </footer>

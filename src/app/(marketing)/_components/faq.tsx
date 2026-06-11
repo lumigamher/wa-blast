@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 const faqs = [
   {
@@ -36,20 +36,17 @@ export function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div className="space-y-0 max-w-2xl">
       {faqs.map((faq, idx) => (
-        <div
-          key={idx}
-          className="rounded-xl border border-white/10 bg-zinc-900/40 overflow-hidden"
-        >
+        <div key={idx} className="border-b border-neutral-200 last:border-b-0">
           <button
             onClick={() => setOpen(open === idx ? null : idx)}
             aria-expanded={open === idx}
-            className="w-full flex items-center justify-between px-6 py-4 hover:bg-zinc-900/60 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0a0b]"
+            className="w-full flex items-center justify-between px-0 py-4 hover:opacity-70 transition-opacity text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
-            <h3 className="font-medium text-white pr-4">{faq.question}</h3>
-            <ChevronDownIcon
-              className={`h-5 w-5 text-zinc-400 shrink-0 transition-transform ${
+            <h3 className="font-medium text-neutral-950 pr-4">{faq.question}</h3>
+            <ChevronDown
+              className={`h-5 w-5 text-neutral-400 shrink-0 transition-transform duration-200 ${
                 open === idx ? "rotate-180" : ""
               }`}
             />
@@ -64,8 +61,8 @@ export function FAQ() {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="px-6 py-4 border-t border-white/5 bg-zinc-950/50">
-                  <p className="text-sm text-zinc-300 leading-relaxed">
+                <div className="pb-4">
+                  <p className="text-sm text-neutral-600 leading-relaxed">
                     {faq.answer}
                   </p>
                 </div>

@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface NavProps {
   loggedIn: boolean;
@@ -10,59 +8,59 @@ interface NavProps {
 
 export function Nav({ loggedIn }: NavProps) {
   return (
-    <nav className="sticky top-0 z-40 w-full backdrop-blur-xl bg-black/40 ring-1 ring-white/10">
-      <div className="mx-auto max-w-6xl px-6 py-4 md:px-10 flex items-center justify-between">
+    <nav className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/95 backdrop-blur-sm">
+      <div className="mx-auto max-w-6xl px-6 py-3 md:px-10 flex items-center justify-between h-14">
+        {/* Wordmark */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-black font-bold text-sm">
-            L
-          </div>
-          <span className="text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
+          <span className="text-sm font-medium text-neutral-950 group-hover:text-neutral-700 transition-colors">
             Lula
           </span>
         </Link>
 
+        {/* Center links */}
         <div className="hidden md:flex items-center gap-8">
           <a
             href="#funciones"
-            className="text-sm text-zinc-400 hover:text-white transition-colors"
+            className="text-sm text-neutral-600 hover:text-neutral-950 transition-colors"
           >
-            Funciones
+            Producto
           </a>
           <a
             href="#precio"
-            className="text-sm text-zinc-400 hover:text-white transition-colors"
+            className="text-sm text-neutral-600 hover:text-neutral-950 transition-colors"
           >
             Precio
           </a>
           <a
             href="#faq"
-            className="text-sm text-zinc-400 hover:text-white transition-colors"
+            className="text-sm text-neutral-600 hover:text-neutral-950 transition-colors"
           >
             FAQ
           </a>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Right actions */}
+        <div className="flex items-center gap-2">
           {!loggedIn && (
             <>
               <Link
                 href="/login"
-                className={cn(buttonVariants({ variant: "ghost" }), "text-sm text-zinc-300 hover:text-white")}
+                className="text-sm text-neutral-600 hover:text-neutral-950 transition-colors px-3 py-2"
               >
-                Entrar
+                Iniciar sesión
               </Link>
               <Link
                 href="/signup"
-                className={cn(buttonVariants({ variant: "default" }), "bg-emerald-500 hover:bg-emerald-400 text-black font-medium shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:shadow-[0_0_40px_rgba(16,185,129,0.6)] transition-shadow text-sm")}
+                className="text-sm px-6 py-2 rounded-full bg-neutral-950 text-white hover:bg-neutral-800 transition-colors font-medium"
               >
-                Crear cuenta gratis
+                Crear cuenta
               </Link>
             </>
           )}
           {loggedIn && (
             <Link
               href="/panel"
-              className={cn(buttonVariants({ variant: "default" }), "bg-emerald-500 hover:bg-emerald-400 text-black font-medium shadow-[0_0_30px_rgba(16,185,129,0.4)] text-sm")}
+              className="text-sm px-6 py-2 rounded-full bg-neutral-950 text-white hover:bg-neutral-800 transition-colors font-medium"
             >
               Ir al panel
             </Link>

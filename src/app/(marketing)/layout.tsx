@@ -20,9 +20,5 @@ export default function MarketingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="bg-[#0a0a0b] text-zinc-100 antialiased">
-      {children}
-    </div>
-  );
+  return children;
 }
