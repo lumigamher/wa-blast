@@ -4,6 +4,8 @@ import { Reveal } from "./_components/reveal";
 import { CampaignDemo } from "./_components/campaign-demo";
 import { UsecaseTabs } from "./_components/usecase-tabs";
 import { FAQ } from "./_components/faq";
+import { Shot } from "./_components/shot";
+import { TextHoverEffect } from "@/components/ui/text-hover-effect";
 import Link from "next/link";
 import { Check } from "lucide-react";
 
@@ -150,78 +152,94 @@ export default async function MarketingPage() {
         {/* Deep Dive: Campañas */}
         <section className="py-20 md:py-28 border-b border-neutral-200">
           <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <Reveal>
-              <div className="space-y-8">
-                <div className="space-y-3">
-                  <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                    Campañas que venden
-                  </h3>
-                  <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
-                    Masivo. Segmentado. Inteligente.
-                  </h2>
-                  <p className="text-lg text-neutral-600 max-w-2xl">
-                    Envía campañas a miles de contactos con carrusel, botones y
-                    formularios. Respeta ventanas de 24h. Reintentos
-                    automáticos. Anti-doble envío.
-                  </p>
-                </div>
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <Reveal>
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                      Campañas que venden
+                    </h3>
+                    <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                      Masivo. Segmentado. Inteligente.
+                    </h2>
+                    <p className="text-lg text-neutral-600 max-w-2xl">
+                      Envía campañas a miles de contactos con carrusel, botones y
+                      formularios. Respeta ventanas de 24h. Reintentos
+                      automáticos. Anti-doble envío.
+                    </p>
+                  </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  {[
-                    "Plantillas con vista previa antes de enviar",
-                    "Segmentación por tags y propiedades personalizadas",
-                    "Carrusel de productos o promociones",
-                    "Botones interactivos y formularios",
-                  ].map((bullet, idx) => (
-                    <Reveal key={idx} delay={idx * 0.1}>
-                      <div className="flex items-start gap-3 text-neutral-700">
-                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
-                        {bullet}
-                      </div>
-                    </Reveal>
-                  ))}
+                  <div className="grid gap-4">
+                    {[
+                      "Plantillas con vista previa antes de enviar",
+                      "Segmentación por tags y propiedades personalizadas",
+                      "Carrusel de productos o promociones",
+                      "Botones interactivos y formularios",
+                    ].map((bullet, idx) => (
+                      <Reveal key={idx} delay={idx * 0.1}>
+                        <div className="flex items-start gap-3 text-neutral-700">
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
+                          {bullet}
+                        </div>
+                      </Reveal>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Reveal>
+              </Reveal>
+
+              <Reveal delay={0.1}>
+                <div className="lg:scale-105">
+                  <Shot src="/shots/campanas.png" alt="Tabla de campañas con estadísticas" />
+                </div>
+              </Reveal>
+            </div>
           </div>
         </section>
 
         {/* Deep Dive: Inbox + IA */}
         <section className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50">
           <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <Reveal>
-              <div className="space-y-8">
-                <div className="space-y-3">
-                  <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                    Inbox + IA
-                  </h3>
-                  <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
-                    Responde en tiempo real
-                  </h2>
-                  <p className="text-lg text-neutral-600 max-w-2xl">
-                    Bandeja unificada para todos los mensajes. Respuesta rápida.
-                    Formularios generados con IA que se adaptan a tus
-                    necesidades.
-                  </p>
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <Reveal delay={0.1}>
+                <div className="lg:scale-105 lg:order-2">
+                  <Shot src="/shots/inbox-hilo.png" alt="Conversación WhatsApp con cliente en tiempo real" />
                 </div>
+              </Reveal>
 
-                <div className="grid md:grid-cols-2 gap-6">
-                  {[
-                    "Inbox en tiempo real con notificaciones",
-                    "Ventana 24h automática—no envíes fuera de horario",
-                    "Describe qué datos necesitas, IA genera el formulario",
-                    "Exporta contactos a CSV, integra con tu CRM",
-                  ].map((bullet, idx) => (
-                    <Reveal key={idx} delay={idx * 0.1}>
-                      <div className="flex items-start gap-3 text-neutral-700">
-                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
-                        {bullet}
-                      </div>
-                    </Reveal>
-                  ))}
+              <Reveal>
+                <div className="space-y-8 lg:order-1">
+                  <div className="space-y-3">
+                    <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                      Inbox + IA
+                    </h3>
+                    <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
+                      Responde en tiempo real
+                    </h2>
+                    <p className="text-lg text-neutral-600 max-w-2xl">
+                      Bandeja unificada para todos los mensajes. Respuesta rápida.
+                      Formularios generados con IA que se adaptan a tus
+                      necesidades.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-4">
+                    {[
+                      "Inbox en tiempo real con notificaciones",
+                      "Ventana 24h automática—no envíes fuera de horario",
+                      "Describe qué datos necesitas, IA genera el formulario",
+                      "Exporta contactos a CSV, integra con tu CRM",
+                    ].map((bullet, idx) => (
+                      <Reveal key={idx} delay={idx * 0.1}>
+                        <div className="flex items-start gap-3 text-neutral-700">
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
+                          {bullet}
+                        </div>
+                      </Reveal>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Reveal>
+              </Reveal>
+            </div>
           </div>
         </section>
 
@@ -281,6 +299,28 @@ export default async function MarketingPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Full-width Panel Screenshot */}
+        <section className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50">
+          <div className="mx-auto max-w-5xl px-6 md:px-10">
+            <Reveal>
+              <div className="space-y-6">
+                <div className="text-center space-y-2">
+                  <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                    Visión completa
+                  </p>
+                  <h3 className="text-3xl md:text-4xl font-medium tracking-tight text-neutral-950">
+                    El panel de Lula
+                  </h3>
+                  <p className="text-base text-neutral-600">
+                    Campañas, métricas y equipo en un solo lugar
+                  </p>
+                </div>
+                <Shot src="/shots/panel.png" alt="Panel principal de Lula con dashboard y campañas" />
               </div>
             </Reveal>
           </div>
@@ -429,6 +469,13 @@ export default async function MarketingPage() {
                 </div>
               </div>
             </Reveal>
+          </div>
+        </section>
+
+        {/* Wordmark gigante interactivo (gradiente sigue el mouse) */}
+        <section aria-hidden="true" className="hidden md:block border-b border-neutral-200">
+          <div className="h-[24rem] lg:h-[32rem] flex items-center justify-center">
+            <TextHoverEffect text="LULA" />
           </div>
         </section>
 

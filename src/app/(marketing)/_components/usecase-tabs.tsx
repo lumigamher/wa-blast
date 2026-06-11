@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import Image from "next/image";
 import {
   Send,
   MessageSquare,
@@ -153,41 +154,60 @@ export function UsecaseTabs() {
               </a>
             </div>
 
-            {/* Right: Mini UI vignette */}
+            {/* Right: Real screenshots or vignette */}
             <div className="md:col-span-1">
-              <div className="rounded-lg bg-white border border-neutral-200 p-4 space-y-3">
-                {activeTab === "campaigns" && (
-                  <div className="space-y-2">
-                    <div className="h-2 bg-neutral-200 rounded-full w-1/3" />
-                    <div className="space-y-1">
-                      <div className="h-3 bg-neutral-100 rounded-full w-full" />
-                      <div className="h-3 bg-neutral-100 rounded-full w-5/6" />
-                      <div className="h-3 bg-neutral-100 rounded-full w-4/5" />
+              {activeTab === "campaigns" && (
+                <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-200 shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
+                  <div className="bg-neutral-100 border-b border-neutral-200 px-3 py-2 flex items-center gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
                     </div>
-                    <div className="pt-2 flex gap-1">
-                      <div className="h-6 bg-neutral-950 rounded text-white text-xs flex items-center justify-center w-1/3 text-center">
-                        Enviar
-                      </div>
-                      <div className="h-6 bg-neutral-100 rounded flex-1" />
-                    </div>
-                  </div>
-                )}
-                {activeTab === "inbox" && (
-                  <div className="space-y-2">
-                    <div className="flex gap-2 pb-2 border-b border-neutral-200">
-                      <div className="h-8 w-8 bg-neutral-300 rounded-full" />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-2 bg-neutral-200 rounded-full w-1/2" />
-                        <div className="h-2 bg-neutral-100 rounded-full w-2/3" />
+                    <div className="flex-1 flex justify-center">
+                      <div className="bg-white rounded-full px-2 py-0.5 text-xs text-neutral-600 border border-neutral-200">
+                        app.luladev.com
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <div className="h-1.5 bg-neutral-200 rounded-full w-full" />
-                      <div className="h-1.5 bg-neutral-100 rounded-full w-4/5" />
+                  </div>
+                  <Image
+                    src="/shots/campanas.png"
+                    alt="Tabla de campañas"
+                    width={1440}
+                    height={900}
+                    quality={90}
+                    sizes="(max-width: 768px) 100vw, 400px"
+                    className="w-full h-auto block"
+                  />
+                </div>
+              )}
+              {activeTab === "inbox" && (
+                <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-200 shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
+                  <div className="bg-neutral-100 border-b border-neutral-200 px-3 py-2 flex items-center gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                    </div>
+                    <div className="flex-1 flex justify-center">
+                      <div className="bg-white rounded-full px-2 py-0.5 text-xs text-neutral-600 border border-neutral-200">
+                        app.luladev.com
+                      </div>
                     </div>
                   </div>
-                )}
-                {activeTab === "forms" && (
+                  <Image
+                    src="/shots/inbox-hilo.png"
+                    alt="Conversación WhatsApp en inbox"
+                    width={1440}
+                    height={900}
+                    quality={90}
+                    sizes="(max-width: 768px) 100vw, 400px"
+                    className="w-full h-auto block"
+                  />
+                </div>
+              )}
+              {activeTab === "forms" && (
+                <div className="rounded-lg bg-white border border-neutral-200 p-4 space-y-3">
                   <div className="space-y-2">
                     <div className="h-2 bg-neutral-200 rounded-full w-1/3" />
                     <div className="space-y-1.5">
@@ -196,19 +216,33 @@ export function UsecaseTabs() {
                       <div className="h-6 bg-neutral-100 rounded border border-neutral-200" />
                     </div>
                   </div>
-                )}
-                {activeTab === "templates" && (
-                  <div className="space-y-2">
-                    <div className="h-2 bg-neutral-200 rounded-full w-1/3" />
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div className="h-8 bg-neutral-100 rounded border border-neutral-200" />
-                      <div className="h-8 bg-neutral-100 rounded border border-neutral-200" />
-                      <div className="h-8 bg-neutral-100 rounded border border-neutral-200" />
-                      <div className="h-8 bg-neutral-100 rounded border border-neutral-200" />
+                </div>
+              )}
+              {activeTab === "templates" && (
+                <div className="rounded-2xl overflow-hidden ring-1 ring-neutral-200 shadow-[0_8px_40px_rgb(0,0,0,0.08)]">
+                  <div className="bg-neutral-100 border-b border-neutral-200 px-3 py-2 flex items-center gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                      <div className="w-2 h-2 rounded-full bg-neutral-300" />
+                    </div>
+                    <div className="flex-1 flex justify-center">
+                      <div className="bg-white rounded-full px-2 py-0.5 text-xs text-neutral-600 border border-neutral-200">
+                        app.luladev.com
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
+                  <Image
+                    src="/shots/panel.png"
+                    alt="Panel de Lula con plantillas"
+                    width={1440}
+                    height={900}
+                    quality={90}
+                    sizes="(max-width: 768px) 100vw, 400px"
+                    className="w-full h-auto block"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
