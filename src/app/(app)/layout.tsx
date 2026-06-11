@@ -5,6 +5,7 @@ import {
   LogOutIcon,
   SendIcon,
   SettingsIcon,
+  ShieldIcon,
   TagIcon,
   UsersIcon,
   LayersIcon,
@@ -12,6 +13,7 @@ import {
   CreditCardIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
+import { isAdminEmail } from "@/lib/auth/admin";
 import { logoutAction } from "@/lib/auth/actions";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,7 +35,13 @@ const NAV_ITEMS = [
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
   const initial = (session.user.name ?? session.user.email).trim().charAt(0).toUpperCase();
-  const hrefs = NAV_ITEMS.map((n) => n.href);
+
+  // Build nav items with admin link if user is admin
+  const navItems = [...NAV_ITEMS];
+  if (isAdminEmail(session.user.email)) {
+    navItems.push({ href: "/admin", icon: ShieldIcon, label: "Admin" });
+  }
+  const hrefs = navItems.map((n) => n.href);
 
   return (
     <div className="flex h-dvh bg-muted/30">
@@ -50,7 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <nav className="flex-1 space-y-0.5 p-3">
           <NavGroup hrefs={hrefs}>
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               return <NavLink key={item.href} href={item.href} icon={<Icon className="size-4" />} label={item.label} />;
             })}
