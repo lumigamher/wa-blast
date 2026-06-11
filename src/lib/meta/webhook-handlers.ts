@@ -2,7 +2,8 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { campaignRecipients, campaigns, contacts, messageEvents } from "@/lib/db/schema";
 import { matchOptOut } from "@/lib/optout/match";
-import { updateMessageStatusByWamid } from "@/lib/inbox/store";
+import { parseInboundMessage } from "@/lib/inbox/parse-inbound";
+import { recordInboundMessage, updateMessageStatusByWamid } from "@/lib/inbox/store";
 
 export async function handleStatusEvent(
   db: DB,
@@ -88,7 +89,5 @@ export async function handleInboundMessage(
   });
 
   // Persist inbound message to inbox
-  const { parseInboundMessage } = await import("@/lib/inbox/parse-inbound");
-  const { recordInboundMessage } = await import("@/lib/inbox/store");
   await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed: parseInboundMessage(msg), ts });
 }
