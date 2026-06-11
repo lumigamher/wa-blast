@@ -3,7 +3,6 @@
 import { AlertCircleIcon, CheckIcon, CheckCheckIcon, FileIcon } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import type { InferSelectModel } from "drizzle-orm";
-import Image from "next/image";
 
 type Message = InferSelectModel<typeof messagesSchema>;
 
@@ -107,11 +106,10 @@ function renderMessageContent(message: Message): React.ReactNode {
       return message.mediaId ? (
         <div className="space-y-2">
           {message.body && <div className="text-xs">{message.body}</div>}
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={`/api/inbox/media/${message.mediaId}`}
             alt="Image"
-            width={300}
-            height={300}
             className="max-w-xs rounded"
           />
         </div>
@@ -157,13 +155,14 @@ function renderMessageContent(message: Message): React.ReactNode {
 
     case "sticker":
       return message.mediaId ? (
-        <Image
-          src={`/api/inbox/media/${message.mediaId}`}
-          alt="Sticker"
-          width={200}
-          height={200}
-          className="max-w-xs rounded"
-        />
+        <div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/inbox/media/${message.mediaId}`}
+            alt="Sticker"
+            className="max-w-xs rounded"
+          />
+        </div>
       ) : (
         `[Sticker]`
       );
