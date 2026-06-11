@@ -155,7 +155,7 @@ function MediaHeader({
     return (
       <div className="relative mb-1 flex aspect-video items-center justify-center overflow-hidden rounded-md bg-black/80">
         {preview?.url ? (
-          // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/media-has-caption
+           
           <video
             src={preview.url}
             className="h-full w-full object-cover"

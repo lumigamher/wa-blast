@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import {
   campaigns,
@@ -10,7 +10,6 @@ import {
   tags,
   segments,
   mediaAssets,
-  templateFavorites,
   subscriptions,
   subscriptionCharges,
   billingCheckouts,
