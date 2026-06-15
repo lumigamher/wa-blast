@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   AlertCircleIcon,
   CheckIcon,
   CheckCheckIcon,
   FileIcon,
-  MoreVerticalIcon,
-  SmileIcon,
+  SmilePlusIcon,
   StickyNoteIcon,
 } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import { sendReactionAction } from "../../actions";
 import type { InferSelectModel } from "drizzle-orm";
 import { AudioPlayer } from "./audio-player";
+import { EmojiPicker } from "./emoji-picker";
 import { ReactionChips } from "./reaction-chip";
 import { MediaImage } from "./media-image";
 
@@ -129,8 +129,8 @@ function MessageBubble({
   onReplyTo: (wamid: string) => void;
   reactions: { direction: "in" | "out"; emoji: string }[];
 }) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showReactionPopover, setShowReactionPopover] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [reactionsLoading, setReactionsLoading] = useState(false);
   const isOutbound = message.direction === "out";
   const time = message.createdAt.toLocaleTimeString("es-CO", {
@@ -138,7 +138,8 @@ function MessageBubble({
     minute: "2-digit",
   });
 
-  const emojis = ["👍", "❤️", "😂", "😮", "🙏"];
+  const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const handleReaction = async (emoji: string) => {
     if (!message.wamid || isOutbound) return;
@@ -147,9 +148,40 @@ function MessageBubble({
       await sendReactionAction(message.conversationId, { wamid: message.wamid, emoji });
     } finally {
       setReactionsLoading(false);
-      setShowEmojiPicker(false);
+      setShowReactionPopover(false);
     }
   };
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isOutbound && message.wamid) {
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  // Close context menu on outside click or Escape
+  useEffect(() => {
+    if (!contextMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setContextMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [contextMenu]);
 
   const bubbleContent = renderMessageContent(message);
 
@@ -157,65 +189,81 @@ function MessageBubble({
   if (message.type === "sticker") {
     return (
       <div
-        className={`flex gap-2 group ${
+        className={`flex gap-2 group relative ${
           isOutbound ? "flex-row-reverse justify-start" : "flex-row"
         }`}
-        onMouseEnter={() => !isOutbound && setShowMenu(true)}
-        onMouseLeave={() => {
-          setShowMenu(false);
-          setShowEmojiPicker(false);
-        }}
+        onContextMenu={handleContextMenu}
       >
         <div className="relative">
           {bubbleContent}
           {reactions.length > 0 && <ReactionChips reactions={reactions} />}
         </div>
 
-        {!isOutbound && (showMenu || showEmojiPicker) && message.wamid && (
-          <div className="relative">
+        {/* Hover reaction button (beside bubble) */}
+        {!isOutbound && message.wamid && (
+          <button
+            onClick={() => setShowReactionPopover(!showReactionPopover)}
+            className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground"
+            title="Reaccionar"
+            aria-label="Reaccionar"
+          >
+            <SmilePlusIcon className="size-4" />
+          </button>
+        )}
+
+        {/* Reaction popover */}
+        {!isOutbound && message.wamid && showReactionPopover && (
+          <div className="absolute -left-32 top-0 z-50 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-3 flex flex-col gap-2 min-w-max">
+            <div className="flex gap-1">
+              {quickEmojis.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleReaction(emoji)}
+                  disabled={reactionsLoading}
+                  className="text-xl hover:scale-125 transition-transform disabled:opacity-50 p-1"
+                  title={`Reaccionar con ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+              <div className="flex items-center">
+                <EmojiPicker
+                  onPick={(emoji) => handleReaction(emoji)}
+                  disabled={reactionsLoading}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Right-click context menu */}
+        {contextMenu && (
+          <div
+            ref={contextMenuRef}
+            className="fixed z-50 bg-white dark:bg-slate-800 border border-muted rounded-md shadow-lg overflow-hidden"
+            style={{
+              left: `${contextMenu.x}px`,
+              top: `${contextMenu.y}px`,
+            }}
+          >
             <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-              title="Opciones"
+              onClick={() => {
+                onReplyTo(message.wamid!);
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors"
             >
-              <MoreVerticalIcon className="size-4" />
+              Responder
             </button>
-
-            {showMenu && (
-              <div className="absolute right-0 mt-1 rounded-md border bg-background shadow-lg z-10 overflow-hidden">
-                <button
-                  onClick={() => {
-                    onReplyTo(message.wamid!);
-                    setShowMenu(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors"
-                >
-                  Responder
-                </button>
-                <button
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2"
-                >
-                  <SmileIcon className="size-3" /> Reaccionar
-                </button>
-              </div>
-            )}
-
-            {showEmojiPicker && (
-              <div className="absolute right-0 mt-1 rounded-md border bg-background shadow-lg z-10 p-2 flex gap-1">
-                {emojis.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReaction(emoji)}
-                    disabled={reactionsLoading}
-                    className="text-xl hover:scale-110 transition-transform disabled:opacity-50"
-                    title={`Reaccionar con ${emoji}`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
+            <button
+              onClick={() => {
+                setShowReactionPopover(true);
+                setContextMenu(null);
+              }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors border-t border-muted"
+            >
+              Reaccionar
+            </button>
           </div>
         )}
       </div>
@@ -225,14 +273,10 @@ function MessageBubble({
   // Regular messages with colored background
   return (
     <div
-      className={`flex gap-2 group ${
+      className={`flex gap-2 group relative ${
         isOutbound ? "flex-row-reverse justify-start" : "flex-row"
       }`}
-      onMouseEnter={() => !isOutbound && setShowMenu(true)}
-      onMouseLeave={() => {
-        setShowMenu(false);
-        setShowEmojiPicker(false);
-      }}
+      onContextMenu={handleContextMenu}
     >
       <div className="relative">
         <div
@@ -267,51 +311,71 @@ function MessageBubble({
         </div>
       )}
 
-      {!isOutbound && (showMenu || showEmojiPicker) && message.wamid && (
-        <div className="relative">
+      {/* Hover reaction button (beside bubble) */}
+      {!isOutbound && message.wamid && (
+        <button
+          onClick={() => setShowReactionPopover(!showReactionPopover)}
+          className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground"
+          title="Reaccionar"
+          aria-label="Reaccionar"
+        >
+          <SmilePlusIcon className="size-4" />
+        </button>
+      )}
+
+      {/* Reaction popover */}
+      {!isOutbound && message.wamid && showReactionPopover && (
+        <div className="absolute -left-32 top-0 z-50 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-3 flex flex-col gap-2 min-w-max">
+          <div className="flex gap-1">
+            {quickEmojis.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => handleReaction(emoji)}
+                disabled={reactionsLoading}
+                className="text-xl hover:scale-125 transition-transform disabled:opacity-50 p-1"
+                title={`Reaccionar con ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+            <div className="flex items-center">
+              <EmojiPicker
+                onPick={(emoji) => handleReaction(emoji)}
+                disabled={reactionsLoading}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-white dark:bg-slate-800 border border-muted rounded-md shadow-lg overflow-hidden"
+          style={{
+            left: `${contextMenu.x}px`,
+            top: `${contextMenu.y}px`,
+          }}
+        >
           <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            title="Opciones"
+            onClick={() => {
+              onReplyTo(message.wamid!);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors"
           >
-            <MoreVerticalIcon className="size-4" />
+            Responder
           </button>
-
-          {showMenu && (
-            <div className="absolute right-0 mt-1 rounded-md border bg-background shadow-lg z-10 overflow-hidden">
-              <button
-                onClick={() => {
-                  onReplyTo(message.wamid!);
-                  setShowMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors"
-              >
-                Responder
-              </button>
-              <button
-                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2"
-              >
-                <SmileIcon className="size-3" /> Reaccionar
-              </button>
-            </div>
-          )}
-
-          {showEmojiPicker && (
-            <div className="absolute right-0 mt-1 rounded-md border bg-background shadow-lg z-10 p-2 flex gap-1">
-              {emojis.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleReaction(emoji)}
-                  disabled={reactionsLoading}
-                  className="text-xl hover:scale-110 transition-transform disabled:opacity-50"
-                  title={`Reaccionar con ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-          )}
+          <button
+            onClick={() => {
+              setShowReactionPopover(true);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors border-t border-muted"
+          >
+            Reaccionar
+          </button>
         </div>
       )}
     </div>

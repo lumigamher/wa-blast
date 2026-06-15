@@ -37,7 +37,11 @@ export function AudioPlayer({ src }: { src: string }) {
         );
         const ctx = new AudioCtxConstructor();
         const decoded = await ctx.decodeAudioData(buf);
-        if (!aborted) setPeaks(computePeaks(decoded, 48));
+        if (!aborted) {
+          setPeaks(computePeaks(decoded, 48));
+          // Use decoded buffer duration as authoritative source (fixes Infinity/NaN for streamed OGG/Opus)
+          setDur(decoded.duration);
+        }
         void ctx.close();
       } catch {
         if (!aborted) setDecodeFailed(true);
@@ -66,8 +70,10 @@ export function AudioPlayer({ src }: { src: string }) {
     a.currentTime = ratio * dur;
   };
 
-  const fmt = (s: number) =>
-    `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  const fmt = (s: number) => {
+    if (!Number.isFinite(s)) return "0:00";
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  };
 
   const playedRatio = dur ? progress / dur : 0;
 
