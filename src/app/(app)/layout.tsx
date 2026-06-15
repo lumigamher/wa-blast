@@ -59,35 +59,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await requireSession();
   const initial = (session.user.name ?? session.user.email).trim().charAt(0).toUpperCase();
 
-  // Build nav sections with admin link if user is admin
-  const navSections = [...NAV_SECTIONS];
+  // Añade "Admin" a la sección Cuenta solo si el usuario es admin (sin duplicar).
   const isAdmin = isAdminEmail(session.user.email);
-  if (isAdmin) {
-    navSections.push({
-      label: "Cuenta",
-      items: [
-        ...navSections.find((s) => s.label === "Cuenta")?.items ?? [],
-        { href: "/admin", icon: ShieldIcon, label: "Admin" },
-      ],
-    });
-    // Remove duplicate "Cuenta" section if it was already there
-    const uniqueSections: NavSection[] = [];
-    const seenLabels = new Set<string>();
-    for (const section of navSections) {
-      if (!seenLabels.has(section.label)) {
-        uniqueSections.push(section);
-        seenLabels.add(section.label);
-      } else {
-        // Merge items if duplicate
-        const existing = uniqueSections.find((s) => s.label === section.label);
-        if (existing) {
-          existing.items = [...existing.items, ...section.items];
-        }
-      }
-    }
-    navSections.length = 0;
-    navSections.push(...uniqueSections);
-  }
+  const navSections = NAV_SECTIONS.map((s) =>
+    s.label === "Cuenta" && isAdmin
+      ? { ...s, items: [...s.items, { href: "/admin", icon: ShieldIcon, label: "Admin" }] }
+      : s,
+  );
 
   // Collect all hrefs for NavGroup context
   const standaloneHrefs = STANDALONE_ITEMS.map((n) => n.href);
