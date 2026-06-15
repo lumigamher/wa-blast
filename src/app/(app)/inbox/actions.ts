@@ -326,7 +326,19 @@ export async function sendStickerAction(conversationId: string, input: { sticker
   if ("error" in up) return { ok: false, error: `No se pudo subir el sticker: ${up.error.message}` };
 
   const sendRes = await sendMedia(settings, { to: thread.conversation.phone, kind: "sticker", mediaId: up.mediaId });
-  if ("error" in sendRes) return { ok: false, error: `No se pudo enviar: ${sendRes.error.message}` };
+  if ("error" in sendRes) {
+    await recordOutboundMessage(db, {
+      orgId,
+      conversationId,
+      wamid: null,
+      type: "sticker",
+      body: null,
+      status: "failed",
+      errorMessage: sendRes.error.message,
+      mediaId: asset.id,
+    });
+    return { ok: false, error: `No se pudo enviar: ${sendRes.error.message}` };
+  }
 
   await recordOutboundMessage(db, {
     orgId,
