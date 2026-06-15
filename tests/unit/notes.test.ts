@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { conversations, organization, user } from "@/lib/db/schema";
 import { addNote, deleteNote, listNotes } from "@/lib/inbox/notes";
+import type { DB } from "@/lib/db/client";
 
-async function seed(db: any) {
+async function seed(db: DB) {
   await db
     .insert(organization)
     .values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });

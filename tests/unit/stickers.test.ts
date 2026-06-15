@@ -5,8 +5,9 @@ import { join } from "node:path";
 import { makeTestDb } from "@/lib/db/test-db";
 import { organization } from "@/lib/db/schema";
 import { addSticker, deleteSticker, listStickers } from "@/lib/inbox/stickers";
+import type { DB } from "@/lib/db/client";
 
-async function seed(db: any, id = "o1") {
+async function seed(db: DB, id = "o1") {
   await db
     .insert(organization)
     .values({ id, name: id, slug: id, createdAt: new Date() });

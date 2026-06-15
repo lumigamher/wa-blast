@@ -16,7 +16,7 @@ export async function addSticker(db: DB, orgId: string, input: { webp: Uint8Arra
   const bytes = input.webp.buffer.slice(
     input.webp.byteOffset,
     input.webp.byteOffset + input.webp.byteLength,
-  );
+  ) as ArrayBuffer;
   const asset = await saveMediaAsset(db, {
     orgId,
     bytes,
