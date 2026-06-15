@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import type { InferSelectModel } from "drizzle-orm";
 import { Thread } from "./thread";
@@ -27,19 +27,27 @@ export function ThreadAndComposer({
   windowOpen,
   templates,
   quickReplies,
+  reactions = {},
 }: {
   conversationId: string;
   messages: Message[];
   windowOpen: boolean;
   templates: Template[];
   quickReplies: QuickReply[];
+  reactions?: Record<string, { direction: "in" | "out"; emoji: string }[]>;
 }) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [messages.length]);
 
   return (
     <>
       <div className="flex-1 overflow-y-auto p-4">
-        <Thread messages={messages} onReplyTo={setReplyTo} />
+        <Thread messages={messages} onReplyTo={setReplyTo} reactions={reactions} />
+        <div ref={bottomRef} />
       </div>
 
       <Composer
