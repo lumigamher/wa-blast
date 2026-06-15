@@ -1,33 +1,44 @@
 import { spawn } from "node:child_process";
+import { mkdtemp, readFile, unlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import sharp from "sharp";
 
-function run(args: string[], input: Uint8Array): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
-    const chunks: Buffer[] = [];
-    const errChunks: Buffer[] = [];
-    proc.stdout.on("data", (c) => chunks.push(c));
-    proc.stderr.on("data", (c) => errChunks.push(c));
-    proc.on("error", reject);
-    proc.on("close", (code) => {
-      if (code === 0) resolve(new Uint8Array(Buffer.concat(chunks)));
-      else reject(new Error(`ffmpeg salió ${code}: ${Buffer.concat(errChunks).toString().slice(-500)}`));
-    });
-    proc.stdin.on("error", () => {});
-    proc.stdin.write(Buffer.from(input));
-    proc.stdin.end();
-  });
-}
-
-/** Convierte cualquier audio de entrada a OGG/Opus (nota de voz de WhatsApp). */
+/**
+ * Convierte cualquier audio de entrada a OGG/Opus (nota de voz de WhatsApp).
+ * Escribe a un archivo temporal (contenedor "seekable") en vez de a un pipe:
+ * así ffmpeg finaliza correctamente las cabeceras/granule del OGG. Algunos
+ * clientes (incl. WhatsApp del destinatario) muestran "audio no disponible"
+ * con OGG generado vía pipe. opus mono 48k es el único formato de nota de voz
+ * que acepta la Cloud API.
+ */
 export async function toOggOpus(input: ArrayBuffer): Promise<Uint8Array> {
-  // Recipe canónico de notas de voz de WhatsApp: opus mono, optimizado para voz.
-  // -vn descarta cualquier track de video del webm; -application voip mejora la voz y
-  // la reproducción en el WhatsApp del destinatario.
-  return run(
-    ["-i", "pipe:0", "-vn", "-c:a", "libopus", "-b:a", "32k", "-ar", "48000", "-ac", "1", "-application", "voip", "-f", "ogg", "pipe:1"],
-    new Uint8Array(input),
-  );
+  const dir = await mkdtemp(join(tmpdir(), "voz-"));
+  const outPath = join(dir, "out.ogg");
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const proc = spawn(
+        "ffmpeg",
+        ["-i", "pipe:0", "-vn", "-c:a", "libopus", "-b:a", "32k", "-ar", "48000", "-ac", "1", outPath, "-y"],
+        { stdio: ["pipe", "ignore", "pipe"] },
+      );
+      const err: Buffer[] = [];
+      proc.stderr.on("data", (c) => err.push(c));
+      proc.on("error", reject);
+      proc.on("close", (code) =>
+        code === 0
+          ? resolve()
+          : reject(new Error(`ffmpeg salió ${code}: ${Buffer.concat(err).toString().slice(-400)}`)),
+      );
+      proc.stdin.on("error", () => {});
+      proc.stdin.write(Buffer.from(new Uint8Array(input)));
+      proc.stdin.end();
+    });
+    const out = await readFile(outPath);
+    return new Uint8Array(out);
+  } finally {
+    await unlink(outPath).catch(() => {});
+  }
 }
 
 /** Convierte una imagen a WEBP 512x512 con transparencia (sticker de WhatsApp). */

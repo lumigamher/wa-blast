@@ -246,6 +246,8 @@ export async function sendVoiceAction(
 
   const oggBuf = Buffer.from(ogg);
   console.log(`[voice] in mime=${input.mime} raw=${raw.byteLength}b ogg=${oggBuf.byteLength}b`);
+  // DEBUG temporal: guardar el último ogg para inspección con ffprobe (quitar luego)
+  await import("node:fs/promises").then((fs) => fs.writeFile("/tmp/last-voz.ogg", oggBuf)).catch(() => {});
   const settings = await getOrgSettings(db, orgId);
   const up = await uploadMedia(settings, {
     bytes: oggBuf.buffer.slice(oggBuf.byteOffset, oggBuf.byteOffset + oggBuf.byteLength),

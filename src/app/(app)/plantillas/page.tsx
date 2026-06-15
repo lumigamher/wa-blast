@@ -38,7 +38,7 @@ export default async function PlantillasPage({
   const creds = credsFromSettings(settings);
 
   const templates = creds
-    ? await listTemplates(creds).catch((e) => {
+    ? await listTemplates(creds, { fresh: true }).catch((e) => {
         console.error("meta.listTemplates falló:", e);
         return [];
       })

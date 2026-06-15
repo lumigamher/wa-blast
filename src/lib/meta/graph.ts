@@ -70,17 +70,37 @@ async function requestAll<T>(creds: GraphCreds, startPath: string): Promise<T[]>
   return results;
 }
 
-export async function listTemplates(creds: GraphCreds): Promise<WhatsAppTemplate[]> {
-  return requestAll<WhatsAppTemplate>(
+// Cache en memoria de plantillas por WABA (el inbox las re-pide en cada poll de 5s).
+// TTL corto + invalidación al crear/borrar plantillas. Solo cachea resultados exitosos.
+const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000;
+const templateCache = new Map<string, { at: number; data: WhatsAppTemplate[] }>();
+
+export function invalidateTemplateCache(wabaId?: string): void {
+  if (wabaId) templateCache.delete(wabaId);
+  else templateCache.clear();
+}
+
+export async function listTemplates(
+  creds: GraphCreds,
+  opts?: { fresh?: boolean },
+): Promise<WhatsAppTemplate[]> {
+  const cached = templateCache.get(creds.wabaId);
+  if (!opts?.fresh && cached && Date.now() - cached.at < TEMPLATE_CACHE_TTL_MS) {
+    return cached.data;
+  }
+  const data = await requestAll<WhatsAppTemplate>(
     creds,
     `/${creds.wabaId}/message_templates?limit=100&fields=name,status,language,category,components,id`,
   );
+  templateCache.set(creds.wabaId, { at: Date.now(), data });
+  return data;
 }
 
 export async function deleteTemplate(creds: GraphCreds, name: string): Promise<void> {
   await request(creds, `/${creds.wabaId}/message_templates?name=${encodeURIComponent(name)}`, {
     method: "DELETE",
   });
+  invalidateTemplateCache(creds.wabaId);
 }
 
 function metaButton(b: ButtonSpec): Record<string, unknown> {
@@ -166,16 +186,22 @@ export async function createTemplate(
   creds: GraphCreds,
   input: CreateTemplateInput,
 ): Promise<{ id: string; status: string; category?: string }> {
-  return request(creds, `/${creds.wabaId}/message_templates`, {
-    method: "POST",
-    body: JSON.stringify({
-      name: input.name,
-      language: input.language,
-      category: input.category,
-      allow_category_change: false,
-      components: buildCreateComponents(input),
-    }),
-  });
+  const res = await request<{ id: string; status: string; category?: string }>(
+    creds,
+    `/${creds.wabaId}/message_templates`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name: input.name,
+        language: input.language,
+        category: input.category,
+        allow_category_change: false,
+        components: buildCreateComponents(input),
+      }),
+    },
+  );
+  invalidateTemplateCache(creds.wabaId);
+  return res;
 }
 
 export const MEDIA_LIMITS: Record<MediaFormat, { maxBytes: number; mimes: string[] }> = {
