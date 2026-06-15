@@ -78,7 +78,7 @@ export function AudioPlayer({ src }: { src: string }) {
   const playedRatio = dur ? progress / dur : 0;
 
   return (
-    <div className="flex items-center gap-2 w-full">
+    <div className="flex items-center gap-3 w-full">
       <button
         type="button"
         onClick={toggle}
@@ -101,12 +101,12 @@ export function AudioPlayer({ src }: { src: string }) {
             handleWaveformClick(Math.max(0, Math.min(1, ratio)));
           }}
           aria-label="Barra de progreso de audio"
-          className="flex-1 min-w-0 flex items-center justify-center gap-0.5 h-8 px-2 rounded cursor-pointer group"
+          className="flex-1 min-w-0 flex items-center justify-between gap-[2px] h-7 px-2 rounded cursor-pointer group overflow-hidden"
         >
           {peaks.map((peak, i) => (
             <div
               key={i}
-              className={`w-[3px] rounded-full transition-colors flex-shrink-0 ${
+              className={`flex-1 min-w-0 max-w-[3px] rounded-full transition-colors ${
                 i / peaks.length < playedRatio
                   ? "bg-emerald-600"
                   : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50"

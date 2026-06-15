@@ -230,17 +230,38 @@ function MessageBubble({
           {reactions.length > 0 && <ReactionChips reactions={reactions} />}
         </div>
 
-        {/* Hover reaction button (beside bubble) */}
-        {!isOutbound && message.wamid && (
-          <button
-            onClick={() => setShowReactionPopover(!showReactionPopover)}
-            className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground"
-            title="Reaccionar"
-            aria-label="Reaccionar"
-          >
-            <SmilePlusIcon className="size-4" />
-          </button>
-        )}
+        {/* Hover action buttons (beside bubble) */}
+        {!isOutbound && message.wamid ? (
+          <div className="flex items-center gap-1 absolute -left-20 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => {
+                if (message.wamid) {
+                  onReplyTo({
+                    wamid: message.wamid,
+                    label: replyLabel(message),
+                    author: message.direction,
+                  });
+                }
+              }}
+              className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Responder"
+              aria-label="Responder"
+            >
+              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="21 15 16 10 21 5"></polyline>
+                <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowReactionPopover(!showReactionPopover)}
+              className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Reaccionar"
+              aria-label="Reaccionar"
+            >
+              <SmilePlusIcon className="size-4" />
+            </button>
+          </div>
+        ) : null}
 
         {/* Reaction popover */}
         {!isOutbound && message.wamid && showReactionPopover && (
@@ -350,17 +371,38 @@ function MessageBubble({
         </div>
       )}
 
-      {/* Hover reaction button (beside bubble) */}
-      {!isOutbound && message.wamid && (
-        <button
-          onClick={() => setShowReactionPopover(!showReactionPopover)}
-          className="absolute -right-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground"
-          title="Reaccionar"
-          aria-label="Reaccionar"
-        >
-          <SmilePlusIcon className="size-4" />
-        </button>
-      )}
+      {/* Hover action buttons (beside bubble) */}
+      {!isOutbound && message.wamid ? (
+        <div className="flex items-center gap-1 absolute -right-20 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => {
+              if (message.wamid) {
+                onReplyTo({
+                  wamid: message.wamid,
+                  label: replyLabel(message),
+                  author: message.direction,
+                });
+              }
+            }}
+            className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Responder"
+            aria-label="Responder"
+          >
+            <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="21 15 16 10 21 5"></polyline>
+              <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
+            </svg>
+          </button>
+          <button
+            onClick={() => setShowReactionPopover(!showReactionPopover)}
+            className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Reaccionar"
+            aria-label="Reaccionar"
+          >
+            <SmilePlusIcon className="size-4" />
+          </button>
+        </div>
+      ) : null}
 
       {/* Reaction popover */}
       {!isOutbound && message.wamid && showReactionPopover && (
