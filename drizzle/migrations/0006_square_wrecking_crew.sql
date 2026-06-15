@@ -1,0 +1,1 @@
+ALTER TABLE `conversations` ADD `status` text DEFAULT 'open' NOT NULL;

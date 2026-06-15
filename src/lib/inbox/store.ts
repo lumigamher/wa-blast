@@ -89,6 +89,12 @@ export async function updateMessageStatusByWamid(db: DB, wamid: string, status: 
   }).where(eq(messages.wamid, wamid));
 }
 
+export async function setConversationStatus(db: DB, orgId: string, conversationId: string, status: "open" | "resolved"): Promise<void> {
+  await db.update(conversations).set({
+    status,
+  }).where(and(eq(conversations.id, conversationId), eq(conversations.orgId, orgId)));
+}
+
 export async function markConversationRead(db: DB, orgId: string, conversationId: string): Promise<void> {
   await db.update(conversations).set({
     unreadCount: 0,
@@ -97,11 +103,20 @@ export async function markConversationRead(db: DB, orgId: string, conversationId
 
 export type ConversationListItem = {
   id: string; phone: string; contactName: string | null; preview: string | null;
-  lastMessageAt: Date; lastIncomingAt: Date | null; unreadCount: number;
+  lastMessageAt: Date; lastIncomingAt: Date | null; unreadCount: number; status: "open" | "resolved";
 };
 
-export async function listConversations(db: DB, orgId: string, opts: { q?: string; unreadOnly?: boolean }): Promise<ConversationListItem[]> {
+export async function listConversations(
+  db: DB,
+  orgId: string,
+  opts: { q?: string; unreadOnly?: boolean; status?: "open" | "resolved" | "all" }
+): Promise<ConversationListItem[]> {
   const conditions: SQL<unknown>[] = [eq(conversations.orgId, orgId)];
+
+  const statusFilter = opts.status ?? "open";
+  if (statusFilter === "open" || statusFilter === "resolved") {
+    conditions.push(eq(conversations.status, statusFilter));
+  }
 
   if (opts.unreadOnly) {
     conditions.push(gt(conversations.unreadCount, 0));
@@ -125,6 +140,7 @@ export async function listConversations(db: DB, orgId: string, opts: { q?: strin
     lastMessageAt: conversations.lastMessageAt,
     lastIncomingAt: conversations.lastIncomingAt,
     unreadCount: conversations.unreadCount,
+    status: conversations.status,
     preview: sql<string | null>`(SELECT ${messages.body} FROM ${messages} WHERE ${messages.conversationId} = ${conversations.id} ORDER BY ${messages.createdAt} DESC LIMIT 1)`,
   })
   .from(conversations)

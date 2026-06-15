@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import { requireOrg } from "@/lib/auth/session";
 import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { db } from "@/lib/db/client";
-import { getLastInboundWamid, getThread, markConversationRead, recordOutboundMessage } from "@/lib/inbox/store";
+import { getLastInboundWamid, getThread, markConversationRead, recordOutboundMessage, setConversationStatus } from "@/lib/inbox/store";
 import { upsertReaction } from "@/lib/inbox/reactions";
 import { isWindowOpen } from "@/lib/inbox/window";
 import { markRead, sendMedia, sendReaction, sendTemplate, sendText, uploadMedia } from "@/lib/meta/client";
@@ -379,4 +379,11 @@ export async function deleteNoteAction(conversationId: string, noteId: string): 
   const { orgId } = await requireOrg();
   await deleteNote(db, orgId, noteId);
   revalidatePath(`/inbox/${conversationId}`);
+}
+
+export async function resolveConversationAction(conversationId: string, resolved: boolean): Promise<void> {
+  const { orgId } = await requireOrg();
+  await setConversationStatus(db, orgId, conversationId, resolved ? "resolved" : "open");
+  revalidatePath(`/inbox/${conversationId}`);
+  revalidatePath(`/inbox`);
 }

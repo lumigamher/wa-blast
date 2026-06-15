@@ -213,6 +213,7 @@ export const conversations = sqliteTable(
     lastMessageAt: integer("last_message_at", { mode: "timestamp" }).notNull(),
     lastIncomingAt: integer("last_incoming_at", { mode: "timestamp" }),
     unreadCount: integer("unread_count").notNull().default(0),
+    status: text("status", { enum: ["open", "resolved"] }).notNull().default("open"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({

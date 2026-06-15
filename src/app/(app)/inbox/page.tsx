@@ -37,14 +37,15 @@ function formatRelativeTime(date: Date): string {
 export default async function InboxPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; unreadOnly?: string }>;
+  searchParams: Promise<{ q?: string; unreadOnly?: string; status?: string }>;
 }) {
-  const { q, unreadOnly } = await searchParams;
+  const { q, unreadOnly, status } = await searchParams;
   const { orgId } = await requireOrg();
 
   const conversations = await listConversations(db, orgId, {
     q: q ?? undefined,
     unreadOnly: unreadOnly === "true",
+    status: (status as "open" | "resolved" | "all" | undefined) ?? undefined,
   });
 
   return (
@@ -63,23 +64,38 @@ export default async function InboxPage({
             />
           </form>
 
-          {/* Unread Toggle */}
-          <div className="flex items-center gap-2">
-            {unreadOnly === "true" ? (
-              <Link
-                href="/inbox"
-                className="text-xs px-3 py-1 rounded-full border border-primary bg-primary text-primary-foreground transition-colors"
-              >
-                No leídas
-              </Link>
-            ) : (
-              <Link
-                href="/inbox?unreadOnly=true"
-                className="text-xs px-3 py-1 rounded-full border hover:bg-muted transition-colors"
-              >
-                No leídas
-              </Link>
-            )}
+          {/* Status Filter */}
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/inbox${q ? `?q=${encodeURIComponent(q)}` : ""}${unreadOnly === "true" ? (q ? "&" : "?") + "unreadOnly=true" : ""}`}
+              className={`text-xs px-3 py-1 rounded-l-full border transition-colors ${
+                !status || status === "open"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Abiertas
+            </Link>
+            <Link
+              href={`/inbox?status=resolved${q ? `&q=${encodeURIComponent(q)}` : ""}${unreadOnly === "true" ? "&unreadOnly=true" : ""}`}
+              className={`text-xs px-3 py-1 border-y transition-colors ${
+                status === "resolved"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Resueltas
+            </Link>
+            <Link
+              href={`/inbox?status=all${q ? `&q=${encodeURIComponent(q)}` : ""}${unreadOnly === "true" ? "&unreadOnly=true" : ""}`}
+              className={`text-xs px-3 py-1 rounded-r-full border transition-colors ${
+                status === "all"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Todas
+            </Link>
           </div>
 
           {/* Conversations List */}
@@ -91,32 +107,47 @@ export default async function InboxPage({
                 </p>
               </Card>
             ) : (
-              conversations.map((conv) => (
-                <Link
-                  key={conv.id}
-                  href={`/inbox/${conv.id}`}
-                  className="block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors group"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {conv.contactName || conv.phone}
+              conversations.map((conv) => {
+                const params = new URLSearchParams();
+                if (q) params.set("q", q);
+                if (unreadOnly === "true") params.set("unreadOnly", "true");
+                if (status) params.set("status", status);
+                const href = `/inbox/${conv.id}${params.toString() ? `?${params.toString()}` : ""}`;
+
+                return (
+                  <Link
+                    key={conv.id}
+                    href={href}
+                    className="block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {conv.contactName || conv.phone}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {conv.preview || "(sin mensaje)"}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {conv.preview || "(sin mensaje)"}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {conv.status === "resolved" && (
+                          <div className="text-[10px] text-muted-foreground" title="Resuelta">
+                            ✓
+                          </div>
+                        )}
+                        {conv.unreadCount > 0 && (
+                          <div className="flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">
+                            {conv.unreadCount}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    {conv.unreadCount > 0 && (
-                      <div className="flex-shrink-0 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">
-                        {conv.unreadCount}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-1">
-                    {formatRelativeTime(conv.lastMessageAt)}
-                  </div>
-                </Link>
-              ))
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      {formatRelativeTime(conv.lastMessageAt)}
+                    </div>
+                  </Link>
+                );
+              })
             )}
           </div>
         </div>

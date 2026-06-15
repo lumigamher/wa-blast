@@ -18,6 +18,7 @@ import { ThreadAndComposer } from "./_components/thread-and-composer";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { Poller } from "../_components/poller";
 import { ContactInfoToggle } from "./_components/contact-panel";
+import { ResolveButton } from "./_components/resolve-button";
 
 export const dynamic = "force-dynamic";
 
@@ -51,10 +52,10 @@ export default async function InboxThreadPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ q?: string; unreadOnly?: string }>;
+  searchParams: Promise<{ q?: string; unreadOnly?: string; status?: string }>;
 }) {
   const { id: conversationId } = await params;
-  const { q, unreadOnly } = await searchParams;
+  const { q, unreadOnly, status } = await searchParams;
   const { orgId } = await requireOrg();
 
   // Get thread or 404
@@ -68,6 +69,7 @@ export default async function InboxThreadPage({
   const conversations = await listConversations(db, orgId, {
     q: q ?? undefined,
     unreadOnly: unreadOnly === "true",
+    status: (status as "open" | "resolved" | "all" | undefined) ?? undefined,
   });
 
   // Get approved templates
@@ -112,23 +114,38 @@ export default async function InboxThreadPage({
             />
           </form>
 
-          {/* Unread Toggle */}
-          <div className="flex items-center gap-2">
-            {unreadOnly === "true" ? (
-              <Link
-                href="/inbox"
-                className="text-xs px-3 py-1 rounded-full border border-primary bg-primary text-primary-foreground transition-colors"
-              >
-                No leídas
-              </Link>
-            ) : (
-              <Link
-                href="/inbox?unreadOnly=true"
-                className="text-xs px-3 py-1 rounded-full border hover:bg-muted transition-colors"
-              >
-                No leídas
-              </Link>
-            )}
+          {/* Status Filter */}
+          <div className="flex items-center gap-1">
+            <Link
+              href={`/inbox${q ? `?q=${encodeURIComponent(q)}` : ""}${unreadOnly === "true" ? (q ? "&" : "?") + "unreadOnly=true" : ""}`}
+              className={`text-xs px-3 py-1 rounded-l-full border transition-colors ${
+                !status || status === "open"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Abiertas
+            </Link>
+            <Link
+              href={`/inbox?status=resolved${q ? `&q=${encodeURIComponent(q)}` : ""}${unreadOnly === "true" ? "&unreadOnly=true" : ""}`}
+              className={`text-xs px-3 py-1 border-y transition-colors ${
+                status === "resolved"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Resueltas
+            </Link>
+            <Link
+              href={`/inbox?status=all${q ? `&q=${encodeURIComponent(q)}` : ""}${unreadOnly === "true" ? "&unreadOnly=true" : ""}`}
+              className={`text-xs px-3 py-1 rounded-r-full border transition-colors ${
+                status === "all"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Todas
+            </Link>
           </div>
 
           {/* Conversations List */}
@@ -140,36 +157,51 @@ export default async function InboxThreadPage({
                 </p>
               </Card>
             ) : (
-              conversations.map((conv) => (
-                <a
-                  key={conv.id}
-                  href={`/inbox/${conv.id}${unreadOnly === "true" ? "?unreadOnly=true" : ""}`}
-                  className={`block p-3 rounded-md border transition-colors ${
-                    conv.id === conversationId
-                      ? "bg-accent border-primary"
-                      : "hover:bg-muted/50 border-transparent hover:border-border"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {conv.contactName || conv.phone}
+              conversations.map((conv) => {
+                const params = new URLSearchParams();
+                if (q) params.set("q", q);
+                if (unreadOnly === "true") params.set("unreadOnly", "true");
+                if (status) params.set("status", status);
+                const href = `/inbox/${conv.id}${params.toString() ? `?${params.toString()}` : ""}`;
+
+                return (
+                  <a
+                    key={conv.id}
+                    href={href}
+                    className={`block p-3 rounded-md border transition-colors ${
+                      conv.id === conversationId
+                        ? "bg-accent border-primary"
+                        : "hover:bg-muted/50 border-transparent hover:border-border"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {conv.contactName || conv.phone}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {conv.preview || "(sin mensaje)"}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {conv.preview || "(sin mensaje)"}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {conv.status === "resolved" && (
+                          <div className="text-[10px] text-muted-foreground" title="Resuelta">
+                            ✓
+                          </div>
+                        )}
+                        {conv.unreadCount > 0 && (
+                          <div className="flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">
+                            {conv.unreadCount}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    {conv.unreadCount > 0 && (
-                      <div className="flex-shrink-0 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">
-                        {conv.unreadCount}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-1">
-                    {formatRelativeTime(conv.lastMessageAt)}
-                  </div>
-                </a>
-              ))
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      {formatRelativeTime(conv.lastMessageAt)}
+                    </div>
+                  </a>
+                );
+              })
             )}
           </div>
         </div>
@@ -204,6 +236,10 @@ export default async function InboxThreadPage({
                     </span>
                   )}
                 </div>
+                <ResolveButton
+                  conversationId={conversationId}
+                  resolved={thread.conversation.status === "resolved"}
+                />
                 <ContactInfoToggle
                   conversationId={conversationId}
                   contact={thread.contact}
