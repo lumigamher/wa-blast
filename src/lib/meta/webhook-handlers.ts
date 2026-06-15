@@ -5,6 +5,8 @@ import { matchOptOut } from "@/lib/optout/match";
 import { parseInboundMessage } from "@/lib/inbox/parse-inbound";
 import { recordInboundMessage, updateMessageStatusByWamid, getOrCreateConversation } from "@/lib/inbox/store";
 import { upsertReaction } from "@/lib/inbox/reactions";
+import { ensureInboundMedia } from "@/lib/media/inbound";
+import { getOrgSettings } from "@/lib/org/settings";
 
 export async function handleStatusEvent(
   db: DB,
@@ -101,6 +103,25 @@ export async function handleInboundMessage(
     payload: JSON.stringify({ from: msg.from, preview: body.slice(0, 40) }),
   });
 
+  // Parse message once and reuse
+  const parsed = parseInboundMessage(msg);
+
   // Persist inbound message to inbox
-  await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed: parseInboundMessage(msg), ts, profileName });
+  await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed, ts, profileName });
+
+  // Proactively cache inbound media (best-effort, doesn't break webhook if it fails)
+  if (parsed.mediaId) {
+    try {
+      const settings = await getOrgSettings(db, orgId);
+      if (settings.metaAccessToken) {
+        await ensureInboundMedia(db, {
+          orgId,
+          metaMediaId: parsed.mediaId,
+          accessToken: settings.metaAccessToken,
+        });
+      }
+    } catch {
+      // Best-effort: log silently and continue
+    }
+  }
 }
