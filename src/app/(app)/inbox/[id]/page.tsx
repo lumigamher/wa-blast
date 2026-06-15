@@ -11,10 +11,13 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { extractVariables } from "@/lib/templates";
 import { listQuickReplies } from "@/lib/inbox/quick-replies";
+import { listStickers } from "@/lib/inbox/stickers";
+import { listNotes } from "@/lib/inbox/notes";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
 import { ThreadAndComposer } from "./_components/thread-and-composer";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { Poller } from "../_components/poller";
+import { NotesToggle } from "./_components/notes-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -85,20 +88,19 @@ export default async function InboxThreadPage({
   // Get quick replies
   const quickReplies = await listQuickReplies(db, orgId);
 
+  // Get stickers
+  const stickers = await listStickers(db, orgId);
+
+  // Get notes
+  const notes = await listNotes(db, orgId, conversationId);
+
   const windowOpen = isWindowOpen(thread.conversation.lastIncomingAt);
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
-        <p className="text-sm text-muted-foreground">
-          Mensajes de WhatsApp de tus clientes. Responde dentro de 24h del último mensaje entrante.
-        </p>
-      </header>
-
-      <div className="grid gap-4 md:grid-cols-[320px_1fr]">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[320px_1fr]">
         {/* Left Panel: Conversation List */}
-        <div className="flex flex-col gap-3">
+        <div className="flex min-h-0 flex-col gap-3">
           {/* Search */}
           <form className="relative">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -173,7 +175,7 @@ export default async function InboxThreadPage({
         </div>
 
         {/* Right Panel: Thread */}
-        <div className="flex flex-col border rounded-lg bg-card overflow-hidden">
+        <div className="relative flex min-h-0 flex-col border rounded-lg bg-card overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b bg-card">
             <div className="flex items-center justify-between">
@@ -185,16 +187,19 @@ export default async function InboxThreadPage({
                   {thread.conversation.phone}
                 </div>
               </div>
-              <div className="text-xs px-2.5 py-1 rounded-full bg-muted border">
-                {windowOpen ? (
-                  <span className="text-emerald-700 dark:text-emerald-400">
-                    Ventana abierta
-                  </span>
-                ) : (
-                  <span className="text-amber-700 dark:text-amber-400">
-                    Ventana cerrada
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <NotesToggle conversationId={conversationId} notes={notes} />
+                <div className="text-xs px-2.5 py-1 rounded-full bg-muted border">
+                  {windowOpen ? (
+                    <span className="text-emerald-700 dark:text-emerald-400">
+                      Ventana abierta
+                    </span>
+                  ) : (
+                    <span className="text-amber-700 dark:text-amber-400">
+                      Ventana cerrada
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -206,6 +211,8 @@ export default async function InboxThreadPage({
             windowOpen={windowOpen}
             templates={approvedTemplates}
             quickReplies={quickReplies}
+            stickers={stickers}
+            reactions={thread.reactions}
           />
         </div>
       </div>

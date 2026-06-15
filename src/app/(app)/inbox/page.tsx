@@ -48,17 +48,10 @@ export default async function InboxPage({
   });
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1.5">
-        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
-        <p className="text-sm text-muted-foreground">
-          Mensajes de WhatsApp de tus clientes. Responde dentro de 24h del último mensaje entrante.
-        </p>
-      </header>
-
-      <div className="grid gap-4 md:grid-cols-[320px_1fr]">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-[320px_1fr]">
         {/* Left Panel: Conversation List */}
-        <div className="flex flex-col gap-3">
+        <div className="flex min-h-0 flex-col gap-3">
           {/* Search */}
           <form className="relative">
             <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -129,7 +122,7 @@ export default async function InboxPage({
         </div>
 
         {/* Right Panel: Empty State */}
-        <div className="flex flex-col items-center justify-center min-h-96 rounded-lg border border-dashed">
+        <div className="flex min-h-0 flex-col items-center justify-center h-full rounded-lg border border-dashed">
           <MessageSquareIcon className="size-12 text-muted-foreground/30 mb-2" />
           <p className="text-sm text-muted-foreground">Selecciona una conversación</p>
         </div>

@@ -28,6 +28,14 @@ export const webhookPayloadSchema = z.object({
                 phone_number_id: z.string(),
               })
               .optional(),
+            contacts: z
+              .array(
+                z.object({
+                  wa_id: z.string(),
+                  profile: z.object({ name: z.string() }).optional(),
+                }),
+              )
+              .optional(),
             messages: z
               .array(
                 z.object({

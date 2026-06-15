@@ -13,6 +13,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mediaId
   const { mediaId } = await params;
   const { orgId } = await requireOrg();
 
+  // Asset local (media saliente persistido): id con prefijo "media_"
+  if (mediaId.startsWith("media_")) {
+    const asset = await getMediaAsset(db, mediaId);
+    if (!asset || asset.orgId !== orgId) return new Response("Not found", { status: 404 });
+    const buf = await readFile(asset.path);
+    return new Response(buf, {
+      headers: { "content-type": asset.mime, "cache-control": "private, max-age=86400" },
+    });
+  }
+
   const cached = (await db.select().from(inboxMediaCache).where(eq(inboxMediaCache.metaMediaId, mediaId)))[0];
   if (cached) {
     if (cached.orgId !== orgId) return new Response("Not found", { status: 404 });

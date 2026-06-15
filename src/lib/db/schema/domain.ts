@@ -260,3 +260,45 @@ export const quickReplies = sqliteTable(
   },
   (t) => [index("quick_replies_org").on(t.orgId)],
 );
+
+export const messageReactions = sqliteTable(
+  "message_reactions",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    targetWamid: text("target_wamid").notNull(),
+    direction: text("direction", { enum: ["in", "out"] }).notNull(),
+    emoji: text("emoji").notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({
+    uniqueTarget: uniqueIndex("message_reactions_target").on(t.orgId, t.targetWamid, t.direction),
+    convIdx: index("message_reactions_conv").on(t.conversationId),
+  }),
+);
+
+export const stickers = sqliteTable(
+  "stickers",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    assetId: text("asset_id").notNull().references(() => mediaAssets.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("stickers_org").on(t.orgId) }),
+);
+
+export const conversationNotes = sqliteTable(
+  "conversation_notes",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    authorName: text("author_name").notNull(),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ convIdx: index("conversation_notes_conv").on(t.conversationId, t.createdAt) }),
+);

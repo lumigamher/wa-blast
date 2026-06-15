@@ -3,13 +3,35 @@ import { randomUUID } from "node:crypto";
 import type { DB } from "@/lib/db/client";
 import { contacts, conversations, messages } from "@/lib/db/schema";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
+import { getReactionsForMessages } from "@/lib/inbox/reactions";
 
-export async function getOrCreateConversation(db: DB, orgId: string, phone: string, ts: Date) {
+export async function getOrCreateConversation(db: DB, orgId: string, phone: string, ts: Date, profileName?: string | null) {
+  let contact = (await db.select().from(contacts)
+    .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone))))[0];
+
+  if (!contact) {
+    const newContact = {
+      id: randomUUID(), orgId, phone, name: profileName?.trim() || null, email: null,
+      customFields: "{}", optOutAt: null, createdAt: ts, updatedAt: ts,
+    };
+    await db.insert(contacts).values(newContact).onConflictDoNothing();
+    contact = (await db.select().from(contacts)
+      .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone))))[0];
+  } else if (!contact.name && profileName?.trim()) {
+    await db.update(contacts).set({ name: profileName.trim(), updatedAt: ts }).where(eq(contacts.id, contact.id));
+    contact = { ...contact, name: profileName.trim() };
+  }
+
   const existing = (await db.select().from(conversations)
     .where(and(eq(conversations.orgId, orgId), eq(conversations.phone, phone))))[0];
-  if (existing) return existing;
-  const contact = (await db.select().from(contacts)
-    .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone))))[0];
+  if (existing) {
+    if (!existing.contactId && contact) {
+      await db.update(conversations).set({ contactId: contact.id }).where(eq(conversations.id, existing.id));
+      return { ...existing, contactId: contact.id };
+    }
+    return existing;
+  }
+
   const row = {
     id: randomUUID(), orgId, phone, contactId: contact?.id ?? null,
     lastMessageAt: ts, lastIncomingAt: null as Date | null, unreadCount: 0, createdAt: ts,
@@ -20,9 +42,9 @@ export async function getOrCreateConversation(db: DB, orgId: string, phone: stri
 }
 
 export async function recordInboundMessage(db: DB, input: {
-  orgId: string; phone: string; wamid: string; parsed: ParsedInbound; ts: Date;
+  orgId: string; phone: string; wamid: string; parsed: ParsedInbound; ts: Date; profileName?: string | null;
 }): Promise<void> {
-  const conv = await getOrCreateConversation(db, input.orgId, input.phone, input.ts);
+  const conv = await getOrCreateConversation(db, input.orgId, input.phone, input.ts, input.profileName);
 
   // dedupe por wamid: verificar manualmente si ya existe
   if (input.wamid) {
@@ -46,13 +68,13 @@ export async function recordInboundMessage(db: DB, input: {
 
 export async function recordOutboundMessage(db: DB, input: {
   orgId: string; conversationId: string; wamid: string | null; type: string;
-  body: string | null; status?: "pending" | "sent" | "failed"; errorMessage?: string | null;
+  body: string | null; status?: "pending" | "sent" | "failed"; errorMessage?: string | null; mediaId?: string | null;
 }): Promise<string> {
   const id = randomUUID();
   const now = new Date();
   await db.insert(messages).values({
     id, conversationId: input.conversationId, orgId: input.orgId, direction: "out",
-    wamid: input.wamid, type: input.type, body: input.body, mediaId: null,
+    wamid: input.wamid, type: input.type, body: input.body, mediaId: input.mediaId ?? null,
     status: input.status ?? (input.wamid ? "sent" : "failed"),
     errorMessage: input.errorMessage ?? null, payloadJson: null, createdAt: now,
   });
@@ -118,7 +140,11 @@ export async function getThread(db: DB, orgId: string, conversationId: string) {
   const msgs = await db.select().from(messages)
     .where(eq(messages.conversationId, conversationId)).orderBy(messages.createdAt);
   const contact = conv.contactId ? (await db.select().from(contacts).where(eq(contacts.id, conv.contactId)))[0] : null;
-  return { conversation: conv, messages: msgs, contact: contact ?? null };
+  const wamids = msgs.map((m) => m.wamid).filter((w): w is string => !!w);
+  const reactions = await getReactionsForMessages(db, orgId, wamids);
+  const reactionsByWamid: Record<string, { direction: "in" | "out"; emoji: string }[]> = {};
+  for (const [k, v] of reactions) reactionsByWamid[k] = v;
+  return { conversation: conv, messages: msgs, contact: contact ?? null, reactions: reactionsByWamid };
 }
 
 export async function getLastInboundWamid(db: DB, orgId: string, conversationId: string): Promise<string | null> {

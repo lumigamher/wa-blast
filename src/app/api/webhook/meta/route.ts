@@ -57,7 +57,8 @@ export async function POST(req: Request) {
         for (const s of v.statuses) await handleStatusEvent(db, settings.orgId, s);
       }
       if (v.messages) {
-        for (const m of v.messages) await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords);
+        const profileName = v.contacts?.[0]?.profile?.name ?? null;
+        for (const m of v.messages) await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords, profileName);
       }
     }
   }

@@ -180,7 +180,7 @@ export async function uploadMedia(
 
 export async function sendMedia(
   settings: DecryptedSettings,
-  p: { to: string; kind: "image" | "audio" | "video" | "document"; mediaId: string; caption?: string; filename?: string; replyTo?: string },
+  p: { to: string; kind: "image" | "audio" | "video" | "document" | "sticker"; mediaId: string; caption?: string; filename?: string; replyTo?: string },
 ): Promise<{ wamid: string } | { error: MetaError }> {
   if (!settings.metaPhoneId || !settings.metaAccessToken)
     return { error: { code: 0, message: "Meta creds not configured", type: "auth" } };

@@ -7,7 +7,7 @@ import { env } from "@/lib/env";
 
 export type SavedAsset = {
   id: string;
-  kind: "image" | "video";
+  kind: string;
   mime: string;
   path: string;
   bytes: number;
@@ -15,14 +15,14 @@ export type SavedAsset = {
 
 export async function saveMediaAsset(
   db: DB,
-  input: { orgId: string; bytes: ArrayBuffer; mime: string; dir?: string },
+  input: { orgId: string; bytes: ArrayBuffer; mime: string; kind?: string; dir?: string },
 ): Promise<SavedAsset> {
   const dir = input.dir ?? env.MEDIA_DIR;
   mkdirSync(dir, { recursive: true });
   const id = `media_${crypto.randomUUID()}`;
   const path = join(dir, id);
   writeFileSync(path, Buffer.from(input.bytes));
-  const kind: "image" | "video" = input.mime.startsWith("video/") ? "video" : "image";
+  const kind = input.kind ?? (input.mime.startsWith("video/") ? "video" : input.mime.startsWith("audio/") ? "audio" : "image");
   const bytes = input.bytes.byteLength;
   await db.insert(mediaAssets).values({
     id,
