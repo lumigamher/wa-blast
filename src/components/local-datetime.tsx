@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
 /**
  * Formatea una fecha ISO en la zona horaria LOCAL del navegador.
  * Los server components formatean con la zona del servidor (p. ej. CEST),
  * lo que mostraba horas equivocadas (4:27 p.m. local salía como 11:27 p.m.).
- * Este componente difiere el formateo al cliente para usar la zona del usuario.
+ * Difiere el formateo al cliente: en el servidor (SSR) muestra `fallback` y al
+ * hidratar usa la zona del usuario. `suppressHydrationWarning` evita el aviso
+ * por la diferencia esperada server↔cliente.
  */
 export function LocalDateTime({
   iso,
@@ -17,17 +17,9 @@ export function LocalDateTime({
   opts?: Intl.DateTimeFormatOptions;
   fallback?: string;
 }) {
-  const [text, setText] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!iso) {
-      setText(null);
-      return;
-    }
-    setText(
-      new Date(iso).toLocaleString("es-CO", opts ?? { dateStyle: "medium", timeStyle: "short" }),
-    );
-  }, [iso, opts]);
-
+  const text =
+    typeof window !== "undefined" && iso
+      ? new Date(iso).toLocaleString("es-CO", opts ?? { dateStyle: "medium", timeStyle: "short" })
+      : null;
   return <span suppressHydrationWarning>{text ?? fallback}</span>;
 }
