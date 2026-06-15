@@ -14,6 +14,7 @@ import { sendReactionAction } from "../../actions";
 import type { InferSelectModel } from "drizzle-orm";
 import { AudioPlayer } from "./audio-player";
 import { ReactionChips } from "./reaction-chip";
+import { MediaImage } from "./media-image";
 
 type Message = InferSelectModel<typeof messagesSchema>;
 
@@ -328,13 +329,11 @@ function renderMessageContent(message: Message): React.ReactNode {
     case "image":
       return message.mediaId ? (
         <div className="space-y-2">
-          {message.body && <div className="text-xs">{message.body}</div>}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <MediaImage
             src={`/api/inbox/media/${message.mediaId}`}
             alt="Image"
-            className="max-w-xs rounded"
           />
+          {message.body && <div className="text-xs">{message.body}</div>}
         </div>
       ) : (
         `[Imagen]`
@@ -343,12 +342,12 @@ function renderMessageContent(message: Message): React.ReactNode {
     case "video":
       return message.mediaId ? (
         <div className="space-y-2">
-          {message.body && <div className="text-xs">{message.body}</div>}
           <video
             src={`/api/inbox/media/${message.mediaId}`}
             controls
-            className="max-w-xs rounded"
+            className="max-h-80 max-w-sm rounded-lg border border-black/5 object-cover"
           />
+          {message.body && <div className="text-xs">{message.body}</div>}
         </div>
       ) : (
         `[Video]`

@@ -2,8 +2,8 @@
 
 import { useState, useRef, useMemo } from "react";
 import { SendIcon, ChevronDownIcon, PaperclipIcon, XIcon } from "lucide-react";
-import { sendMessageAction, sendMediaAction, sendVoiceAction, type SendResult } from "../../actions";
-import { VoiceRecorder } from "./voice-recorder";
+import { useRouter } from "next/navigation";
+import { sendMessageAction, sendMediaAction, sendVoiceAction, addNoteAction, type SendResult } from "../../actions";
 import { StickerPicker } from "./sticker-picker";
 
 type Template = {
@@ -43,7 +43,8 @@ export function Composer({
   replyTo: initialReplyTo = null,
   onReplyToChange,
 }: ComposerProps) {
-  const [mode, setMode] = useState<"text" | "template">("text");
+  const router = useRouter();
+  const [composerTab, setComposerTab] = useState<"reply" | "note">("reply");
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [templateVars, setTemplateVars] = useState<string[]>([]);
   const [isPending, setIsPending] = useState(false);
@@ -53,8 +54,11 @@ export function Composer({
   const [replyTo, setReplyTo] = useState<string | null>(initialReplyTo);
   const [selectedFile, setSelectedFile] = useState<{ name: string; mime: string; base64: string; caption: string } | null>(null);
   const [hasText, setHasText] = useState(false);
+  const [noteBody, setNoteBody] = useState("");
+  const [notePending, setNotePending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [quickReplySearch, setQuickReplySearch] = useState("");
   const [showQuickReplyDropdown, setShowQuickReplyDropdown] = useState(false);
@@ -214,6 +218,13 @@ export function Composer({
         const formData = new FormData(form);
         handleSendText(formData);
       }
+    } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      const form = e.currentTarget.form;
+      if (form) {
+        const formData = new FormData(form);
+        handleSendText(formData);
+      }
     }
   };
 
@@ -238,7 +249,19 @@ export function Composer({
     }
   };
 
-  const effectiveMode = windowOpen ? mode : "template";
+  const handleSaveNote = async () => {
+    if (!noteBody.trim()) return;
+    setNotePending(true);
+    const result = await addNoteAction(conversationId, noteBody);
+    setNotePending(false);
+    if (result.ok) {
+      setNoteBody("");
+      if (noteTextareaRef.current) noteTextareaRef.current.value = "";
+      router.refresh();
+    }
+  };
+
+  const effectiveMode = windowOpen ? "text" : "template";
 
   if (effectiveMode === "template") {
     return (
@@ -262,159 +285,206 @@ export function Composer({
       : null;
 
   return (
-    <div className="border-t p-4 bg-card space-y-3">
-      {replyTo && (
-        <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 p-2.5 flex items-center justify-between">
-          <div className="text-xs text-blue-700 dark:text-blue-400">
-            Respondiendo a un mensaje
-          </div>
-          <button
-            onClick={() => {
-              setReplyTo(null);
-              onReplyToChange?.(null);
-            }}
-            className="rounded p-0.5 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-          >
-            <XIcon className="size-3.5 text-blue-700 dark:text-blue-400" />
-          </button>
-        </div>
-      )}
-
-      {selectedFile && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2.5 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-              📎 {selectedFile.name}
-            </div>
-            <button
-              onClick={() => setSelectedFile(null)}
-              className="rounded p-0.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
-            >
-              <XIcon className="size-3.5 text-amber-700 dark:text-amber-400" />
-            </button>
-          </div>
-          {(selectedFile.mime.startsWith("image/") || selectedFile.mime.startsWith("video/")) && (
-            <input
-              type="text"
-              placeholder="Añadir texto (opcional)"
-              value={selectedFile.caption}
-              onChange={(e) =>
-                setSelectedFile({ ...selectedFile, caption: e.target.value })
-              }
-              className="w-full px-2 py-1.5 text-xs rounded border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          )}
-        </div>
-      )}
-
-      {selectedFile ? (
+    <div className="border-t bg-card flex flex-col">
+      {/* Tabs */}
+      <div className="flex border-b px-4 pt-3">
         <button
-          onClick={handleSendMedia}
-          disabled={isPending}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          onClick={() => setComposerTab("reply")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+            composerTab === "reply"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
         >
-          {isPending ? "Enviando…" : "Enviar archivo"}
-          {!isPending && <SendIcon className="size-3.5" />}
+          Responder
         </button>
-      ) : (
-        <form className="space-y-2" data-composer="text" onSubmit={(e) => { e.preventDefault(); handleSendText(new FormData(e.currentTarget)); }}>
-          <div className="relative">
-            <textarea
-              ref={textareaRef}
-              name="message"
-              placeholder="Escribe tu mensaje... (Shift+Enter para nueva línea, / para respuestas rápidas)"
-              disabled={isPending}
-              onKeyDown={handleTextareaKeyDown}
-              onChange={handleTextareaChange}
-              className="w-full px-3 py-2 text-sm rounded-2xl border bg-background disabled:opacity-50 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-              rows={3}
-            />
+        <button
+          onClick={() => setComposerTab("note")}
+          className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+            composerTab === "note"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Nota privada
+        </button>
+      </div>
 
-            {showQuickReplyDropdown && filteredQuickReplies.length > 0 && (
-              <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md border bg-background shadow-lg z-10 max-h-48 overflow-y-auto">
-                {filteredQuickReplies.map((qr, idx) => (
-                  <button
-                    key={qr.id}
-                    type="button"
-                    onClick={() => handleQuickReplySelect(qr)}
-                    className={`w-full text-left px-3 py-2 text-xs border-b last:border-b-0 transition-colors ${
-                      idx === selectedQuickReplyIndex
-                        ? "bg-primary/10 text-primary"
-                        : "hover:bg-muted"
-                    }`}
-                  >
-                    <div className="font-medium">/{qr.shortcut}</div>
-                    <div className="text-muted-foreground line-clamp-1">{qr.body}</div>
-                  </button>
-                ))}
+      <div className="p-4 space-y-3">
+        {/* Responder Tab */}
+        {composerTab === "reply" && (
+          <>
+            {replyTo && (
+              <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 p-2.5 flex items-center justify-between">
+                <div className="text-xs text-blue-700 dark:text-blue-400">
+                  Respondiendo a un mensaje
+                </div>
+                <button
+                  onClick={() => {
+                    setReplyTo(null);
+                    onReplyToChange?.(null);
+                  }}
+                  className="rounded p-0.5 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                >
+                  <XIcon className="size-3.5 text-blue-700 dark:text-blue-400" />
+                </button>
               </div>
             )}
-          </div>
 
-          {resultError && (
-            <div className="text-xs text-red-600 dark:text-red-400">{resultError}</div>
-          )}
+            {selectedFile && (
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                    📎 {selectedFile.name}
+                  </div>
+                  <button
+                    onClick={() => setSelectedFile(null)}
+                    className="rounded p-0.5 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                  >
+                    <XIcon className="size-3.5 text-amber-700 dark:text-amber-400" />
+                  </button>
+                </div>
+                {(selectedFile.mime.startsWith("image/") || selectedFile.mime.startsWith("video/")) && (
+                  <input
+                    type="text"
+                    placeholder="Añadir texto (opcional)"
+                    value={selectedFile.caption}
+                    onChange={(e) =>
+                      setSelectedFile({ ...selectedFile, caption: e.target.value })
+                    }
+                    className="w-full px-2 py-1.5 text-xs rounded border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                )}
+              </div>
+            )}
 
-          <div className="flex items-center justify-between gap-2 px-2 py-2 rounded-2xl border bg-background">
-            <div className="flex items-center gap-1">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,audio/*,video/*,.pdf"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+            {selectedFile ? (
               <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={handleSendMedia}
                 disabled={isPending}
-                aria-label="Adjuntar archivo"
-                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                <PaperclipIcon className="size-4" />
-              </button>
-              <StickerPicker
-                conversationId={conversationId}
-                stickers={stickers}
-                disabled={isPending || !windowOpen}
-              />
-            </div>
-
-            {hasText || selectedFile ? (
-              <button
-                type="submit"
-                disabled={isPending}
-                aria-label="Enviar mensaje"
-                className="flex items-center justify-center rounded-full p-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                <SendIcon className="size-4" />
+                {isPending ? "Enviando…" : "Enviar archivo"}
+                {!isPending && <SendIcon className="size-3.5" />}
               </button>
             ) : (
-              <VoiceRecorder
-                onSend={async (dataBase64, mime) => {
-                  setIsPending(true);
-                  const result = await sendVoiceAction(conversationId, {
-                    dataBase64,
-                    mime,
-                  });
-                  setState(result);
-                  setIsPending(false);
-                }}
-                disabled={isPending || !windowOpen}
-              />
-            )}
-          </div>
+              <form className="space-y-2" data-composer="text" onSubmit={(e) => { e.preventDefault(); handleSendText(new FormData(e.currentTarget)); }}>
+                <div className="relative">
+                  <textarea
+                    ref={textareaRef}
+                    name="message"
+                    placeholder="Escribe un mensaje…  ( / para respuestas rápidas )"
+                    disabled={isPending}
+                    onKeyDown={handleTextareaKeyDown}
+                    onChange={handleTextareaChange}
+                    className="w-full px-3 py-2 text-sm rounded-lg border bg-background disabled:opacity-50 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                    rows={3}
+                  />
 
-          <button
-            type="button"
-            onClick={() => setMode("template")}
-            className="w-full text-xs px-2.5 py-1.5 rounded-md border hover:bg-muted transition-colors disabled:opacity-50"
-            disabled={isPending}
-          >
-            Usar plantilla
-          </button>
-        </form>
-      )}
+                  {showQuickReplyDropdown && filteredQuickReplies.length > 0 && (
+                    <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md border bg-background shadow-lg z-10 max-h-48 overflow-y-auto">
+                      {filteredQuickReplies.map((qr, idx) => (
+                        <button
+                          key={qr.id}
+                          type="button"
+                          onClick={() => handleQuickReplySelect(qr)}
+                          className={`w-full text-left px-3 py-2 text-xs border-b last:border-b-0 transition-colors ${
+                            idx === selectedQuickReplyIndex
+                              ? "bg-primary/10 text-primary"
+                              : "hover:bg-muted"
+                          }`}
+                        >
+                          <div className="font-medium">/{qr.shortcut}</div>
+                          <div className="text-muted-foreground line-clamp-1">{qr.body}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {resultError && (
+                  <div className="text-xs text-red-600 dark:text-red-400">{resultError}</div>
+                )}
+
+                <div className="flex items-center justify-between gap-2 p-2 rounded-lg border bg-background">
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,audio/*,video/*,.pdf"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isPending}
+                      aria-label="Adjuntar archivo"
+                      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors"
+                    >
+                      <PaperclipIcon className="size-4" />
+                    </button>
+                    <StickerPicker
+                      conversationId={conversationId}
+                      stickers={stickers}
+                      disabled={isPending || !windowOpen}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isPending || !hasText}
+                    aria-label="Enviar mensaje"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >
+                    <span>Enviar (⌘↵)</span>
+                    {!isPending && <SendIcon className="size-3.5" />}
+                  </button>
+                </div>
+
+                {!hasText && !selectedFile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsPending(true);
+                      sendVoiceAction(conversationId, { dataBase64: "", mime: "" }).then((result) => {
+                        setState(result);
+                        setIsPending(false);
+                      });
+                    }}
+                    disabled={isPending || !windowOpen}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted rounded-md transition-colors disabled:opacity-50"
+                  >
+                    <span>🎤 Mensaje de voz</span>
+                  </button>
+                )}
+              </form>
+            )}
+          </>
+        )}
+
+        {/* Nota privada Tab */}
+        {composerTab === "note" && (
+          <div className="space-y-2">
+            <textarea
+              ref={noteTextareaRef}
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+              placeholder="Escribe una nota interna… (solo tu equipo la ve)"
+              aria-label="Nota interna"
+              className="w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              rows={4}
+            />
+            <button
+              onClick={handleSaveNote}
+              disabled={notePending || !noteBody.trim()}
+              className="w-full px-3 py-2 text-sm rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700 disabled:opacity-50 transition-colors"
+            >
+              {notePending ? "Guardando…" : "Guardar nota"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import type { WhatsAppTemplate } from "@/lib/meta/types";
 import { ThreadAndComposer } from "./_components/thread-and-composer";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { Poller } from "../_components/poller";
-import { NotesToggle } from "./_components/notes-panel";
+import { ContactInfoToggle } from "./_components/contact-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -179,17 +179,21 @@ export default async function InboxThreadPage({
           {/* Header */}
           <div className="px-4 py-3 border-b bg-card">
             <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold">
-                  {thread.contact?.name || thread.conversation.phone}
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold flex-shrink-0">
+                  {(thread.contact?.name || thread.conversation.phone).charAt(0).toUpperCase()}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {thread.conversation.phone}
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm truncate">
+                    {thread.contact?.name || thread.conversation.phone}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    WhatsApp · {thread.conversation.phone}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <NotesToggle conversationId={conversationId} notes={notes} />
-                <div className="text-xs px-2.5 py-1 rounded-full bg-muted border">
+              <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                <div className="text-xs px-2.5 py-1 rounded-full bg-muted border whitespace-nowrap">
                   {windowOpen ? (
                     <span className="text-emerald-700 dark:text-emerald-400">
                       Ventana abierta
@@ -200,6 +204,12 @@ export default async function InboxThreadPage({
                     </span>
                   )}
                 </div>
+                <ContactInfoToggle
+                  conversationId={conversationId}
+                  contact={thread.contact}
+                  phone={thread.conversation.phone}
+                  notes={notes}
+                />
               </div>
             </div>
           </div>

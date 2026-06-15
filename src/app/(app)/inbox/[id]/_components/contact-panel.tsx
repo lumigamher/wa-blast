@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { XIcon, Trash2Icon, NotebookPenIcon } from "lucide-react";
+import { useState } from "react";
+import {
+  XIcon,
+  Trash2Icon,
+  UserIcon,
+  MessageCircleIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { addNoteAction, deleteNoteAction } from "../../actions";
+import { deleteNoteAction } from "../../actions";
 
 type Note = {
   id: string;
@@ -43,14 +48,14 @@ function NotesList({ notes, conversationId }: { notes: Note[]; conversationId: s
 
   if (notes.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex items-center justify-center py-4">
         <p className="text-xs text-muted-foreground">Sin notas todavía</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2 flex-1 overflow-y-auto">
+    <div className="space-y-2 overflow-y-auto max-h-64">
       {notes.map((note) => (
         <div
           key={note.id}
@@ -83,51 +88,15 @@ function NotesList({ notes, conversationId }: { notes: Note[]; conversationId: s
   );
 }
 
-function AddNoteForm({ conversationId }: { conversationId: string }) {
-  const [body, setBody] = useState("");
-  const [adding, setAdding] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const router = useRouter();
-
-  const handleAdd = async () => {
-    if (!body.trim()) return;
-    setAdding(true);
-    const result = await addNoteAction(conversationId, body);
-    setAdding(false);
-    if (result.ok) {
-      setBody("");
-      if (textareaRef.current) textareaRef.current.value = "";
-      router.refresh();
-    }
-  };
-
-  return (
-    <div className="space-y-2 pt-2 border-t">
-      <textarea
-        ref={textareaRef}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder="Añade una nota interna…"
-        aria-label="Añade una nota interna"
-        className="w-full px-2.5 py-1.5 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-        rows={3}
-      />
-      <button
-        onClick={handleAdd}
-        disabled={adding || !body.trim()}
-        className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-      >
-        {adding ? "Añadiendo…" : "Añadir"}
-      </button>
-    </div>
-  );
-}
-
-export function NotesToggle({
+export function ContactInfoToggle({
   conversationId,
+  contact,
+  phone,
   notes,
 }: {
   conversationId: string;
+  contact: { name?: string | null } | null;
+  phone: string;
   notes: Note[];
 }) {
   const [open, setOpen] = useState(false);
@@ -137,37 +106,54 @@ export function NotesToggle({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        aria-label="Notas internas"
-        className="relative rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        aria-label="Información del contacto"
+        className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
       >
-        <NotebookPenIcon className="size-5" />
-        {notes.length > 0 && (
-          <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-amber-600 text-white text-[10px] font-bold">
-            {notes.length}
-          </span>
-        )}
+        <UserIcon className="size-4" />
       </button>
 
       {open && (
         <div className="absolute inset-y-0 right-0 z-20 w-80 border-l bg-card flex flex-col shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
-            <div>
-              <h3 className="font-semibold text-sm">Notas internas</h3>
-              <p className="text-xs text-muted-foreground">Solo tu equipo las ve</p>
-            </div>
+            <h3 className="font-semibold text-sm">Información del contacto</h3>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Cerrar panel de notas"
+              aria-label="Cerrar panel"
               className="rounded-full p-1 hover:bg-muted transition-colors"
             >
               <XIcon className="size-4" />
             </button>
           </div>
 
-          <NotesList notes={notes} conversationId={conversationId} />
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 py-4">
+            {/* Contact Card */}
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
+                  {(contact?.name || phone).charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">
+                    {contact?.name || phone}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <MessageCircleIcon className="size-3" />
+                    <span>WhatsApp · {phone}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <AddNoteForm conversationId={conversationId} />
+            {/* Internal Notes Section */}
+            <div className="space-y-2">
+              <div className="text-sm font-semibold">Notas internas</div>
+              <div className="text-xs text-muted-foreground mb-2">
+                Solo tu equipo las ve
+              </div>
+              <NotesList notes={notes} conversationId={conversationId} />
+            </div>
+          </div>
         </div>
       )}
     </>
