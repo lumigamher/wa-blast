@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { readFile } from "node:fs/promises";
 import { requireOrg } from "@/lib/auth/session";
 import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { db } from "@/lib/db/client";
@@ -9,7 +10,10 @@ import { upsertReaction } from "@/lib/inbox/reactions";
 import { isWindowOpen } from "@/lib/inbox/window";
 import { markRead, sendMedia, sendReaction, sendTemplate, sendText, uploadMedia } from "@/lib/meta/client";
 import { getOrgSettings } from "@/lib/org/settings";
-import { saveMediaAsset } from "@/lib/media/store";
+import { getMediaAsset, saveMediaAsset } from "@/lib/media/store";
+import { toOggOpus, toWebpSticker } from "@/lib/media/transcode";
+import { addNote, deleteNote } from "@/lib/inbox/notes";
+import { addSticker, listStickers } from "@/lib/inbox/stickers";
 
 export type SendResult = { ok: true } | { ok: false; error: string; windowClosed?: boolean };
 
@@ -209,6 +213,71 @@ export async function sendReactionAction(
   if ("error" in sendRes) return { ok: false, error: `No se pudo enviar la reacción: ${sendRes.error.message}` };
 
   await upsertReaction(db, { orgId, conversationId, targetWamid: input.wamid, direction: "out", emoji: input.emoji });
+  revalidatePath(`/inbox/${conversationId}`);
+  return { ok: true };
+}
+
+export async function sendVoiceAction(
+  conversationId: string,
+  input: { dataBase64: string; mime: string },
+): Promise<SendResult> {
+  const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const thread = await getThread(db, orgId, conversationId);
+  if (!thread) return { ok: false, error: "Conversación no encontrada" };
+
+  if (!isWindowOpen(thread.conversation.lastIncomingAt)) {
+    return { ok: false, error: "La ventana de 24h está cerrada. Usa una plantilla.", windowClosed: true };
+  }
+
+  const raw = Buffer.from(input.dataBase64, "base64");
+  let ogg: Uint8Array;
+  try {
+    ogg = await toOggOpus(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength));
+  } catch (e) {
+    return { ok: false, error: `No se pudo procesar el audio: ${e instanceof Error ? e.message : "error"}` };
+  }
+
+  const oggBuf = Buffer.from(ogg);
+  const settings = await getOrgSettings(db, orgId);
+  const up = await uploadMedia(settings, {
+    bytes: oggBuf.buffer.slice(oggBuf.byteOffset, oggBuf.byteOffset + oggBuf.byteLength),
+    mime: "audio/ogg",
+    filename: "voz.ogg",
+  });
+  if ("error" in up) return { ok: false, error: `No se pudo subir la voz: ${up.error.message}` };
+
+  const sendRes = await sendMedia(settings, { to: thread.conversation.phone, kind: "audio", mediaId: up.mediaId });
+  if ("error" in sendRes) {
+    await recordOutboundMessage(db, {
+      orgId,
+      conversationId,
+      wamid: null,
+      type: "audio",
+      body: null,
+      status: "failed",
+      errorMessage: sendRes.error.message,
+    });
+    return { ok: false, error: `No se pudo enviar: ${sendRes.error.message}` };
+  }
+
+  const asset = await saveMediaAsset(db, {
+    orgId,
+    bytes: oggBuf.buffer.slice(oggBuf.byteOffset, oggBuf.byteOffset + oggBuf.byteLength),
+    mime: "audio/ogg",
+    kind: "audio",
+  });
+  await recordOutboundMessage(db, {
+    orgId,
+    conversationId,
+    wamid: sendRes.wamid,
+    type: "audio",
+    body: null,
+    status: "sent",
+    mediaId: asset.id,
+  });
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }
