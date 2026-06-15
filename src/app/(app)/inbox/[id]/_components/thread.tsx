@@ -19,6 +19,12 @@ import { MediaImage } from "./media-image";
 
 type Message = InferSelectModel<typeof messagesSchema>;
 
+export type ReplyTarget = {
+  wamid: string;
+  label: string;
+  author: "in" | "out";
+};
+
 type Note = {
   id: string;
   authorName: string;
@@ -32,10 +38,35 @@ type TimelineItem =
 
 type ThreadProps = {
   messages: Message[];
-  onReplyTo: (wamid: string) => void;
+  onReplyTo: (target: ReplyTarget) => void;
   reactions: Record<string, { direction: "in" | "out"; emoji: string }[]>;
   notes?: Note[];
 };
+
+function replyLabel(message: Message): string {
+  switch (message.type) {
+    case "text":
+      return (message.body || "").slice(0, 80);
+    case "image":
+      return "📷 Imagen";
+    case "video":
+      return "🎬 Video";
+    case "audio":
+      return "🎤 Nota de voz";
+    case "sticker":
+      return "🩹 Sticker";
+    case "document":
+      return message.body || "📄 Documento";
+    case "template":
+      return "Plantilla";
+    case "interactive":
+    case "button":
+    case "flow":
+      return (message.body || "").slice(0, 80);
+    default:
+      return (message.body || "").slice(0, 80) || `[${message.type}]`;
+  }
+}
 
 function dayLabel(d: Date): string {
   const today = new Date();
@@ -126,7 +157,7 @@ function MessageBubble({
   reactions,
 }: {
   message: Message;
-  onReplyTo: (wamid: string) => void;
+  onReplyTo: (target: ReplyTarget) => void;
   reactions: { direction: "in" | "out"; emoji: string }[];
 }) {
   const [showReactionPopover, setShowReactionPopover] = useState(false);
@@ -248,7 +279,13 @@ function MessageBubble({
           >
             <button
               onClick={() => {
-                onReplyTo(message.wamid!);
+                if (message.wamid) {
+                  onReplyTo({
+                    wamid: message.wamid,
+                    label: replyLabel(message),
+                    author: message.direction,
+                  });
+                }
                 setContextMenu(null);
               }}
               className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors"
@@ -360,7 +397,13 @@ function MessageBubble({
         >
           <button
             onClick={() => {
-              onReplyTo(message.wamid!);
+              if (message.wamid) {
+                onReplyTo({
+                  wamid: message.wamid,
+                  label: replyLabel(message),
+                  author: message.direction,
+                });
+              }
               setContextMenu(null);
             }}
             className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors"

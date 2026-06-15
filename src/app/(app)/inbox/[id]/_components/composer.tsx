@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { SendIcon, ChevronDownIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { sendMessageAction, sendMediaAction, sendVoiceAction, addNoteAction, type SendResult } from "../../actions";
 import { StickerPicker } from "./sticker-picker";
 import { VoiceRecorder } from "./voice-recorder";
 import { EmojiPicker } from "./emoji-picker";
+import type { ReplyTarget } from "./thread";
 
 type Template = {
   name: string;
@@ -32,8 +33,8 @@ type ComposerProps = {
   templates: Template[];
   quickReplies: QuickReply[];
   stickers?: Sticker[];
-  replyTo?: string | null;
-  onReplyToChange?: (wamid: string | null) => void;
+  replyTo?: ReplyTarget | null;
+  onReplyToChange?: (target: ReplyTarget | null) => void;
 };
 
 export function Composer({
@@ -53,7 +54,7 @@ export function Composer({
   const [state, setState] = useState<SendResult | null>(null);
   const [isTemplatePending, setIsTemplatePending] = useState(false);
   const [templateState, setTemplateState] = useState<SendResult | null>(null);
-  const [replyTo, setReplyTo] = useState<string | null>(initialReplyTo);
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(initialReplyTo);
   const [selectedFile, setSelectedFile] = useState<{ name: string; mime: string; base64: string; caption: string } | null>(null);
   const [hasText, setHasText] = useState(false);
   const [noteBody, setNoteBody] = useState("");
@@ -61,6 +62,13 @@ export function Composer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const noteTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Focus textarea when reply is set
+  useEffect(() => {
+    if (replyTo && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [replyTo]);
 
   const [quickReplySearch, setQuickReplySearch] = useState("");
   const [showQuickReplyDropdown, setShowQuickReplyDropdown] = useState(false);
@@ -82,7 +90,7 @@ export function Composer({
       return;
     }
     setIsPending(true);
-    const result = await sendMessageAction(conversationId, body, replyTo ? { replyTo } : undefined);
+    const result = await sendMessageAction(conversationId, body, replyTo ? { replyTo: replyTo.wamid } : undefined);
     setState(result);
     setIsPending(false);
     if (result.ok) {
@@ -138,7 +146,7 @@ export function Composer({
       mime: selectedFile.mime,
       filename: selectedFile.name,
       caption: selectedFile.caption || undefined,
-      replyTo: replyTo || undefined,
+      replyTo: replyTo?.wamid || undefined,
     });
 
     setState(result);
@@ -336,18 +344,24 @@ export function Composer({
         {composerTab === "reply" && (
           <>
             {replyTo && (
-              <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 p-2.5 flex items-center justify-between">
-                <div className="text-xs text-blue-700 dark:text-blue-400">
-                  Respondiendo a un mensaje
+              <div className="rounded-lg border-l-2 border-l-emerald-500 bg-muted/50 dark:bg-muted/30 p-2.5 flex items-start justify-between gap-2">
+                <div className="flex-1 flex flex-col gap-1">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Respondiendo a {replyTo.author === "out" ? "ti" : "Cliente"}
+                  </div>
+                  <div className="text-sm text-foreground line-clamp-1">
+                    {replyTo.label}
+                  </div>
                 </div>
                 <button
                   onClick={() => {
                     setReplyTo(null);
                     onReplyToChange?.(null);
                   }}
-                  className="rounded p-0.5 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                  className="flex-shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
+                  title="Cancelar respuesta"
                 >
-                  <XIcon className="size-3.5 text-blue-700 dark:text-blue-400" />
+                  <XIcon className="size-3.5 text-muted-foreground" />
                 </button>
               </div>
             )}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import type { InferSelectModel } from "drizzle-orm";
-import { Thread } from "./thread";
+import { Thread, type ReplyTarget } from "./thread";
 import { Composer } from "./composer";
 
 type Message = InferSelectModel<typeof messagesSchema>;
@@ -52,7 +52,7 @@ export function ThreadAndComposer({
   reactions?: Record<string, { direction: "in" | "out"; emoji: string }[]>;
   notes?: Note[];
 }) {
-  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
