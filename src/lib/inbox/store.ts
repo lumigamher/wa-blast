@@ -4,12 +4,33 @@ import type { DB } from "@/lib/db/client";
 import { contacts, conversations, messages } from "@/lib/db/schema";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
 
-export async function getOrCreateConversation(db: DB, orgId: string, phone: string, ts: Date) {
+export async function getOrCreateConversation(db: DB, orgId: string, phone: string, ts: Date, profileName?: string | null) {
+  let contact = (await db.select().from(contacts)
+    .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone))))[0];
+
+  if (!contact) {
+    const newContact = {
+      id: randomUUID(), orgId, phone, name: profileName?.trim() || null, email: null,
+      customFields: "{}", optOutAt: null, createdAt: ts, updatedAt: ts,
+    };
+    await db.insert(contacts).values(newContact).onConflictDoNothing();
+    contact = (await db.select().from(contacts)
+      .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone))))[0];
+  } else if (!contact.name && profileName?.trim()) {
+    await db.update(contacts).set({ name: profileName.trim(), updatedAt: ts }).where(eq(contacts.id, contact.id));
+    contact = { ...contact, name: profileName.trim() };
+  }
+
   const existing = (await db.select().from(conversations)
     .where(and(eq(conversations.orgId, orgId), eq(conversations.phone, phone))))[0];
-  if (existing) return existing;
-  const contact = (await db.select().from(contacts)
-    .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone))))[0];
+  if (existing) {
+    if (!existing.contactId && contact) {
+      await db.update(conversations).set({ contactId: contact.id }).where(eq(conversations.id, existing.id));
+      return { ...existing, contactId: contact.id };
+    }
+    return existing;
+  }
+
   const row = {
     id: randomUUID(), orgId, phone, contactId: contact?.id ?? null,
     lastMessageAt: ts, lastIncomingAt: null as Date | null, unreadCount: 0, createdAt: ts,
@@ -20,9 +41,9 @@ export async function getOrCreateConversation(db: DB, orgId: string, phone: stri
 }
 
 export async function recordInboundMessage(db: DB, input: {
-  orgId: string; phone: string; wamid: string; parsed: ParsedInbound; ts: Date;
+  orgId: string; phone: string; wamid: string; parsed: ParsedInbound; ts: Date; profileName?: string | null;
 }): Promise<void> {
-  const conv = await getOrCreateConversation(db, input.orgId, input.phone, input.ts);
+  const conv = await getOrCreateConversation(db, input.orgId, input.phone, input.ts, input.profileName);
 
   // dedupe por wamid: verificar manualmente si ya existe
   if (input.wamid) {
