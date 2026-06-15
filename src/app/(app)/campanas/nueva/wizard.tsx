@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { WhatsAppBubble } from "@/components/whatsapp-bubble";
 import { FavoriteButton } from "@/components/favorite-button";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
-import { extractVariables } from "@/lib/templates";
+import { extractVariables, getBodyComponent } from "@/lib/templates";
 import { isCarousel, parseCarousel } from "@/lib/meta/carousel";
 import { CarouselMapping, type CarouselMappingValue } from "./carousel-mapping";
 import { CarouselPreview } from "@/components/carousel-preview";
@@ -77,6 +77,7 @@ export function Wizard({
   // Favorites UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const [name, setName] = useState("");
   const [bulkParams, setBulkParams] = useState<Record<string, string>>({});
@@ -92,10 +93,11 @@ export function Wizard({
   }, [tags, selectedTagIds]);
   const total = source === "tags" ? tagsCount : adhocRows.length;
 
-  // Compute visible templates for Step 1
+  // Compute visible templates for Step 1 (includes non-APPROVED if showAll is true)
   const visibleTemplates = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
-    const filtered = approved.filter((t) => {
+    const pool = showAll ? templates : approved;
+    const filtered = pool.filter((t) => {
       const key = `${t.name}|${t.language}`;
       if (onlyFavorites && !favorites.has(key)) return false;
       if (!needle) return true;
@@ -107,9 +109,11 @@ export function Wizard({
     return filtered.sort((a, b) => {
       const fa = favorites.has(`${a.name}|${a.language}`) ? 0 : 1;
       const fb = favorites.has(`${b.name}|${b.language}`) ? 0 : 1;
-      return fa - fb || a.name.localeCompare(b.name);
+      const sa = a.status === "APPROVED" ? 0 : 1;
+      const sb = b.status === "APPROVED" ? 0 : 1;
+      return fa - fb || sa - sb || a.name.localeCompare(b.name);
     });
-  }, [approved, searchQuery, onlyFavorites, favorites]);
+  }, [templates, approved, searchQuery, onlyFavorites, showAll, favorites]);
 
   const favCount = approved.filter((t) =>
     favorites.has(`${t.name}|${t.language}`),
@@ -253,22 +257,22 @@ export function Wizard({
 
   return (
     <div className="space-y-6">
-      <StepsHeader step={step} total={total} />
+      <Stepper step={step} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           {step === 1 && (
             <Card>
               <CardHeader className="space-y-1">
-                <CardTitle className="text-base">1 · Elige plantilla</CardTitle>
+                <CardTitle>Escoge la plantilla</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  {approved.length} aprobadas · {favCount} favorita{favCount === 1 ? "" : "s"}
+                  {approved.length} aprobadas · {favCount} favorita{favCount === 1 ? "" : "s"} · {templates.length} en total
                 </p>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
                 {/* Search and filter controls */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative flex-1 min-w-52">
+                  <div className="relative min-w-64 flex-1">
                     <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       placeholder="Buscar plantilla por nombre…"
@@ -300,52 +304,52 @@ export function Wizard({
                     />
                     Favoritas
                   </button>
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={showAll}
+                      onCheckedChange={(v) => setShowAll(Boolean(v))}
+                    />
+                    Mostrar pendientes / rechazadas
+                  </label>
                 </div>
 
-                {/* Template list */}
+                {/* Template grid */}
                 {visibleTemplates.length === 0 ? (
                   <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
                     Ninguna plantilla coincide.
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
+                  <div className="grid max-h-[28rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
                     {visibleTemplates.map((t) => {
                       const key = `${t.name}|${t.language}`;
                       const isSelected = key === selectedKey;
                       const isFavorited = favorites.has(key);
                       return (
-                        <button
+                        <TemplateCard
                           key={key}
-                          type="button"
-                          onClick={() => setSelectedKey(key)}
-                          className={`group relative w-full flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
-                            isSelected ? "border-primary bg-primary/5" : "hover:bg-muted"
-                          }`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate font-mono text-sm">{t.name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {t.category} · {t.language}
-                            </div>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <Badge variant="default" className="text-xs">
-                              {t.status}
-                            </Badge>
-                            <div className="opacity-0 transition-opacity group-hover:opacity-100">
-                              <FavoriteButton
-                                name={t.name}
-                                language={t.language}
-                                favorited={isFavorited}
-                                size="sm"
-                              />
-                            </div>
-                          </div>
-                        </button>
+                          template={t}
+                          active={isSelected}
+                          favorited={isFavorited}
+                          onSelect={() => setSelectedKey(key)}
+                        />
                       );
                     })}
                   </div>
                 )}
+
+                {selected && selected.status !== "APPROVED" ? (
+                  <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                    La plantilla seleccionada está{" "}
+                    <span className="font-semibold">{selected.status}</span> en Meta —
+                    no la podrás disparar hasta que Meta la apruebe.
+                  </p>
+                ) : null}
+
+                <div className="flex justify-end">
+                  <Button onClick={() => setStep(2)} disabled={!selected}>
+                    Siguiente
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -441,9 +445,30 @@ export function Wizard({
           {step === 3 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">3 · Revisa y envía</CardTitle>
+                <CardTitle>Revisar y enviar</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
+                {/* 4-column stat grid */}
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-md border bg-background p-3">
+                    <div className="text-xs text-muted-foreground">Plantilla</div>
+                    <div className="font-semibold">{selected?.name}</div>
+                  </div>
+                  <div className="rounded-md border bg-background p-3">
+                    <div className="text-xs text-muted-foreground">Idioma</div>
+                    <div className="font-semibold">{selected?.language.toUpperCase()}</div>
+                  </div>
+                  <div className="rounded-md border bg-background p-3">
+                    <div className="text-xs text-muted-foreground">Fuente</div>
+                    <div className="font-semibold">{source === "tags" ? "Tags" : "CSV/Excel"}</div>
+                  </div>
+                  <div className="rounded-md border bg-background p-3">
+                    <div className="text-xs text-muted-foreground">Destinatarios</div>
+                    <div className="font-semibold">{total}</div>
+                  </div>
+                </div>
+
+                {/* Campaign name */}
                 <div className="space-y-2">
                   <Label htmlFor="name">Nombre de la campaña</Label>
                   <Input
@@ -452,6 +477,18 @@ export function Wizard({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
+                </div>
+
+                {/* WhatsApp bubble preview */}
+                <div className="space-y-2">
+                  <Label>Previsualización (primer destinatario)</Label>
+                  {selected ? (
+                    <div className="mx-auto max-w-sm">
+                      <WhatsAppBubble template={selected} highlightVars size="md" />
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Selecciona una plantilla</div>
+                  )}
                 </div>
 
                 {carousel ? (
@@ -523,12 +560,14 @@ export function Wizard({
                   )}
                 </div>
 
-                <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <b>Resumen:</b> {total} destinatarios · plantilla{" "}
-                    <code className="font-mono text-xs">{selected?.name}</code>
+                {/* Non-APPROVED warning */}
+                {selected && selected.status !== "APPROVED" ? (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                    Plantilla en estado <span className="font-semibold">{selected.status}</span> — Meta aún
+                    no la ha aprobado. El envío se habilitará automáticamente cuando
+                    pase a APPROVED (sin redeploy).
                   </div>
-                </div>
+                ) : null}
               </CardContent>
             </Card>
           )}
@@ -551,9 +590,31 @@ export function Wizard({
                 Siguiente <ChevronRightIcon className="size-4" />
               </Button>
             ) : (
-              <Button onClick={submit} disabled={isPending || total === 0 || !name.trim()}>
-                {isPending ? "Guardando…" : scheduleMode === "later" ? "Programar" : "Enviar"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setScheduleMode(scheduleMode === "now" ? "later" : "now")}
+                  disabled={isPending || total === 0 || !name.trim() || selected?.status !== "APPROVED"}
+                  className="gap-2"
+                >
+                  <CalendarClockIcon className="size-4" />
+                  Programar envío
+                </Button>
+                <Button
+                  onClick={submit}
+                  disabled={isPending || total === 0 || !name.trim() || selected?.status !== "APPROVED"}
+                  className="gap-2"
+                >
+                  <SendIcon className="size-4" />
+                  {isPending
+                    ? "Enviando..."
+                    : selected?.status !== "APPROVED"
+                      ? "Plantilla no aprobada"
+                      : scheduleMode === "later"
+                        ? `Programar para ${scheduledAt ? new Date(scheduledAt).toLocaleDateString("es-CO") : ""}`
+                        : `Enviar a ${total} ahora`}
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -595,36 +656,108 @@ export function Wizard({
   );
 }
 
-function StepsHeader({ step, total }: { step: Step; total: number }) {
+function Stepper({ step }: { step: Step }) {
+  const items = [
+    { n: 1, label: "Plantilla" },
+    { n: 2, label: "Destinatarios" },
+    { n: 3, label: "Revisar y enviar" },
+  ];
   return (
     <ol className="flex items-center gap-2 text-sm">
-      <StepDot n={1} label="Plantilla" active={step >= 1} current={step === 1} />
-      <ChevronRightIcon className="size-3 text-muted-foreground" />
-      <StepDot
-        n={2}
-        label={`Destinatarios${total ? ` (${total})` : ""}`}
-        active={step >= 2}
-        current={step === 2}
-      />
-      <ChevronRightIcon className="size-3 text-muted-foreground" />
-      <StepDot n={3} label="Revisar" active={step >= 3} current={step === 3} />
+      {items.map((it, i) => (
+        <li key={it.n} className="flex items-center gap-2">
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${
+              step === it.n
+                ? "border-primary bg-primary text-primary-foreground"
+                : step > it.n
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-muted-foreground/30 text-muted-foreground"
+            }`}
+          >
+            {it.n}
+          </span>
+          <span
+            className={step >= it.n ? "font-medium" : "text-muted-foreground"}
+          >
+            {it.label}
+          </span>
+          {i < items.length - 1 ? (
+            <span className="mx-2 h-px w-8 bg-border" />
+          ) : null}
+        </li>
+      ))}
     </ol>
   );
 }
 
-function StepDot({ n, label, active, current }: { n: number; label: string; active: boolean; current: boolean }) {
+function TemplateCard({
+  template,
+  active,
+  favorited,
+  onSelect,
+}: {
+  template: WhatsAppTemplate;
+  active: boolean;
+  favorited: boolean;
+  onSelect: () => void;
+}) {
+  const body = getBodyComponent(template);
+  const bodyText = body?.text ?? "";
+  const truncated =
+    bodyText.length > 140 ? `${bodyText.slice(0, 140)}…` : bodyText;
   return (
     <div
-      className={`flex items-center gap-2 ${current ? "font-semibold" : active ? "text-foreground" : "text-muted-foreground"}`}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`group relative flex cursor-pointer flex-col gap-2 rounded-lg border p-3 text-left transition ${
+        active
+          ? "border-primary ring-2 ring-primary/30"
+          : "hover:border-primary/40 hover:bg-accent"
+      }`}
     >
-      <span
-        className={`flex size-6 items-center justify-center rounded-full text-xs ${
-          current ? "bg-primary text-primary-foreground" : active ? "bg-muted" : "bg-muted/50"
-        }`}
-      >
-        {n}
-      </span>
-      <span className="hidden sm:inline">{label}</span>
+      <div className="absolute right-1.5 top-1.5 z-10">
+        <FavoriteButton
+          name={template.name}
+          language={template.language}
+          favorited={favorited}
+          size="sm"
+        />
+      </div>
+      <div className="flex items-start justify-between gap-2 pr-8">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <div
+            className="truncate font-mono text-xs font-medium"
+            title={template.name}
+          >
+            {template.name}
+          </div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {template.category} · {template.language}
+          </div>
+        </div>
+        <Badge
+          variant={template.status === "APPROVED" ? "secondary" : "outline"}
+          className="shrink-0 text-[10px]"
+        >
+          {template.status}
+        </Badge>
+      </div>
+      <p className="line-clamp-4 text-[11px] leading-relaxed text-muted-foreground">
+        {truncated}
+      </p>
+      {active && (
+        <div className="mt-auto text-[10px] font-medium uppercase tracking-wide text-primary">
+          ✓ Seleccionada
+        </div>
+      )}
     </div>
   );
 }
