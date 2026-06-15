@@ -11,6 +11,8 @@ import {
   StickyNoteIcon,
 } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { sendReactionAction } from "../../actions";
 import type { InferSelectModel } from "drizzle-orm";
 import { AudioPlayer } from "./audio-player";
@@ -176,12 +178,18 @@ function MessageBubble({
 
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const handleReaction = async (emoji: string) => {
     if (!message.wamid || isOutbound) return;
     setReactionsLoading(true);
     try {
-      await sendReactionAction(message.conversationId, { wamid: message.wamid, emoji });
+      const res = await sendReactionAction(message.conversationId, { wamid: message.wamid, emoji });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        toast.error(res.error ?? "No se pudo reaccionar");
+      }
     } finally {
       setReactionsLoading(false);
       setShowReactionPopover(false);
