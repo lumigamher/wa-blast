@@ -245,13 +245,18 @@ export async function sendVoiceAction(
   }
 
   const oggBuf = Buffer.from(ogg);
+  console.log(`[voice] in mime=${input.mime} raw=${raw.byteLength}b ogg=${oggBuf.byteLength}b`);
   const settings = await getOrgSettings(db, orgId);
   const up = await uploadMedia(settings, {
     bytes: oggBuf.buffer.slice(oggBuf.byteOffset, oggBuf.byteOffset + oggBuf.byteLength),
     mime: "audio/ogg",
     filename: "voz.ogg",
   });
-  if ("error" in up) return { ok: false, error: `No se pudo subir la voz: ${up.error.message}` };
+  if ("error" in up) {
+    console.error(`[voice] upload error: ${up.error.message}`);
+    return { ok: false, error: `No se pudo subir la voz: ${up.error.message}` };
+  }
+  console.log(`[voice] uploaded mediaId=${up.mediaId}`);
 
   const sendRes = await sendMedia(settings, { to: thread.conversation.phone, kind: "audio", mediaId: up.mediaId });
   if ("error" in sendRes) {
@@ -264,8 +269,10 @@ export async function sendVoiceAction(
       status: "failed",
       errorMessage: sendRes.error.message,
     });
+    console.error(`[voice] send error: ${sendRes.error.message}`);
     return { ok: false, error: `No se pudo enviar: ${sendRes.error.message}` };
   }
+  console.log(`[voice] sent wamid=${sendRes.wamid}`);
 
   const asset = await saveMediaAsset(db, {
     orgId,

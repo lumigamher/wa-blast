@@ -164,6 +164,7 @@ export async function uploadMedia(
     return { error: { code: 0, message: "Meta creds not configured", type: "auth" } };
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
+  form.append("type", p.mime);
   form.append("file", new Blob([p.bytes], { type: p.mime }), p.filename ?? "upload");
   const res = await fetch(`https://graph.facebook.com/v22.0/${settings.metaPhoneId}/media`, {
     method: "POST",
