@@ -11,10 +11,13 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { extractVariables } from "@/lib/templates";
 import { listQuickReplies } from "@/lib/inbox/quick-replies";
+import { listStickers } from "@/lib/inbox/stickers";
+import { listNotes } from "@/lib/inbox/notes";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
 import { ThreadAndComposer } from "./_components/thread-and-composer";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { Poller } from "../_components/poller";
+import { NotesToggle } from "./_components/notes-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +87,12 @@ export default async function InboxThreadPage({
 
   // Get quick replies
   const quickReplies = await listQuickReplies(db, orgId);
+
+  // Get stickers
+  const stickers = await listStickers(db, orgId);
+
+  // Get notes
+  const notes = await listNotes(db, orgId, conversationId);
 
   const windowOpen = isWindowOpen(thread.conversation.lastIncomingAt);
 
@@ -166,7 +175,7 @@ export default async function InboxThreadPage({
         </div>
 
         {/* Right Panel: Thread */}
-        <div className="flex min-h-0 flex-col border rounded-lg bg-card overflow-hidden">
+        <div className="relative flex min-h-0 flex-col border rounded-lg bg-card overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 border-b bg-card">
             <div className="flex items-center justify-between">
@@ -178,16 +187,19 @@ export default async function InboxThreadPage({
                   {thread.conversation.phone}
                 </div>
               </div>
-              <div className="text-xs px-2.5 py-1 rounded-full bg-muted border">
-                {windowOpen ? (
-                  <span className="text-emerald-700 dark:text-emerald-400">
-                    Ventana abierta
-                  </span>
-                ) : (
-                  <span className="text-amber-700 dark:text-amber-400">
-                    Ventana cerrada
-                  </span>
-                )}
+              <div className="flex items-center gap-2">
+                <NotesToggle conversationId={conversationId} notes={notes} />
+                <div className="text-xs px-2.5 py-1 rounded-full bg-muted border">
+                  {windowOpen ? (
+                    <span className="text-emerald-700 dark:text-emerald-400">
+                      Ventana abierta
+                    </span>
+                  ) : (
+                    <span className="text-amber-700 dark:text-amber-400">
+                      Ventana cerrada
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -199,6 +211,7 @@ export default async function InboxThreadPage({
             windowOpen={windowOpen}
             templates={approvedTemplates}
             quickReplies={quickReplies}
+            stickers={stickers}
             reactions={thread.reactions}
           />
         </div>

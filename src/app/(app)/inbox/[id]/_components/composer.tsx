@@ -2,7 +2,9 @@
 
 import { useState, useRef, useMemo } from "react";
 import { SendIcon, ChevronDownIcon, PaperclipIcon, XIcon } from "lucide-react";
-import { sendMessageAction, sendMediaAction, type SendResult } from "../../actions";
+import { sendMessageAction, sendMediaAction, sendVoiceAction, type SendResult } from "../../actions";
+import { VoiceRecorder } from "./voice-recorder";
+import { StickerPicker } from "./sticker-picker";
 
 type Template = {
   name: string;
@@ -17,11 +19,17 @@ type QuickReply = {
   body: string;
 };
 
+type Sticker = {
+  id: string;
+  assetId: string;
+};
+
 type ComposerProps = {
   conversationId: string;
   windowOpen: boolean;
   templates: Template[];
   quickReplies: QuickReply[];
+  stickers?: Sticker[];
   replyTo?: string | null;
   onReplyToChange?: (wamid: string | null) => void;
 };
@@ -31,6 +39,7 @@ export function Composer({
   windowOpen,
   templates,
   quickReplies,
+  stickers = [],
   replyTo: initialReplyTo = null,
   onReplyToChange,
 }: ComposerProps) {
@@ -43,6 +52,7 @@ export function Composer({
   const [templateState, setTemplateState] = useState<SendResult | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(initialReplyTo);
   const [selectedFile, setSelectedFile] = useState<{ name: string; mime: string; base64: string; caption: string } | null>(null);
+  const [hasText, setHasText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -74,6 +84,7 @@ export function Composer({
         'form[data-composer="text"]'
       ) as HTMLFormElement;
       if (form) form.reset();
+      setHasText(false);
       setReplyTo(null);
       onReplyToChange?.(null);
       setQuickReplySearch("");
@@ -210,6 +221,8 @@ export function Composer({
     const value = e.currentTarget.value;
     const selectionStart = e.currentTarget.selectionStart;
 
+    setHasText(value.trim().length > 0);
+
     const lastNewlineIndex = value.lastIndexOf("\n", selectionStart - 1);
     const lineStart = lastNewlineIndex + 1;
     const lineBeforeCursor = value.substring(lineStart, selectionStart);
@@ -313,7 +326,7 @@ export function Composer({
               disabled={isPending}
               onKeyDown={handleTextareaKeyDown}
               onChange={handleTextareaChange}
-              className="w-full px-3 py-2 text-sm rounded-md border bg-background disabled:opacity-50 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-3 py-2 text-sm rounded-2xl border bg-background disabled:opacity-50 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
               rows={3}
             />
 
@@ -342,7 +355,7 @@ export function Composer({
             <div className="text-xs text-red-600 dark:text-red-400">{resultError}</div>
           )}
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 px-2 py-2 rounded-2xl border bg-background">
             <div className="flex items-center gap-1">
               <input
                 ref={fileInputRef}
@@ -355,29 +368,51 @@ export function Composer({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isPending}
-                className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors"
-                title="Adjuntar archivo"
+                aria-label="Adjuntar archivo"
+                className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors"
               >
                 <PaperclipIcon className="size-4" />
               </button>
-              <button
-                type="button"
-                onClick={() => setMode("template")}
-                className="text-xs px-2.5 py-1.5 rounded-md border hover:bg-muted transition-colors"
-                disabled={isPending}
-              >
-                Usar plantilla
-              </button>
+              <StickerPicker
+                conversationId={conversationId}
+                stickers={stickers}
+                disabled={isPending || !windowOpen}
+              />
             </div>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-            >
-              {isPending ? "Enviando…" : "Enviar"}
-              {!isPending && <SendIcon className="size-3.5" />}
-            </button>
+
+            {hasText || selectedFile ? (
+              <button
+                type="submit"
+                disabled={isPending}
+                aria-label="Enviar mensaje"
+                className="flex items-center justify-center rounded-full p-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                <SendIcon className="size-4" />
+              </button>
+            ) : (
+              <VoiceRecorder
+                onSend={async (dataBase64, mime) => {
+                  setIsPending(true);
+                  const result = await sendVoiceAction(conversationId, {
+                    dataBase64,
+                    mime,
+                  });
+                  setState(result);
+                  setIsPending(false);
+                }}
+                disabled={isPending || !windowOpen}
+              />
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setMode("template")}
+            className="w-full text-xs px-2.5 py-1.5 rounded-md border hover:bg-muted transition-colors disabled:opacity-50"
+            disabled={isPending}
+          >
+            Usar plantilla
+          </button>
         </form>
       )}
     </div>

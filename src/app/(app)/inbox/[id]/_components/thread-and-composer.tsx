@@ -21,12 +21,18 @@ type Template = {
   varCount: number;
 };
 
+type Sticker = {
+  id: string;
+  assetId: string;
+};
+
 export function ThreadAndComposer({
   conversationId,
   messages,
   windowOpen,
   templates,
   quickReplies,
+  stickers = [],
   reactions = {},
 }: {
   conversationId: string;
@@ -34,6 +40,7 @@ export function ThreadAndComposer({
   windowOpen: boolean;
   templates: Template[];
   quickReplies: QuickReply[];
+  stickers?: Sticker[];
   reactions?: Record<string, { direction: "in" | "out"; emoji: string }[]>;
 }) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -55,6 +62,7 @@ export function ThreadAndComposer({
         windowOpen={windowOpen}
         templates={templates}
         quickReplies={quickReplies}
+        stickers={stickers}
         replyTo={replyTo}
         onReplyToChange={setReplyTo}
       />
