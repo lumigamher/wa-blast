@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LocalDateTime } from "@/components/local-datetime";
 import { desc, eq } from "drizzle-orm";
 import { CalendarClockIcon, PlusIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -142,7 +143,7 @@ function ScheduledRow({ c }: { c: Campaign }) {
         </Link>
         <div className="text-xs text-muted-foreground">
           Se enviará{" "}
-          {when ? when.toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" }) : "pronto"} · {c.total}{" "}
+          <LocalDateTime iso={when ? when.toISOString() : null} fallback="pronto" /> · {c.total}{" "}
           destinatarios
         </div>
       </div>
