@@ -108,6 +108,7 @@ function AddNoteForm({ conversationId }: { conversationId: string }) {
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Añade una nota interna…"
+        aria-label="Añade una nota interna"
         className="w-full px-2.5 py-1.5 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
         rows={3}
       />
@@ -148,7 +149,7 @@ export function NotesToggle({
       </button>
 
       {open && (
-        <div className="fixed inset-y-0 right-0 z-20 w-80 border-l bg-card flex flex-col shadow-lg overflow-hidden">
+        <div className="absolute inset-y-0 right-0 z-20 w-80 border-l bg-card flex flex-col shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <div>
               <h3 className="font-semibold text-sm">Notas internas</h3>
