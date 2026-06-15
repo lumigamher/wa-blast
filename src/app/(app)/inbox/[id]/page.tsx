@@ -195,17 +195,16 @@ export default async function InboxThreadPage({
           {/* Messages and Composer */}
           <ThreadAndComposer
             conversationId={conversationId}
-            reactions={thread.reactions}
             messages={thread.messages}
             windowOpen={windowOpen}
             templates={approvedTemplates}
             quickReplies={quickReplies}
+            reactions={thread.reactions}
           />
         </div>
       </div>
 
-      <MarkReadOnOpen conversationId={conversationId}
-            reactions={thread.reactions} />
+      <MarkReadOnOpen conversationId={conversationId} />
       <Poller />
     </div>
   );
