@@ -461,7 +461,7 @@ function NoteBubble({ note }: { note: Note }) {
 
   return (
     <div className="my-1 flex justify-center">
-      <div className="max-w-[80%] rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/40 px-3 py-2">
+      <div className="max-w-[80%] rounded-lg bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2">
         <div className="mb-0.5 flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
           <StickyNoteIcon className="size-3" />
           Nota interna · {note.authorName}

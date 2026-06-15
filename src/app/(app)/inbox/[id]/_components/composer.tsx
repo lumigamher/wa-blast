@@ -534,7 +534,7 @@ export function Composer({
               onChange={(e) => setNoteBody(e.target.value)}
               placeholder="Escribe una nota interna… (solo tu equipo la ve)"
               aria-label="Nota interna"
-              className="w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              className="w-full px-3 py-2 text-sm rounded-lg border-0 bg-amber-50/40 dark:bg-amber-950/15 focus:outline-none focus:ring-0 resize-none"
               rows={4}
             />
             <button

@@ -60,7 +60,7 @@ function NotesList({ notes, conversationId }: { notes: Note[]; conversationId: s
       {notes.map((note) => (
         <div
           key={note.id}
-          className="rounded-lg border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20 p-2.5 space-y-1.5"
+          className="rounded-lg bg-amber-50/50 dark:bg-amber-950/20 p-2.5 space-y-1.5"
         >
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
