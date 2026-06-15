@@ -259,6 +259,15 @@ export async function sendVoiceAction(
     return { ok: false, error: `No se pudo subir la voz: ${up.error.message}` };
   }
   console.log(`[voice] uploaded mediaId=${up.mediaId}`);
+  // DEBUG temporal: ver qué mime/size registró Meta justo tras subir (token aún válido)
+  try {
+    const meta = (await fetch(`https://graph.facebook.com/v22.0/${up.mediaId}`, {
+      headers: { authorization: `Bearer ${settings.metaAccessToken}` },
+    }).then((r) => r.json())) as { mime_type?: string; file_size?: number };
+    console.log(`[voice] meta media mime=${meta?.mime_type} size=${meta?.file_size}`);
+  } catch {
+    /* debug best-effort */
+  }
 
   const sendRes = await sendMedia(settings, { to: thread.conversation.phone, kind: "audio", mediaId: up.mediaId });
   if ("error" in sendRes) {
