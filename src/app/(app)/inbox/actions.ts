@@ -5,9 +5,11 @@ import { requireOrg } from "@/lib/auth/session";
 import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { db } from "@/lib/db/client";
 import { getLastInboundWamid, getThread, markConversationRead, recordOutboundMessage } from "@/lib/inbox/store";
+import { upsertReaction } from "@/lib/inbox/reactions";
 import { isWindowOpen } from "@/lib/inbox/window";
 import { markRead, sendMedia, sendReaction, sendTemplate, sendText, uploadMedia } from "@/lib/meta/client";
 import { getOrgSettings } from "@/lib/org/settings";
+import { saveMediaAsset } from "@/lib/media/store";
 
 export type SendResult = { ok: true } | { ok: false; error: string; windowClosed?: boolean };
 
@@ -151,7 +153,7 @@ export async function sendMediaAction(
       conversationId,
       wamid: null,
       type: input.kind,
-      body: input.caption ?? "[media]",
+      body: input.caption ?? null,
       status: "failed",
       errorMessage: uploadRes.error.message,
     });
@@ -174,20 +176,17 @@ export async function sendMediaAction(
       conversationId,
       wamid: null,
       type: input.kind,
-      body: input.caption ?? "[media]",
+      body: input.caption ?? null,
       status: "failed",
       errorMessage: sendRes.error.message,
     });
     return { ok: false, error: `No se pudo enviar: ${sendRes.error.message}` };
   }
 
+  const asset = await saveMediaAsset(db, { orgId, bytes: arrayBuffer, mime: input.mime, kind: input.kind });
   await recordOutboundMessage(db, {
-    orgId,
-    conversationId,
-    wamid: sendRes.wamid,
-    type: input.kind,
-    body: input.caption ?? "[media]",
-    status: "sent",
+    orgId, conversationId, wamid: sendRes.wamid, type: input.kind,
+    body: input.caption ?? null, status: "sent", mediaId: asset.id,
   });
 
   revalidatePath(`/inbox/${conversationId}`);
@@ -206,25 +205,10 @@ export async function sendReactionAction(
   if (!thread) return { ok: false, error: "Conversación no encontrada" };
 
   const settings = await getOrgSettings(db, orgId);
-  const sendRes = await sendReaction(settings, {
-    to: thread.conversation.phone,
-    wamid: input.wamid,
-    emoji: input.emoji,
-  });
+  const sendRes = await sendReaction(settings, { to: thread.conversation.phone, wamid: input.wamid, emoji: input.emoji });
+  if ("error" in sendRes) return { ok: false, error: `No se pudo enviar la reacción: ${sendRes.error.message}` };
 
-  if ("error" in sendRes) {
-    return { ok: false, error: `No se pudo enviar la reacción: ${sendRes.error.message}` };
-  }
-
-  await recordOutboundMessage(db, {
-    orgId,
-    conversationId,
-    wamid: sendRes.wamid,
-    type: "reaction",
-    body: input.emoji,
-    status: "sent",
-  });
-
+  await upsertReaction(db, { orgId, conversationId, targetWamid: input.wamid, direction: "out", emoji: input.emoji });
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }
