@@ -5,6 +5,7 @@ import { SendIcon, ChevronDownIcon, PaperclipIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { sendMessageAction, sendMediaAction, sendVoiceAction, addNoteAction, type SendResult } from "../../actions";
 import { StickerPicker } from "./sticker-picker";
+import { VoiceRecorder } from "./voice-recorder";
 
 type Template = {
   name: string;
@@ -368,19 +369,77 @@ export function Composer({
                 {!isPending && <SendIcon className="size-3.5" />}
               </button>
             ) : (
-              <form className="space-y-2" data-composer="text" onSubmit={(e) => { e.preventDefault(); handleSendText(new FormData(e.currentTarget)); }}>
+              <form className="space-y-3" data-composer="text" onSubmit={(e) => { e.preventDefault(); if (hasText) handleSendText(new FormData(e.currentTarget)); }}>
                 <div className="relative">
-                  <textarea
-                    ref={textareaRef}
-                    name="message"
-                    placeholder="Escribe un mensaje…  ( / para respuestas rápidas )"
-                    disabled={isPending}
-                    onKeyDown={handleTextareaKeyDown}
-                    onChange={handleTextareaChange}
-                    className="w-full px-3 py-2 text-sm rounded-lg border bg-background disabled:opacity-50 resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                    rows={3}
-                  />
+                  {/* Unified composer bar */}
+                  <div className="flex items-end gap-1 rounded-2xl border bg-background px-2 py-1.5">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,audio/*,video/*,.pdf"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isPending || !windowOpen}
+                      aria-label="Adjuntar archivo"
+                      className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors"
+                    >
+                      <PaperclipIcon className="size-4" />
+                    </button>
+                    <StickerPicker
+                      conversationId={conversationId}
+                      stickers={stickers}
+                      disabled={isPending || !windowOpen}
+                    />
+                    <textarea
+                      ref={textareaRef}
+                      name="message"
+                      placeholder="Escribe un mensaje…  ( / para respuestas rápidas )"
+                      disabled={isPending}
+                      onKeyDown={handleTextareaKeyDown}
+                      onChange={handleTextareaChange}
+                      className="flex-1 max-h-32 resize-none border-0 bg-transparent px-1 py-2 text-sm focus:outline-none focus:ring-0 disabled:opacity-50 placeholder-muted-foreground"
+                      rows={1}
+                    />
+                    {selectedFile ? (
+                      <button
+                        type="button"
+                        onClick={handleSendMedia}
+                        disabled={isPending}
+                        aria-label="Enviar archivo"
+                        className="flex size-9 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                      >
+                        <SendIcon className="size-4" />
+                      </button>
+                    ) : hasText ? (
+                      <button
+                        type="submit"
+                        disabled={isPending}
+                        aria-label="Enviar mensaje (⌘+Enter)"
+                        className="flex size-9 items-center justify-center rounded-full bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                      >
+                        <SendIcon className="size-4" />
+                      </button>
+                    ) : (
+                      <VoiceRecorder
+                        disabled={isPending || !windowOpen}
+                        onSend={async (dataBase64, mime) => {
+                          setIsPending(true);
+                          const result = await sendVoiceAction(conversationId, { dataBase64, mime });
+                          setState(result);
+                          setIsPending(false);
+                          if (result.ok) {
+                            router.refresh();
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
 
+                  {/* Quick reply dropdown */}
                   {showQuickReplyDropdown && filteredQuickReplies.length > 0 && (
                     <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md border bg-background shadow-lg z-10 max-h-48 overflow-y-auto">
                       {filteredQuickReplies.map((qr, idx) => (
@@ -403,60 +462,7 @@ export function Composer({
                 </div>
 
                 {resultError && (
-                  <div className="text-xs text-red-600 dark:text-red-400">{resultError}</div>
-                )}
-
-                <div className="flex items-center justify-between gap-2 p-2 rounded-lg border bg-background">
-                  <div className="flex items-center gap-1">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,audio/*,video/*,.pdf"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isPending}
-                      aria-label="Adjuntar archivo"
-                      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors"
-                    >
-                      <PaperclipIcon className="size-4" />
-                    </button>
-                    <StickerPicker
-                      conversationId={conversationId}
-                      stickers={stickers}
-                      disabled={isPending || !windowOpen}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isPending || !hasText}
-                    aria-label="Enviar mensaje"
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                  >
-                    <span>Enviar (⌘↵)</span>
-                    {!isPending && <SendIcon className="size-3.5" />}
-                  </button>
-                </div>
-
-                {!hasText && !selectedFile && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsPending(true);
-                      sendVoiceAction(conversationId, { dataBase64: "", mime: "" }).then((result) => {
-                        setState(result);
-                        setIsPending(false);
-                      });
-                    }}
-                    disabled={isPending || !windowOpen}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted rounded-md transition-colors disabled:opacity-50"
-                  >
-                    <span>🎤 Mensaje de voz</span>
-                  </button>
+                  <div className="mt-1.5 text-xs text-red-600 dark:text-red-400">{resultError}</div>
                 )}
               </form>
             )}
