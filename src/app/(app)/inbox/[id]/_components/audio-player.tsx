@@ -78,7 +78,7 @@ export function AudioPlayer({ src }: { src: string }) {
   const playedRatio = dur ? progress / dur : 0;
 
   return (
-    <div className="flex items-center gap-2 min-w-[200px]">
+    <div className="flex items-center gap-2 w-full">
       <button
         type="button"
         onClick={toggle}
@@ -101,12 +101,12 @@ export function AudioPlayer({ src }: { src: string }) {
             handleWaveformClick(Math.max(0, Math.min(1, ratio)));
           }}
           aria-label="Barra de progreso de audio"
-          className="flex-1 flex items-center justify-center gap-0.5 h-8 px-2 rounded cursor-pointer group"
+          className="flex-1 min-w-0 flex items-center justify-center gap-0.5 h-8 px-2 rounded cursor-pointer group"
         >
           {peaks.map((peak, i) => (
             <div
               key={i}
-              className={`w-[3px] rounded-full transition-colors ${
+              className={`w-[3px] rounded-full transition-colors flex-shrink-0 ${
                 i / peaks.length < playedRatio
                   ? "bg-emerald-600"
                   : "bg-muted-foreground/30 group-hover:bg-muted-foreground/50"
@@ -119,7 +119,7 @@ export function AudioPlayer({ src }: { src: string }) {
           ))}
         </button>
       ) : (
-        <div className="h-1 flex-1 rounded-full bg-muted-foreground/20">
+        <div className="h-1 flex-1 min-w-0 rounded-full bg-muted-foreground/20">
           <div
             className="h-full rounded-full bg-emerald-600 transition-all"
             style={{ width: `${dur ? (progress / dur) * 100 : 0}%` }}
@@ -127,7 +127,7 @@ export function AudioPlayer({ src }: { src: string }) {
         </div>
       )}
 
-      <span className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap">
+      <span className="text-[11px] tabular-nums text-muted-foreground whitespace-nowrap shrink-0">
         {fmt(dur ? dur - progress : 0)}
       </span>
 

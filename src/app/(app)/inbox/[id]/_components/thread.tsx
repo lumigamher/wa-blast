@@ -308,6 +308,8 @@ function MessageBubble({
   }
 
   // Regular messages with colored background
+  const bubbleWidthClass = message.type === "audio" ? "w-64" : "max-w-xs";
+
   return (
     <div
       className={`flex gap-2 group relative ${
@@ -317,13 +319,13 @@ function MessageBubble({
     >
       <div className="relative">
         <div
-          className={`max-w-xs rounded-lg px-3 py-2 shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] ${
+          className={`${bubbleWidthClass} rounded-lg px-3 py-2 shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] ${
             isOutbound
               ? "bg-emerald-100 dark:bg-emerald-900 text-foreground"
               : "bg-muted text-foreground"
           }`}
         >
-          <div className="text-sm whitespace-pre-wrap break-words">
+          <div className={`text-sm ${message.type !== "audio" ? "whitespace-pre-wrap break-words" : ""}`}>
             {bubbleContent}
           </div>
 
@@ -352,7 +354,7 @@ function MessageBubble({
       {!isOutbound && message.wamid && (
         <button
           onClick={() => setShowReactionPopover(!showReactionPopover)}
-          className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground"
+          className="absolute -right-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground"
           title="Reaccionar"
           aria-label="Reaccionar"
         >
@@ -362,7 +364,7 @@ function MessageBubble({
 
       {/* Reaction popover */}
       {!isOutbound && message.wamid && showReactionPopover && (
-        <div className="absolute -left-32 top-0 z-50 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-3 flex flex-col gap-2 min-w-max">
+        <div className="absolute -right-40 top-0 z-50 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-3 flex flex-col gap-2 min-w-max">
           <div className="flex gap-1">
             {quickEmojis.map((emoji) => (
               <button
