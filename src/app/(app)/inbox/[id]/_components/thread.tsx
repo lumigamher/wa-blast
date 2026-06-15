@@ -226,67 +226,80 @@ function MessageBubble({
         onContextMenu={handleContextMenu}
       >
         <div className="relative">
-          {bubbleContent}
-          {reactions.length > 0 && <ReactionChips reactions={reactions} />}
-        </div>
+          {/* Bubble with toolbar anchored to top */}
+          <div className="relative inline-block">
+            {bubbleContent}
 
-        {/* Hover action buttons (beside bubble) */}
-        {!isOutbound && message.wamid ? (
-          <div className="flex items-center gap-1 absolute -left-20 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => {
-                if (message.wamid) {
-                  onReplyTo({
-                    wamid: message.wamid,
-                    label: replyLabel(message),
-                    author: message.direction,
-                  });
-                }
-              }}
-              className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Responder"
-              aria-label="Responder"
-            >
-              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="21 15 16 10 21 5"></polyline>
-                <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
-              </svg>
-            </button>
-            <button
-              onClick={() => setShowReactionPopover(!showReactionPopover)}
-              className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Reaccionar"
-              aria-label="Reaccionar"
-            >
-              <SmilePlusIcon className="size-4" />
-            </button>
-          </div>
-        ) : null}
-
-        {/* Reaction popover */}
-        {!isOutbound && message.wamid && showReactionPopover && (
-          <div className="absolute -left-32 top-0 z-50 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-3 flex flex-col gap-2 min-w-max">
-            <div className="flex gap-1">
-              {quickEmojis.map((emoji) => (
-                <button
-                  key={emoji}
-                  onClick={() => handleReaction(emoji)}
-                  disabled={reactionsLoading}
-                  className="text-xl hover:scale-125 transition-transform disabled:opacity-50 p-1"
-                  title={`Reaccionar con ${emoji}`}
-                >
-                  {emoji}
-                </button>
-              ))}
-              <div className="flex items-center">
-                <EmojiPicker
-                  onPick={(emoji) => handleReaction(emoji)}
-                  disabled={reactionsLoading}
-                />
+            {/* Hover action toolbar - anchored to bubble, inner side */}
+            {!isOutbound && message.wamid && (
+              <div className={`absolute top-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity ${
+                isOutbound ? "left-0 -translate-x-full pr-1" : "right-0 translate-x-full pl-1"
+              }`}>
+                <div className="flex items-center gap-0.5 rounded-full border bg-background px-1 py-0.5 shadow-sm">
+                  <button
+                    onClick={() => {
+                      if (message.wamid) {
+                        onReplyTo({
+                          wamid: message.wamid,
+                          label: replyLabel(message),
+                          author: message.direction,
+                        });
+                      }
+                    }}
+                    className="rounded-full p-1 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="Responder"
+                    aria-label="Responder"
+                  >
+                    <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="21 15 16 10 21 5"></polyline>
+                      <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setShowReactionPopover(!showReactionPopover)}
+                    className="rounded-full p-1 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="Reaccionar"
+                    aria-label="Reaccionar"
+                  >
+                    <SmilePlusIcon className="size-4" />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Reaction popover - anchored to bubble, not floating to viewport */}
+            {!isOutbound && message.wamid && showReactionPopover && (
+              <div className="absolute top-full mt-2 left-0 z-30 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-2 flex flex-col gap-1 min-w-max">
+                <div className="flex gap-1">
+                  {quickEmojis.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReaction(emoji)}
+                      disabled={reactionsLoading}
+                      className="text-lg hover:scale-110 transition-transform disabled:opacity-50 p-1 rounded hover:bg-muted"
+                      title={`Reaccionar con ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                  <div className="flex items-center">
+                    <EmojiPicker
+                      onPick={(emoji) => handleReaction(emoji)}
+                      disabled={reactionsLoading}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Reaction chips - below bubble, no overlap */}
+          {reactions.length > 0 && (
+            <div className={`mt-1 flex gap-0.5 ${isOutbound ? "justify-end" : "justify-start"}`}>
+              <ReactionChips reactions={reactions} />
+            </div>
+          )}
+        </div>
 
         {/* Right-click context menu */}
         {contextMenu && (
@@ -339,28 +352,98 @@ function MessageBubble({
       onContextMenu={handleContextMenu}
     >
       <div className="relative">
-        <div
-          className={`${bubbleWidthClass} rounded-lg px-3 py-2 shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] ${
-            isOutbound
-              ? "bg-emerald-100 dark:bg-emerald-900 text-foreground"
-              : "bg-muted text-foreground"
-          }`}
-        >
-          <div className={`text-sm ${message.type !== "audio" ? "whitespace-pre-wrap break-words" : ""}`}>
-            {bubbleContent}
+        {/* Bubble with toolbar anchored to top */}
+        <div className="relative inline-block">
+          <div
+            className={`${bubbleWidthClass} rounded-lg px-3 py-2 shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] ${
+              isOutbound
+                ? "bg-emerald-100 dark:bg-emerald-900 text-foreground"
+                : "bg-muted text-foreground"
+            }`}
+          >
+            <div className={`text-sm ${message.type !== "audio" ? "whitespace-pre-wrap break-words" : ""}`}>
+              {bubbleContent}
+            </div>
+
+            <div className="flex items-center justify-end gap-1 mt-1">
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {time}
+              </span>
+              {isOutbound && (
+                <StatusIcon status={message.status} errorMessage={message.errorMessage} />
+              )}
+            </div>
           </div>
 
-          <div className="flex items-center justify-end gap-1 mt-1">
-            <span className="text-[11px] text-muted-foreground tabular-nums">
-              {time}
-            </span>
-            {isOutbound && (
-              <StatusIcon status={message.status} errorMessage={message.errorMessage} />
-            )}
-          </div>
+          {/* Hover action toolbar - anchored to bubble, inner side */}
+          {!isOutbound && message.wamid && (
+            <div className={`absolute top-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity ${
+              isOutbound ? "left-0 -translate-x-full pr-1" : "right-0 translate-x-full pl-1"
+            }`}>
+              <div className="flex items-center gap-0.5 rounded-full border bg-background px-1 py-0.5 shadow-sm">
+                <button
+                  onClick={() => {
+                    if (message.wamid) {
+                      onReplyTo({
+                        wamid: message.wamid,
+                        label: replyLabel(message),
+                        author: message.direction,
+                      });
+                    }
+                  }}
+                  className="rounded-full p-1 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Responder"
+                  aria-label="Responder"
+                >
+                  <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="21 15 16 10 21 5"></polyline>
+                    <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setShowReactionPopover(!showReactionPopover)}
+                  className="rounded-full p-1 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Reaccionar"
+                  aria-label="Reaccionar"
+                >
+                  <SmilePlusIcon className="size-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Reaction popover - anchored to bubble, not floating to viewport */}
+          {!isOutbound && message.wamid && showReactionPopover && (
+            <div className="absolute top-full mt-2 left-0 z-30 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-2 flex flex-col gap-1 min-w-max">
+              <div className="flex gap-1">
+                {quickEmojis.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleReaction(emoji)}
+                    disabled={reactionsLoading}
+                    className="text-lg hover:scale-110 transition-transform disabled:opacity-50 p-1 rounded hover:bg-muted"
+                    title={`Reaccionar con ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                <div className="flex items-center">
+                  <EmojiPicker
+                    onPick={(emoji) => handleReaction(emoji)}
+                    disabled={reactionsLoading}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {reactions.length > 0 && <ReactionChips reactions={reactions} />}
+        {/* Reaction chips - below bubble, no overlap with timestamp */}
+        {reactions.length > 0 && (
+          <div className={`mt-1 flex gap-0.5 ${isOutbound ? "justify-end" : "justify-start"}`}>
+            <ReactionChips reactions={reactions} />
+          </div>
+        )}
       </div>
 
       {isOutbound && message.status === "failed" && message.errorMessage && (
@@ -368,64 +451,6 @@ function MessageBubble({
           <span title={message.errorMessage}>
             <AlertCircleIcon className="size-3" />
           </span>
-        </div>
-      )}
-
-      {/* Hover action buttons (beside bubble) */}
-      {!isOutbound && message.wamid ? (
-        <div className="flex items-center gap-1 absolute -right-20 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => {
-              if (message.wamid) {
-                onReplyTo({
-                  wamid: message.wamid,
-                  label: replyLabel(message),
-                  author: message.direction,
-                });
-              }
-            }}
-            className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            title="Responder"
-            aria-label="Responder"
-          >
-            <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="21 15 16 10 21 5"></polyline>
-              <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
-            </svg>
-          </button>
-          <button
-            onClick={() => setShowReactionPopover(!showReactionPopover)}
-            className="rounded-full p-1.5 bg-white dark:bg-slate-800 border border-muted shadow-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            title="Reaccionar"
-            aria-label="Reaccionar"
-          >
-            <SmilePlusIcon className="size-4" />
-          </button>
-        </div>
-      ) : null}
-
-      {/* Reaction popover */}
-      {!isOutbound && message.wamid && showReactionPopover && (
-        <div className="absolute -right-40 top-0 z-50 bg-white dark:bg-slate-800 border border-muted rounded-lg shadow-lg p-3 flex flex-col gap-2 min-w-max">
-          <div className="flex gap-1">
-            {quickEmojis.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => handleReaction(emoji)}
-                disabled={reactionsLoading}
-                className="text-xl hover:scale-125 transition-transform disabled:opacity-50 p-1"
-                title={`Reaccionar con ${emoji}`}
-              >
-                {emoji}
-              </button>
-            ))}
-            <div className="flex items-center">
-              <EmojiPicker
-                onPick={(emoji) => handleReaction(emoji)}
-                disabled={reactionsLoading}
-              />
-            </div>
-          </div>
         </div>
       )}
 
