@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { TrashIcon } from "lucide-react";
+import { toast } from "sonner";
 import { deleteQuickReplyAction } from "./actions";
 
 export function QuickReplyItem({ reply }: { reply: { id: string; shortcut: string; body: string } }) {
@@ -9,7 +10,12 @@ export function QuickReplyItem({ reply }: { reply: { id: string; shortcut: strin
 
   const handleDelete = () => {
     startTransition(async () => {
-      await deleteQuickReplyAction(reply.id);
+      try {
+        await deleteQuickReplyAction(reply.id);
+        toast.success("Respuesta eliminada");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "No se pudo eliminar la respuesta");
+      }
     });
   };
 

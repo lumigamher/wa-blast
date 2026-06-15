@@ -15,29 +15,56 @@ const metaSchema = z.object({
   metaAppSecret: z.string().min(10),
 });
 
-export async function saveMetaCredsAction(formData: FormData) {
-  const { orgId } = await requireOrg();
-  const input = metaSchema.parse(Object.fromEntries(formData));
-  await saveMetaCreds(db, orgId, input);
-  revalidatePath("/configuracion/meta");
+export async function saveMetaCredsAction(formData: FormData): Promise<{ ok: boolean; message: string }> {
+  try {
+    const { orgId } = await requireOrg();
+    const result = metaSchema.safeParse(Object.fromEntries(formData));
+    if (!result.success) {
+      return { ok: false, message: "Revisa los campos: todos son obligatorios y el token/secret deben ser válidos." };
+    }
+    await saveMetaCreds(db, orgId, result.data);
+    revalidatePath("/configuracion/meta");
+    return { ok: true, message: "Credenciales de Meta guardadas." };
+  } catch (e) {
+    return {
+      ok: false,
+      message: `No se pudo guardar: ${e instanceof Error ? e.message : "error"}`,
+    };
+  }
 }
 
-export async function saveForwardUrlAction(formData: FormData) {
-  const { orgId } = await requireOrg();
-  const url = String(formData.get("forwardUrl") ?? "").trim();
-  await saveForwardUrl(db, orgId, url || null);
-  revalidatePath("/configuracion/meta");
+export async function saveForwardUrlAction(formData: FormData): Promise<{ ok: boolean; message: string }> {
+  try {
+    const { orgId } = await requireOrg();
+    const url = String(formData.get("forwardUrl") ?? "").trim();
+    await saveForwardUrl(db, orgId, url || null);
+    revalidatePath("/configuracion/meta");
+    return { ok: true, message: "URL de reenvío guardada." };
+  } catch (e) {
+    return {
+      ok: false,
+      message: `No se pudo guardar: ${e instanceof Error ? e.message : "error"}`,
+    };
+  }
 }
 
-export async function saveOptoutKeywordsAction(formData: FormData) {
-  const { orgId } = await requireOrg();
-  const raw = String(formData.get("keywords") ?? "");
-  const kw = raw
-    .split(/[\n,]/)
-    .map((s) => s.trim().toUpperCase())
-    .filter(Boolean);
-  await saveOptoutKeywords(db, orgId, kw);
-  revalidatePath("/configuracion/meta");
+export async function saveOptoutKeywordsAction(formData: FormData): Promise<{ ok: boolean; message: string }> {
+  try {
+    const { orgId } = await requireOrg();
+    const raw = String(formData.get("keywords") ?? "");
+    const kw = raw
+      .split(/[\n,]/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    await saveOptoutKeywords(db, orgId, kw);
+    revalidatePath("/configuracion/meta");
+    return { ok: true, message: "Palabras de baja guardadas." };
+  } catch (e) {
+    return {
+      ok: false,
+      message: `No se pudo guardar: ${e instanceof Error ? e.message : "error"}`,
+    };
+  }
 }
 
 export async function testConnectionAction(): Promise<

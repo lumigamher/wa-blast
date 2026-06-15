@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { SendIcon } from "lucide-react";
+import { toast } from "sonner";
 import { createQuickReplyAction } from "./actions";
 
 export function QuickRepliesForm() {
@@ -30,8 +31,10 @@ export function QuickRepliesForm() {
       if (result.ok) {
         e.currentTarget.reset();
         setError(null);
+        toast.success("Respuesta rápida creada");
       } else {
         setError(result.error);
+        toast.error(result.error);
       }
     });
   };

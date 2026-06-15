@@ -10,6 +10,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings, ensureVerifyToken } from "@/lib/org/settings";
 import { env } from "@/lib/env";
 import { saveForwardUrlAction, saveMetaCredsAction, saveOptoutKeywordsAction } from "../actions";
+import { ToastForm } from "@/components/toast-form";
 import { CopyField } from "./_components/copy-field";
 import { TestConnection } from "./_components/test-connection";
 
@@ -93,7 +94,7 @@ export default async function MetaSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={saveMetaCredsAction} className="space-y-4">
+          <ToastForm action={saveMetaCredsAction} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Phone Number ID" name="metaPhoneId" defaultValue={s.metaPhoneId ?? ""} />
               <Field label="WABA ID" name="metaWabaId" defaultValue={s.metaWabaId ?? ""} />
@@ -121,7 +122,7 @@ export default async function MetaSettingsPage() {
             <div className="flex justify-end">
               <Button type="submit">Guardar credenciales</Button>
             </div>
-          </form>
+          </ToastForm>
         </CardContent>
       </Card>
 
@@ -145,7 +146,7 @@ export default async function MetaSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={saveForwardUrlAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <ToastForm action={saveForwardUrlAction} className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1.5">
               <Label htmlFor="forwardUrl">URL externa</Label>
               <Input
@@ -157,7 +158,7 @@ export default async function MetaSettingsPage() {
               />
             </div>
             <Button type="submit">Guardar</Button>
-          </form>
+          </ToastForm>
         </CardContent>
       </Card>
 
@@ -169,7 +170,7 @@ export default async function MetaSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={saveOptoutKeywordsAction} className="space-y-3">
+          <ToastForm action={saveOptoutKeywordsAction} className="space-y-3">
             <textarea
               name="keywords"
               rows={3}
@@ -180,7 +181,7 @@ export default async function MetaSettingsPage() {
             <div className="flex justify-end">
               <Button type="submit">Guardar palabras</Button>
             </div>
-          </form>
+          </ToastForm>
         </CardContent>
       </Card>
     </div>
