@@ -20,7 +20,7 @@ Llevar el inbox a paridad funcional con **WhatsApp Business**: notas de voz (env
 - **Schema:** `src/lib/db/schema/domain.ts`: `conversations`, `messages` (con `wamid`, `type`, `body`, `mediaId`, `status`, `payloadJson`), `mediaAssets`, `inboxMediaCache`, `quickReplies`. No hay tabla de reacciones ni de stickers.
 - **Media:** entrante se descarga/cachea vía `src/app/api/inbox/media/[mediaId]/route.ts` (Meta media id → asset local). **Saliente: `mediaId` queda null → el media enviado NO se renderiza en el hilo.**
 - **Ventana 24h:** `src/lib/inbox/window.ts` (`isWindowOpen`, `WINDOW_MS`). Con ventana cerrada el composer fuerza modo plantilla.
-- **Infra:** ffmpeg disponible (local confirmado; verificar/instalar en prod). NO hay `sharp`. Se usa **ffmpeg** para audio→ogg/opus y para imagen→webp (evita añadir `sharp`).
+- **Infra:** ffmpeg para audio→ogg/opus (voz). Para imagen→webp (stickers) se usa **`sharp`** (el ffmpeg de dev NO trae encoder libwebp; sharp ya viene con Next.js, es cross-platform y trae libwebp). Añadido sharp explícito a `dependencies`. Prod solo necesita ffmpeg para voz; sharp llega por `bun install`.
 
 ## Decisiones de diseño
 

@@ -1291,7 +1291,7 @@ export function StickerPicker({ conversationId, stickers, disabled }: { conversa
 - [ ] **Step 1:** Borrar archivos basura de iCloud si aparecen: `find src tests -name "* 2.*" -delete`.
 - [ ] **Step 2:** Gauntlet completo: `bun run test` (todo verde) + `bunx tsc --noEmit` (cero) + `bun run lint` (cero).
 - [ ] **Step 3:** Review con subagente `code-reviewer` (correctness, aislamiento por org en stores/acciones nuevas, gate de ventana 24h en voz/sticker, a11y de los componentes nuevos, Core Web Vitals del inbox). Aplicar findings.
-- [ ] **Step 4:** Verificar **ffmpeg en prod**: `ssh root@158.220.123.213 "which ffmpeg || (apt-get update && apt-get install -y ffmpeg)"`. (Requiere aprobación del host de prod.)
+- [ ] **Step 4:** Verificar **ffmpeg en prod** (solo se usa para notas de voz; los stickers usan `sharp` que llega por `bun install`): `ssh root@158.220.123.213 "which ffmpeg || (apt-get update && apt-get install -y ffmpeg)"`. (Requiere aprobación del host de prod.) Confirmar también que `bun install` compiló el binario nativo de `sharp` para linux en el server.
 - [ ] **Step 5:** Merge a `main` y deploy: `git checkout main && git merge --no-ff feat/inbox-whatsapp-parity` → `git push` → `bash deploy/deploy.sh`.
 - [ ] **Step 6:** Smoke prod en `luladev.com/inbox`: abrir la conversación de ejemplo (Meta ya conectado) → el scroll funciona (no crece la página); enviar texto, imagen (se ve en el hilo), nota de voz (se reproduce), sticker (subir + enviar); reaccionar a un mensaje entrante (chip en la burbuja, no burbuja suelta); añadir una nota interna; verificar que con ventana cerrada solo deja plantillas. Actualizar memoria.
 
