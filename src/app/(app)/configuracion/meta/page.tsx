@@ -78,7 +78,12 @@ export default async function MetaSettingsPage() {
               <li className="flex gap-2">
                 <span className="font-semibold">3.</span>
                 <span>
-                  Suscríbete al evento <code className="rounded bg-muted px-1 text-foreground">messages</code>.
+                  Suscríbete a <strong>todos</strong> los campos del webhook — como mínimo{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">messages</code>,{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">message_template_status_update</code>,{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">message_template_quality_update</code>,{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">template_category_update</code> y{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">history</code> (mensajes, plantillas e historial).
                 </span>
               </li>
             </ol>

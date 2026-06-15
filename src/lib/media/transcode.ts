@@ -21,7 +21,13 @@ function run(args: string[], input: Uint8Array): Promise<Uint8Array> {
 
 /** Convierte cualquier audio de entrada a OGG/Opus (nota de voz de WhatsApp). */
 export async function toOggOpus(input: ArrayBuffer): Promise<Uint8Array> {
-  return run(["-i", "pipe:0", "-c:a", "libopus", "-b:a", "32k", "-ar", "48000", "-ac", "1", "-f", "ogg", "pipe:1"], new Uint8Array(input));
+  // Recipe canónico de notas de voz de WhatsApp: opus mono, optimizado para voz.
+  // -vn descarta cualquier track de video del webm; -application voip mejora la voz y
+  // la reproducción en el WhatsApp del destinatario.
+  return run(
+    ["-i", "pipe:0", "-vn", "-c:a", "libopus", "-b:a", "32k", "-ar", "48000", "-ac", "1", "-application", "voip", "-f", "ogg", "pipe:1"],
+    new Uint8Array(input),
+  );
 }
 
 /** Convierte una imagen a WEBP 512x512 con transparencia (sticker de WhatsApp). */

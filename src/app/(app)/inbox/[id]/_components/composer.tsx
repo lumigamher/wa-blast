@@ -394,7 +394,7 @@ export function Composer({
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*,audio/*,video/*,.pdf"
+                      accept="*/*"
                       onChange={handleFileSelect}
                       className="hidden"
                     />
