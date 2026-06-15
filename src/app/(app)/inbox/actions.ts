@@ -208,6 +208,10 @@ export async function sendReactionAction(
   const thread = await getThread(db, orgId, conversationId);
   if (!thread) return { ok: false, error: "Conversación no encontrada" };
 
+  if (!isWindowOpen(thread.conversation.lastIncomingAt)) {
+    return { ok: false, error: "La ventana de 24h está cerrada.", windowClosed: true };
+  }
+
   const settings = await getOrgSettings(db, orgId);
   const sendRes = await sendReaction(settings, { to: thread.conversation.phone, wamid: input.wamid, emoji: input.emoji });
   if ("error" in sendRes) return { ok: false, error: `No se pudo enviar la reacción: ${sendRes.error.message}` };
