@@ -14,8 +14,9 @@ const inputSchema = z.object({
   name: z.string().min(1),
   templateName: z.string().min(1),
   templateLanguage: z.string().min(1),
-  source: z.enum(["tags", "adhoc"]),
+  source: z.enum(["tags", "adhoc", "contacts"]),
   tagIds: z.array(z.string()).optional(),
+  contactIds: z.array(z.string()).optional(),
   adhocRows: z
     .array(
       z.object({
@@ -103,6 +104,40 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
       .select()
       .from(contacts)
       .where(and(eq(contacts.orgId, orgId), inArray(contacts.id, uniqueIds), isNull(contacts.optOutAt)));
+
+    recipients = rows.map((c) => {
+      let params: Record<string, string>;
+
+      if (data.templateType === "carousel" && data.varMapping) {
+        // Server-side resolution for carousel
+        const fields = {
+          name: c.name ?? "",
+          phone: c.phone,
+          email: c.email ?? "",
+        };
+        params = resolveVarMapping(data.varMapping, fields);
+      } else {
+        // Standard flow
+        params = data.paramsByContact?.[c.id] ?? {};
+      }
+
+      return {
+        contactId: c.id,
+        phone: c.phone,
+        name: c.name,
+        params,
+      };
+    });
+  } else if (data.source === "contacts") {
+    const ids = [...new Set(data.contactIds ?? [])];
+    if (ids.length === 0) return { ok: false, error: "Selecciona al menos un contacto" };
+
+    const rows = await db
+      .select()
+      .from(contacts)
+      .where(and(eq(contacts.orgId, orgId), inArray(contacts.id, ids), isNull(contacts.optOutAt)));
+
+    if (rows.length === 0) return { ok: false, error: "Los contactos seleccionados no están disponibles" };
 
     recipients = rows.map((c) => {
       let params: Record<string, string>;

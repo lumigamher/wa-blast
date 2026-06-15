@@ -22,21 +22,25 @@ import { buildCarouselPlan } from "@/lib/campaigns/build-carousel-plan";
 import { createCampaignAction } from "./actions";
 
 type Step = 1 | 2 | 3;
-type Source = "tags" | "adhoc";
+type Source = "tags" | "adhoc" | "contacts";
 
 type TagRow = { id: string; name: string; color: string; count: number };
+
+type ContactRow = { id: string; name: string | null; phone: string };
 
 type AdhocRow = { phone: string; name: string; params: Record<string, string> };
 
 export function Wizard({
   templates,
   tags,
+  contacts = [],
   prefillMedia = {},
   initialTemplateKey,
   initialFavorites = [],
 }: {
   templates: WhatsAppTemplate[];
   tags: TagRow[];
+  contacts?: ContactRow[];
   prefillMedia?: Record<string, Record<number, string>>;
   initialTemplateKey?: string;
   initialFavorites?: string[];
@@ -72,12 +76,16 @@ export function Wizard({
 
   const [source, setSource] = useState<Source>("tags");
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [adhocRows, setAdhocRows] = useState<AdhocRow[]>([]);
 
   // Favorites UI state
   const [searchQuery, setSearchQuery] = useState("");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [showAll, setShowAll] = useState(false);
+
+  // Contacts UI state
+  const [contactSearchQuery, setContactSearchQuery] = useState("");
 
   const [name, setName] = useState("");
   const [bulkParams, setBulkParams] = useState<Record<string, string>>({});
@@ -91,7 +99,7 @@ export function Wizard({
   const tagsCount = useMemo(() => {
     return tags.filter((t) => selectedTagIds.has(t.id)).reduce((s, t) => s + t.count, 0);
   }, [tags, selectedTagIds]);
-  const total = source === "tags" ? tagsCount : adhocRows.length;
+  const total = source === "tags" ? tagsCount : source === "contacts" ? selectedContactIds.size : adhocRows.length;
 
   // Compute visible templates for Step 1 (includes non-APPROVED if showAll is true)
   const visibleTemplates = useMemo(() => {
@@ -125,6 +133,22 @@ export function Wizard({
     else next.add(id);
     setSelectedTagIds(next);
   }
+
+  function toggleContact(id: string) {
+    const next = new Set(selectedContactIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedContactIds(next);
+  }
+
+  const visibleContacts = useMemo(() => {
+    const needle = contactSearchQuery.trim().toLowerCase();
+    if (!needle) return contacts;
+    return contacts.filter((c) =>
+      (c.name?.toLowerCase() ?? "").includes(needle) ||
+      c.phone.includes(needle)
+    );
+  }, [contacts, contactSearchQuery]);
 
   async function handleFile(f: File) {
     const buf = await f.arrayBuffer();
@@ -227,6 +251,7 @@ export function Wizard({
       templateLanguage: selected.language,
       source,
       tagIds: source === "tags" ? [...selectedTagIds] : undefined,
+      contactIds: source === "contacts" ? [...selectedContactIds] : undefined,
       adhocRows:
         source === "adhoc"
           ? adhocRows.map((r) => ({
@@ -344,12 +369,6 @@ export function Wizard({
                     no la podrás disparar hasta que Meta la apruebe.
                   </p>
                 ) : null}
-
-                <div className="flex justify-end">
-                  <Button onClick={() => setStep(2)} disabled={!selected}>
-                    Siguiente
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           )}
@@ -367,6 +386,13 @@ export function Wizard({
                     onClick={() => setSource("tags")}
                   >
                     <UsersIcon className="size-4" /> Por tags
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={source === "contacts" ? "default" : "outline"}
+                    onClick={() => setSource("contacts")}
+                  >
+                    <UsersIcon className="size-4" /> Contactos
                   </Button>
                   <Button
                     size="sm"
@@ -418,6 +444,59 @@ export function Wizard({
                   </div>
                 )}
 
+                {source === "contacts" && (
+                  <div className="space-y-3">
+                    {contacts.length === 0 ? (
+                      <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                        No tienes contactos guardados.{" "}
+                        <a href="/contactos/import" className="underline">
+                          Importa contactos
+                        </a>
+                        .
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar por nombre o teléfono…"
+                            className="pl-9"
+                            value={contactSearchQuery}
+                            onChange={(e) => setContactSearchQuery(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{selectedContactIds.size} seleccionados de {visibleContacts.length}</span>
+                        </div>
+                        <ul className="max-h-[20rem] overflow-y-auto space-y-1 rounded-md border p-2">
+                          {visibleContacts.length === 0 ? (
+                            <li className="px-2 py-3 text-center text-xs text-muted-foreground">
+                              Ningún contacto coincide.
+                            </li>
+                          ) : (
+                            visibleContacts.map((c) => (
+                              <li
+                                key={c.id}
+                                className="flex items-center gap-3 rounded-md border p-2 hover:bg-muted/50"
+                              >
+                                <Checkbox
+                                  id={`contact-${c.id}`}
+                                  checked={selectedContactIds.has(c.id)}
+                                  onCheckedChange={() => toggleContact(c.id)}
+                                />
+                                <Label htmlFor={`contact-${c.id}`} className="flex-1 cursor-pointer text-sm">
+                                  <div className="font-medium">{c.name || "Sin nombre"}</div>
+                                  <div className="text-xs text-muted-foreground">{c.phone}</div>
+                                </Label>
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {source === "adhoc" && (
                   <div className="space-y-3">
                     <input
@@ -460,7 +539,9 @@ export function Wizard({
                   </div>
                   <div className="rounded-md border bg-background p-3">
                     <div className="text-xs text-muted-foreground">Fuente</div>
-                    <div className="font-semibold">{source === "tags" ? "Tags" : "CSV/Excel"}</div>
+                    <div className="font-semibold">
+                      {source === "tags" ? "Tags" : source === "contacts" ? "Contactos" : "CSV/Excel"}
+                    </div>
                   </div>
                   <div className="rounded-md border bg-background p-3">
                     <div className="text-xs text-muted-foreground">Destinatarios</div>

@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
-import { tags, contactTags, templateCardMedia, templateFavorites } from "@/lib/db/schema";
+import { tags, contactTags, contacts, templateCardMedia, templateFavorites } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { publicMediaUrl } from "@/lib/media/store";
@@ -35,7 +35,7 @@ export default async function NuevaCampanaPage({
     );
   }
 
-  const [templates, tagRows, cardMediaRows, favs] = await Promise.all([
+  const [templates, tagRows, contactRows, cardMediaRows, favs] = await Promise.all([
     listTemplates(creds).catch(() => []),
     db
       .select({
@@ -48,6 +48,11 @@ export default async function NuevaCampanaPage({
       .leftJoin(contactTags, eq(contactTags.tagId, tags.id))
       .where(eq(tags.orgId, orgId))
       .groupBy(tags.id),
+    db
+      .select({ id: contacts.id, name: contacts.name, phone: contacts.phone })
+      .from(contacts)
+      .where(and(eq(contacts.orgId, orgId), isNull(contacts.optOutAt)))
+      .orderBy(contacts.name),
     db
       .select({
         name: templateCardMedia.templateName,
@@ -92,6 +97,7 @@ export default async function NuevaCampanaPage({
       <Wizard
         templates={templates}
         tags={tagRows.map((t) => ({ id: t.id, name: t.name, color: t.color, count: Number(t.count) }))}
+        contacts={contactRows}
         prefillMedia={prefillMedia}
         initialTemplateKey={initialTemplateKey}
         initialFavorites={initialFavorites}
