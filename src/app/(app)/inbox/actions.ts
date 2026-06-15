@@ -340,3 +340,27 @@ export async function sendStickerAction(conversationId: string, input: { sticker
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }
+
+export async function addNoteAction(conversationId: string, body: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { orgId, session } = await requireOrg();
+  if (!body.trim()) return { ok: false, error: "La nota no puede estar vacía" };
+
+  const thread = await getThread(db, orgId, conversationId);
+  if (!thread) return { ok: false, error: "Conversación no encontrada" };
+
+  const authorName = session.user.name ?? session.user.email;
+  await addNote(db, orgId, {
+    conversationId,
+    authorUserId: session.user.id,
+    authorName,
+    body,
+  });
+  revalidatePath(`/inbox/${conversationId}`);
+  return { ok: true };
+}
+
+export async function deleteNoteAction(conversationId: string, noteId: string): Promise<void> {
+  const { orgId } = await requireOrg();
+  await deleteNote(db, orgId, noteId);
+  revalidatePath(`/inbox/${conversationId}`);
+}
