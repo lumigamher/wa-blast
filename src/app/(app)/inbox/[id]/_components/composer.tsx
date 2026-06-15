@@ -345,6 +345,24 @@ export function Composer({
                     <XIcon className="size-3.5 text-amber-700 dark:text-amber-400" />
                   </button>
                 </div>
+                {selectedFile.mime.startsWith("image/") && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`data:${selectedFile.mime};base64,${selectedFile.base64}`}
+                    alt={selectedFile.name}
+                    className="max-h-48 w-auto rounded-md border border-amber-200 object-contain dark:border-amber-900/30"
+                  />
+                )}
+                {selectedFile.mime.startsWith("video/") && (
+                  <video
+                    src={`data:${selectedFile.mime};base64,${selectedFile.base64}`}
+                    controls
+                    className="max-h-48 w-auto rounded-md border border-amber-200 dark:border-amber-900/30"
+                  />
+                )}
+                {selectedFile.mime.startsWith("audio/") && (
+                  <audio src={`data:${selectedFile.mime};base64,${selectedFile.base64}`} controls className="w-full" />
+                )}
                 {(selectedFile.mime.startsWith("image/") || selectedFile.mime.startsWith("video/")) && (
                   <input
                     type="text"
