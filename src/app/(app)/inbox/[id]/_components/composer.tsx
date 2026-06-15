@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { sendMessageAction, sendMediaAction, sendVoiceAction, addNoteAction, type SendResult } from "../../actions";
 import { StickerPicker } from "./sticker-picker";
 import { VoiceRecorder } from "./voice-recorder";
+import { EmojiPicker } from "./emoji-picker";
 
 type Template = {
   name: string;
@@ -192,6 +193,25 @@ export function Composer({
     setQuickReplySearch("");
     setShowQuickReplyDropdown(false);
     setSelectedQuickReplyIndex(-1);
+  };
+
+  const handleEmojiPick = (emoji: string) => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const currentValue = textarea.value;
+
+      const beforeEmoji = currentValue.substring(0, start);
+      const afterEmoji = currentValue.substring(start);
+
+      textarea.value = beforeEmoji + emoji + afterEmoji;
+      textarea.focus();
+
+      const newCursorPosition = start + emoji.length;
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+
+      setHasText(textarea.value.trim().length > 0);
+    }
   };
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -410,6 +430,10 @@ export function Composer({
                     <StickerPicker
                       conversationId={conversationId}
                       stickers={stickers}
+                      disabled={isPending || !windowOpen}
+                    />
+                    <EmojiPicker
+                      onPick={handleEmojiPick}
                       disabled={isPending || !windowOpen}
                     />
                     <textarea

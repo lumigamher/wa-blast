@@ -18,32 +18,81 @@ import { isAdminEmail } from "@/lib/auth/admin";
 import { logoutAction } from "@/lib/auth/actions";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { NavGroup, NavLink } from "./_components/nav-link";
+import { NavGroup, NavLink, NavSection } from "./_components/nav-link";
 
-const NAV_ITEMS = [
+type NavItem = { href: string; icon: typeof HomeIcon; label: string };
+type NavSection = { label: string; items: NavItem[] };
+
+const STANDALONE_ITEMS: NavItem[] = [
   { href: "/panel", icon: HomeIcon, label: "Inicio" },
   { href: "/inbox", icon: MessageSquareIcon, label: "Inbox" },
-  { href: "/campanas/nueva", icon: SendIcon, label: "Nuevo envío" },
-  { href: "/campanas", icon: LayersIcon, label: "Campañas" },
-  { href: "/contactos", icon: UsersIcon, label: "Contactos" },
-  { href: "/contactos/tags", icon: TagIcon, label: "Tags" },
-  { href: "/plantillas", icon: FileTextIcon, label: "Plantillas" },
-  { href: "/flows", icon: WorkflowIcon, label: "Flows" },
-  { href: "/salud", icon: HeartPulseIcon, label: "Salud WhatsApp" },
-  { href: "/facturacion", icon: CreditCardIcon, label: "Facturación" },
-  { href: "/configuracion", icon: SettingsIcon, label: "Configuración" },
+];
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Mensajería masiva",
+    items: [
+      { href: "/campanas/nueva", icon: SendIcon, label: "Nuevo envío" },
+      { href: "/campanas", icon: LayersIcon, label: "Campañas" },
+      { href: "/plantillas", icon: FileTextIcon, label: "Plantillas" },
+      { href: "/flows", icon: WorkflowIcon, label: "Flows" },
+    ],
+  },
+  {
+    label: "Contactos",
+    items: [
+      { href: "/contactos", icon: UsersIcon, label: "Contactos" },
+      { href: "/contactos/tags", icon: TagIcon, label: "Tags" },
+    ],
+  },
+  {
+    label: "Cuenta",
+    items: [
+      { href: "/salud", icon: HeartPulseIcon, label: "Salud WhatsApp" },
+      { href: "/facturacion", icon: CreditCardIcon, label: "Facturación" },
+      { href: "/configuracion", icon: SettingsIcon, label: "Configuración" },
+    ],
+  },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
   const initial = (session.user.name ?? session.user.email).trim().charAt(0).toUpperCase();
 
-  // Build nav items with admin link if user is admin
-  const navItems = [...NAV_ITEMS];
-  if (isAdminEmail(session.user.email)) {
-    navItems.push({ href: "/admin", icon: ShieldIcon, label: "Admin" });
+  // Build nav sections with admin link if user is admin
+  const navSections = [...NAV_SECTIONS];
+  const isAdmin = isAdminEmail(session.user.email);
+  if (isAdmin) {
+    navSections.push({
+      label: "Cuenta",
+      items: [
+        ...navSections.find((s) => s.label === "Cuenta")?.items ?? [],
+        { href: "/admin", icon: ShieldIcon, label: "Admin" },
+      ],
+    });
+    // Remove duplicate "Cuenta" section if it was already there
+    const uniqueSections: NavSection[] = [];
+    const seenLabels = new Set<string>();
+    for (const section of navSections) {
+      if (!seenLabels.has(section.label)) {
+        uniqueSections.push(section);
+        seenLabels.add(section.label);
+      } else {
+        // Merge items if duplicate
+        const existing = uniqueSections.find((s) => s.label === section.label);
+        if (existing) {
+          existing.items = [...existing.items, ...section.items];
+        }
+      }
+    }
+    navSections.length = 0;
+    navSections.push(...uniqueSections);
   }
-  const hrefs = navItems.map((n) => n.href);
+
+  // Collect all hrefs for NavGroup context
+  const standaloneHrefs = STANDALONE_ITEMS.map((n) => n.href);
+  const sectionHrefs = navSections.flatMap((s) => s.items.map((n) => n.href));
+  const hrefs = [...standaloneHrefs, ...sectionHrefs];
 
   return (
     <div className="flex h-dvh bg-muted/30">
@@ -58,12 +107,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        <nav className="flex-1 space-y-0.5 p-3">
+        <nav className="flex-1 space-y-2 p-3">
           <NavGroup hrefs={hrefs}>
-            {navItems.map((item) => {
+            {/* Standalone items */}
+            {STANDALONE_ITEMS.map((item) => {
               const Icon = item.icon;
               return <NavLink key={item.href} href={item.href} icon={<Icon className="size-4" />} label={item.label} />;
             })}
+
+            {/* Grouped sections */}
+            {navSections.map((section) => (
+              <NavSection key={section.label} label={section.label}>
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  return <NavLink key={item.href} href={item.href} icon={<Icon className="size-4" />} label={item.label} />;
+                })}
+              </NavSection>
+            ))}
           </NavGroup>
         </nav>
 
