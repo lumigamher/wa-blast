@@ -281,3 +281,62 @@ export async function sendVoiceAction(
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }
+
+export async function addStickerAction(input: { dataBase64: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { orgId } = await requireOrg();
+  const raw = Buffer.from(input.dataBase64, "base64");
+  let webp: Uint8Array;
+  try {
+    webp = await toWebpSticker(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength));
+  } catch (e) {
+    return { ok: false, error: `No se pudo crear el sticker: ${e instanceof Error ? e.message : "error"}` };
+  }
+
+  await addSticker(db, orgId, { webp });
+  revalidatePath(`/inbox`);
+  return { ok: true };
+}
+
+export async function sendStickerAction(conversationId: string, input: { stickerId: string }): Promise<SendResult> {
+  const { orgId } = await requireOrg();
+  const gate = await checkSubscriptionGate(db, orgId);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const thread = await getThread(db, orgId, conversationId);
+  if (!thread) return { ok: false, error: "Conversación no encontrada" };
+
+  if (!isWindowOpen(thread.conversation.lastIncomingAt)) {
+    return { ok: false, error: "La ventana de 24h está cerrada. Usa una plantilla.", windowClosed: true };
+  }
+
+  const list = await listStickers(db, orgId);
+  const sticker = list.find((s) => s.id === input.stickerId);
+  if (!sticker) return { ok: false, error: "Sticker no encontrado" };
+
+  const asset = await getMediaAsset(db, sticker.assetId);
+  if (!asset) return { ok: false, error: "Sticker no disponible" };
+
+  const bytes = await readFile(asset.path);
+  const settings = await getOrgSettings(db, orgId);
+  const up = await uploadMedia(settings, {
+    bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    mime: "image/webp",
+    filename: "sticker.webp",
+  });
+  if ("error" in up) return { ok: false, error: `No se pudo subir el sticker: ${up.error.message}` };
+
+  const sendRes = await sendMedia(settings, { to: thread.conversation.phone, kind: "sticker", mediaId: up.mediaId });
+  if ("error" in sendRes) return { ok: false, error: `No se pudo enviar: ${sendRes.error.message}` };
+
+  await recordOutboundMessage(db, {
+    orgId,
+    conversationId,
+    wamid: sendRes.wamid,
+    type: "sticker",
+    body: null,
+    status: "sent",
+    mediaId: asset.id,
+  });
+  revalidatePath(`/inbox/${conversationId}`);
+  return { ok: true };
+}
