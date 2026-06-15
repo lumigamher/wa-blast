@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
-import { tags, contactTags, templateCardMedia } from "@/lib/db/schema";
+import { tags, contactTags, templateCardMedia, templateFavorites } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { publicMediaUrl } from "@/lib/media/store";
@@ -16,7 +16,7 @@ export default async function NuevaCampanaPage({
   searchParams: Promise<{ template?: string }>;
 }) {
   const { template: initialTemplateKey } = await searchParams;
-  const { orgId } = await requireOrg();
+  const { orgId, session } = await requireOrg();
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
 
@@ -35,7 +35,7 @@ export default async function NuevaCampanaPage({
     );
   }
 
-  const [templates, tagRows, cardMediaRows] = await Promise.all([
+  const [templates, tagRows, cardMediaRows, favs] = await Promise.all([
     listTemplates(creds).catch(() => []),
     db
       .select({
@@ -57,6 +57,18 @@ export default async function NuevaCampanaPage({
       })
       .from(templateCardMedia)
       .where(eq(templateCardMedia.orgId, orgId)),
+    db
+      .select({
+        templateName: templateFavorites.templateName,
+        templateLanguage: templateFavorites.templateLanguage,
+      })
+      .from(templateFavorites)
+      .where(
+        and(
+          eq(templateFavorites.orgId, orgId),
+          eq(templateFavorites.userId, session.user.id),
+        ),
+      ),
   ]);
 
   // Build prefill media map keyed by "<name>|<language>"
@@ -65,6 +77,9 @@ export default async function NuevaCampanaPage({
     const k = `${r.name}|${r.lang}`;
     (prefillMedia[k] ??= {})[r.idx] = publicMediaUrl(r.assetId);
   }
+
+  // Build initialFavorites array keyed by "<name>|<language>"
+  const initialFavorites = favs.map((f) => `${f.templateName}|${f.templateLanguage}`);
 
   return (
     <div className="space-y-6">
@@ -79,6 +94,7 @@ export default async function NuevaCampanaPage({
         tags={tagRows.map((t) => ({ id: t.id, name: t.name, color: t.color, count: Number(t.count) }))}
         prefillMedia={prefillMedia}
         initialTemplateKey={initialTemplateKey}
+        initialFavorites={initialFavorites}
       />
     </div>
   );

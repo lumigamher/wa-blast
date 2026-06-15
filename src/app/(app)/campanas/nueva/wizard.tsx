@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { read, utils } from "xlsx";
-import { CalendarClockIcon, ChevronRightIcon, SendIcon, UploadIcon, UsersIcon } from "lucide-react";
+import { CalendarClockIcon, ChevronRightIcon, SendIcon, StarIcon, UploadIcon, UsersIcon, SearchIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { WhatsAppBubble } from "@/components/whatsapp-bubble";
+import { FavoriteButton } from "@/components/favorite-button";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
 import { extractVariables } from "@/lib/templates";
 import { isCarousel, parseCarousel } from "@/lib/meta/carousel";
@@ -32,21 +33,31 @@ export function Wizard({
   tags,
   prefillMedia = {},
   initialTemplateKey,
+  initialFavorites = [],
 }: {
   templates: WhatsAppTemplate[];
   tags: TagRow[];
   prefillMedia?: Record<string, Record<number, string>>;
   initialTemplateKey?: string;
+  initialFavorites?: string[];
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [isPending, startTransition] = useTransition();
 
+  const favorites = useMemo(() => new Set(initialFavorites), [initialFavorites]);
   const approved = useMemo(() => templates.filter((t) => t.status === "APPROVED"), [templates]);
   const [selectedKey, setSelectedKey] = useState<string>(() => {
+    // Prefer initialTemplateKey if provided and exists
     if (initialTemplateKey && approved.some((t) => `${t.name}|${t.language}` === initialTemplateKey)) {
       return initialTemplateKey;
     }
+    // Otherwise, prefer a favorite from approved templates
+    const favoriteApproved = approved.find((t) => favorites.has(`${t.name}|${t.language}`));
+    if (favoriteApproved) {
+      return `${favoriteApproved.name}|${favoriteApproved.language}`;
+    }
+    // Fall back to first approved template
     return approved[0] ? `${approved[0].name}|${approved[0].language}` : "";
   });
   const selected = useMemo(
@@ -63,6 +74,10 @@ export function Wizard({
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
   const [adhocRows, setAdhocRows] = useState<AdhocRow[]>([]);
 
+  // Favorites UI state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+
   const [name, setName] = useState("");
   const [bulkParams, setBulkParams] = useState<Record<string, string>>({});
   const [carouselMapping, setCarouselMapping] = useState<CarouselMappingValue>({
@@ -76,6 +91,29 @@ export function Wizard({
     return tags.filter((t) => selectedTagIds.has(t.id)).reduce((s, t) => s + t.count, 0);
   }, [tags, selectedTagIds]);
   const total = source === "tags" ? tagsCount : adhocRows.length;
+
+  // Compute visible templates for Step 1
+  const visibleTemplates = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
+    const filtered = approved.filter((t) => {
+      const key = `${t.name}|${t.language}`;
+      if (onlyFavorites && !favorites.has(key)) return false;
+      if (!needle) return true;
+      return (
+        t.name.toLowerCase().includes(needle) ||
+        t.language.toLowerCase().includes(needle)
+      );
+    });
+    return filtered.sort((a, b) => {
+      const fa = favorites.has(`${a.name}|${a.language}`) ? 0 : 1;
+      const fb = favorites.has(`${b.name}|${b.language}`) ? 0 : 1;
+      return fa - fb || a.name.localeCompare(b.name);
+    });
+  }, [approved, searchQuery, onlyFavorites, favorites]);
+
+  const favCount = approved.filter((t) =>
+    favorites.has(`${t.name}|${t.language}`),
+  ).length;
 
   function togglTag(id: string) {
     const next = new Set(selectedTagIds);
@@ -221,34 +259,93 @@ export function Wizard({
         <div className="space-y-6">
           {step === 1 && (
             <Card>
-              <CardHeader>
+              <CardHeader className="space-y-1">
                 <CardTitle className="text-base">1 · Elige plantilla</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {approved.length} aprobadas · {favCount} favorita{favCount === 1 ? "" : "s"}
+                </p>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {approved.map((t) => {
-                  const key = `${t.name}|${t.language}`;
-                  const isSelected = key === selectedKey;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setSelectedKey(key)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
-                        isSelected ? "border-primary bg-primary/5" : "hover:bg-muted"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-mono text-sm">{t.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {t.category} · {t.language}
-                        </div>
-                      </div>
-                      <Badge variant="default" className="shrink-0">
-                        {t.status}
-                      </Badge>
-                    </button>
-                  );
-                })}
+              <CardContent className="space-y-4">
+                {/* Search and filter controls */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 min-w-52">
+                    <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar plantilla por nombre…"
+                      className="pl-9"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setOnlyFavorites((v) => !v)}
+                    disabled={favCount === 0}
+                    className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
+                      onlyFavorites
+                        ? "border-amber-400 bg-amber-50 text-amber-700"
+                        : "bg-background hover:bg-accent"
+                    }`}
+                    title={
+                      favCount === 0
+                        ? "Marca alguna plantilla como favorita primero"
+                        : onlyFavorites
+                          ? "Mostrar todas"
+                          : "Solo favoritas"
+                    }
+                  >
+                    <StarIcon
+                      className="size-3.5"
+                      fill={onlyFavorites ? "currentColor" : "none"}
+                    />
+                    Favoritas
+                  </button>
+                </div>
+
+                {/* Template list */}
+                {visibleTemplates.length === 0 ? (
+                  <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
+                    Ninguna plantilla coincide.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
+                    {visibleTemplates.map((t) => {
+                      const key = `${t.name}|${t.language}`;
+                      const isSelected = key === selectedKey;
+                      const isFavorited = favorites.has(key);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setSelectedKey(key)}
+                          className={`group relative w-full flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
+                            isSelected ? "border-primary bg-primary/5" : "hover:bg-muted"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate font-mono text-sm">{t.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {t.category} · {t.language}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <Badge variant="default" className="text-xs">
+                              {t.status}
+                            </Badge>
+                            <div className="opacity-0 transition-opacity group-hover:opacity-100">
+                              <FavoriteButton
+                                name={t.name}
+                                language={t.language}
+                                favorited={isFavorited}
+                                size="sm"
+                              />
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
