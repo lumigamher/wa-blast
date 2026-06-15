@@ -3,7 +3,8 @@ import type { DB } from "@/lib/db/client";
 import { campaignRecipients, campaigns, contacts, messageEvents } from "@/lib/db/schema";
 import { matchOptOut } from "@/lib/optout/match";
 import { parseInboundMessage } from "@/lib/inbox/parse-inbound";
-import { recordInboundMessage, updateMessageStatusByWamid } from "@/lib/inbox/store";
+import { recordInboundMessage, updateMessageStatusByWamid, getOrCreateConversation } from "@/lib/inbox/store";
+import { upsertReaction } from "@/lib/inbox/reactions";
 
 export async function handleStatusEvent(
   db: DB,
@@ -52,12 +53,24 @@ export async function handleStatusEvent(
 export async function handleInboundMessage(
   db: DB,
   orgId: string,
-  msg: { from: string; id: string; timestamp: string; type: string; text?: { body: string } } & Record<string, unknown>,
+  msg: { from: string; id: string; timestamp: string; type: string; text?: { body: string }; reaction?: { message_id: string; emoji: string } } & Record<string, unknown>,
   optoutKeywords: string[],
+  profileName?: string | null,
 ) {
   const phone = "+" + msg.from.replace(/^\+/, "");
-  const body = msg.text?.body ?? "";
   const ts = new Date(Number(msg.timestamp) * 1000);
+
+  // Handle reactions early and return
+  if (msg.type === "reaction" && msg.reaction) {
+    const conv = await getOrCreateConversation(db, orgId, phone, ts, profileName);
+    await upsertReaction(db, {
+      orgId, conversationId: conv.id, targetWamid: msg.reaction.message_id,
+      direction: "in", emoji: msg.reaction.emoji ?? "",
+    });
+    return;
+  }
+
+  const body = msg.text?.body ?? "";
 
   if (body && matchOptOut(body, optoutKeywords)) {
     await db
@@ -89,5 +102,5 @@ export async function handleInboundMessage(
   });
 
   // Persist inbound message to inbox
-  await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed: parseInboundMessage(msg), ts });
+  await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed: parseInboundMessage(msg), ts, profileName });
 }
