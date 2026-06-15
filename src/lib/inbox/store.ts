@@ -4,6 +4,7 @@ import type { DB } from "@/lib/db/client";
 import { contacts, conversations, messages } from "@/lib/db/schema";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
 import { getReactionsForMessages } from "@/lib/inbox/reactions";
+import { listNotes } from "@/lib/inbox/notes";
 
 export async function getOrCreateConversation(db: DB, orgId: string, phone: string, ts: Date, profileName?: string | null) {
   let contact = (await db.select().from(contacts)
@@ -160,7 +161,8 @@ export async function getThread(db: DB, orgId: string, conversationId: string) {
   const reactions = await getReactionsForMessages(db, orgId, wamids);
   const reactionsByWamid: Record<string, { direction: "in" | "out"; emoji: string }[]> = {};
   for (const [k, v] of reactions) reactionsByWamid[k] = v;
-  return { conversation: conv, messages: msgs, contact: contact ?? null, reactions: reactionsByWamid };
+  const notes = await listNotes(db, orgId, conversationId);
+  return { conversation: conv, messages: msgs, contact: contact ?? null, reactions: reactionsByWamid, notes };
 }
 
 export async function getLastInboundWamid(db: DB, orgId: string, conversationId: string): Promise<string | null> {

@@ -94,8 +94,8 @@ export default async function InboxThreadPage({
   // Get stickers
   const stickers = await listStickers(db, orgId);
 
-  // Get notes
-  const notes = await listNotes(db, orgId, conversationId);
+  // Notes are now fetched in getThread, but we keep this for the contact panel
+  const contactPanelNotes = await listNotes(db, orgId, conversationId);
 
   const windowOpen = isWindowOpen(thread.conversation.lastIncomingAt);
 
@@ -255,7 +255,7 @@ export default async function InboxThreadPage({
                   conversationId={conversationId}
                   contact={thread.contact}
                   phone={thread.conversation.phone}
-                  notes={notes}
+                  notes={contactPanelNotes}
                 />
               </div>
             </div>
@@ -270,6 +270,7 @@ export default async function InboxThreadPage({
             quickReplies={quickReplies}
             stickers={stickers}
             reactions={thread.reactions}
+            notes={thread.notes}
           />
         </div>
       </div>

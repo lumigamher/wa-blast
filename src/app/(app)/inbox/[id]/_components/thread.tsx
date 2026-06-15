@@ -8,6 +8,7 @@ import {
   FileIcon,
   MoreVerticalIcon,
   SmileIcon,
+  StickyNoteIcon,
 } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import { sendReactionAction } from "../../actions";
@@ -18,10 +19,22 @@ import { MediaImage } from "./media-image";
 
 type Message = InferSelectModel<typeof messagesSchema>;
 
+type Note = {
+  id: string;
+  authorName: string;
+  body: string;
+  createdAt: Date;
+};
+
+type TimelineItem =
+  | { kind: "message"; at: Date; msg: Message }
+  | { kind: "note"; at: Date; note: Note };
+
 type ThreadProps = {
   messages: Message[];
   onReplyTo: (wamid: string) => void;
   reactions: Record<string, { direction: "in" | "out"; emoji: string }[]>;
+  notes?: Note[];
 };
 
 function dayLabel(d: Date): string {
@@ -51,11 +64,17 @@ function dayLabel(d: Date): string {
   });
 }
 
-export function Thread({ messages, onReplyTo, reactions }: ThreadProps) {
+export function Thread({ messages, onReplyTo, reactions, notes = [] }: ThreadProps) {
   // Filter out legacy standalone reaction messages
   const visible = messages.filter((m) => m.type !== "reaction");
 
-  if (visible.length === 0) {
+  // Build merged, time-sorted timeline of messages and notes
+  const timeline: TimelineItem[] = [
+    ...visible.map((msg) => ({ kind: "message" as const, at: msg.createdAt, msg })),
+    ...notes.map((note) => ({ kind: "note" as const, at: note.createdAt, note })),
+  ].sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  if (timeline.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-sm text-muted-foreground">No hay mensajes aún</p>
@@ -65,10 +84,10 @@ export function Thread({ messages, onReplyTo, reactions }: ThreadProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {visible.map((msg, idx) => {
-        const prevMsg = idx > 0 ? visible[idx - 1] : null;
-        const currentDay = new Date(msg.createdAt);
-        const prevDay = prevMsg ? new Date(prevMsg.createdAt) : null;
+      {timeline.map((item, idx) => {
+        const prevItem = idx > 0 ? timeline[idx - 1] : null;
+        const currentDay = new Date(item.at);
+        const prevDay = prevItem ? new Date(prevItem.at) : null;
 
         const isDifferentDay =
           !prevDay ||
@@ -77,7 +96,7 @@ export function Thread({ messages, onReplyTo, reactions }: ThreadProps) {
           currentDay.getDate() !== prevDay.getDate();
 
         return (
-          <div key={msg.id}>
+          <div key={`${item.kind}-${item.kind === "message" ? item.msg.id : item.note.id}`}>
             {isDifferentDay && (
               <div className="my-3 flex justify-center">
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -85,11 +104,15 @@ export function Thread({ messages, onReplyTo, reactions }: ThreadProps) {
                 </span>
               </div>
             )}
-            <MessageBubble
-              message={msg}
-              onReplyTo={onReplyTo}
-              reactions={reactions[msg.wamid ?? ""] ?? []}
-            />
+            {item.kind === "message" ? (
+              <MessageBubble
+                message={item.msg}
+                onReplyTo={onReplyTo}
+                reactions={reactions[item.msg.wamid ?? ""] ?? []}
+              />
+            ) : (
+              <NoteBubble note={item.note} />
+            )}
           </div>
         );
       })}
@@ -319,6 +342,30 @@ function StatusIcon({
     return <CheckIcon className="size-3.5 text-muted-foreground" />;
   }
   return null;
+}
+
+function NoteBubble({ note }: { note: Note }) {
+  const time = note.createdAt.toLocaleTimeString("es-CO", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <div className="my-1 flex justify-center">
+      <div className="max-w-[80%] rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900/40 px-3 py-2">
+        <div className="mb-0.5 flex items-center gap-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+          <StickyNoteIcon className="size-3" />
+          Nota interna · {note.authorName}
+        </div>
+        <div className="whitespace-pre-wrap break-words text-sm text-foreground/90">
+          {note.body}
+        </div>
+        <div className="mt-1 text-right text-[10px] text-amber-700/70 dark:text-amber-500/60">
+          {time}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function renderMessageContent(message: Message): React.ReactNode {
