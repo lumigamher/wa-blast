@@ -19,6 +19,7 @@ import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { Poller } from "../_components/poller";
 import { ContactInfoToggle } from "./_components/contact-panel";
 import { ResolveButton } from "./_components/resolve-button";
+import { ContactAvatar } from "./_components/contact-avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -175,12 +176,20 @@ export default async function InboxThreadPage({
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {conv.contactName || conv.phone}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {conv.preview || "(sin mensaje)"}
+                      <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                        <ContactAvatar
+                          seed={conv.phone}
+                          name={conv.contactName}
+                          size={40}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {conv.contactName || conv.phone}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {conv.preview || "(sin mensaje)"}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -212,9 +221,11 @@ export default async function InboxThreadPage({
           <div className="px-4 py-3 border-b bg-card">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold flex-shrink-0">
-                  {(thread.contact?.name || thread.conversation.phone).charAt(0).toUpperCase()}
-                </div>
+                <ContactAvatar
+                  seed={thread.conversation.phone}
+                  name={thread.contact?.name}
+                  size={40}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm truncate">
                     {thread.contact?.name || thread.conversation.phone}

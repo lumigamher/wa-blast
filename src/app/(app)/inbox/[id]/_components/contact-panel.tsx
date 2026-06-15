@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { deleteNoteAction } from "../../actions";
+import { ContactAvatar } from "./contact-avatar";
 
 type Note = {
   id: string;
@@ -130,9 +131,11 @@ export function ContactInfoToggle({
             {/* Contact Card */}
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
               <div className="flex items-center gap-2">
-                <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
-                  {(contact?.name || phone).charAt(0).toUpperCase()}
-                </div>
+                <ContactAvatar
+                  seed={phone}
+                  name={contact?.name ?? null}
+                  size={48}
+                />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">
                     {contact?.name || phone}

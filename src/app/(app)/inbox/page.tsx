@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { listConversations } from "@/lib/inbox/store";
 import { Poller } from "./_components/poller";
+import { ContactAvatar } from "./[id]/_components/contact-avatar";
 
 export const dynamic = "force-dynamic";
 
@@ -121,12 +122,20 @@ export default async function InboxPage({
                     className="block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors group"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {conv.contactName || conv.phone}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {conv.preview || "(sin mensaje)"}
+                      <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                        <ContactAvatar
+                          seed={conv.phone}
+                          name={conv.contactName}
+                          size={40}
+                          className="mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {conv.contactName || conv.phone}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {conv.preview || "(sin mensaje)"}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
