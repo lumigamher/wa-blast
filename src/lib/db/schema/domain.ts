@@ -235,6 +235,7 @@ export const messages = sqliteTable(
     status: text("status", { enum: ["pending", "sent", "delivered", "read", "failed"] }),
     errorMessage: text("error_message"),
     payloadJson: text("payload_json"),
+    replyToWamid: text("reply_to_wamid"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({

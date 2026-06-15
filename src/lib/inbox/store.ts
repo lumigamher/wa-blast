@@ -58,7 +58,7 @@ export async function recordInboundMessage(db: DB, input: {
     id: randomUUID(), conversationId: conv.id, orgId: input.orgId, direction: "in",
     wamid: input.wamid, type: input.parsed.type, body: input.parsed.body,
     mediaId: input.parsed.mediaId, status: null, errorMessage: null,
-    payloadJson: input.parsed.payloadJson, createdAt: input.ts,
+    payloadJson: input.parsed.payloadJson, replyToWamid: input.parsed.replyToWamid, createdAt: input.ts,
   });
 
   await db.update(conversations).set({
@@ -69,7 +69,7 @@ export async function recordInboundMessage(db: DB, input: {
 
 export async function recordOutboundMessage(db: DB, input: {
   orgId: string; conversationId: string; wamid: string | null; type: string;
-  body: string | null; status?: "pending" | "sent" | "failed"; errorMessage?: string | null; mediaId?: string | null;
+  body: string | null; status?: "pending" | "sent" | "failed"; errorMessage?: string | null; mediaId?: string | null; replyToWamid?: string | null;
 }): Promise<string> {
   const id = randomUUID();
   const now = new Date();
@@ -77,7 +77,7 @@ export async function recordOutboundMessage(db: DB, input: {
     id, conversationId: input.conversationId, orgId: input.orgId, direction: "out",
     wamid: input.wamid, type: input.type, body: input.body, mediaId: input.mediaId ?? null,
     status: input.status ?? (input.wamid ? "sent" : "failed"),
-    errorMessage: input.errorMessage ?? null, payloadJson: null, createdAt: now,
+    errorMessage: input.errorMessage ?? null, payloadJson: null, replyToWamid: input.replyToWamid ?? null, createdAt: now,
   });
   await db.update(conversations).set({ lastMessageAt: now }).where(eq(conversations.id, input.conversationId));
   return id;
@@ -162,7 +162,52 @@ export async function getThread(db: DB, orgId: string, conversationId: string) {
   const reactionsByWamid: Record<string, { direction: "in" | "out"; emoji: string }[]> = {};
   for (const [k, v] of reactions) reactionsByWamid[k] = v;
   const notes = await listNotes(db, orgId, conversationId);
-  return { conversation: conv, messages: msgs, contact: contact ?? null, reactions: reactionsByWamid, notes };
+
+  // Resolve quotes: build wamid -> message map and resolve each quote
+  const msgsByWamid = new Map<string | null, typeof msgs[0]>();
+  for (const m of msgs) {
+    if (m.wamid) {
+      msgsByWamid.set(m.wamid, m);
+    }
+  }
+  const quotes: Record<string, { label: string; direction: "in" | "out" }> = {};
+  for (const msg of msgs) {
+    if (msg.replyToWamid) {
+      const quoted = msgsByWamid.get(msg.replyToWamid);
+      if (quoted) {
+        quotes[msg.id] = { label: replyLabelForQuote(quoted), direction: quoted.direction };
+      } else {
+        quotes[msg.id] = { label: "Mensaje", direction: "in" };
+      }
+    }
+  }
+
+  return { conversation: conv, messages: msgs, contact: contact ?? null, reactions: reactionsByWamid, notes, quotes };
+}
+
+function replyLabelForQuote(message: typeof messages.$inferSelect): string {
+  switch (message.type) {
+    case "text":
+      return (message.body || "").slice(0, 60);
+    case "image":
+      return "📷 Imagen";
+    case "video":
+      return "🎬 Video";
+    case "audio":
+      return "🎤 Nota de voz";
+    case "sticker":
+      return "🩹 Sticker";
+    case "document":
+      return message.body || "📄 Documento";
+    case "template":
+      return "Plantilla";
+    case "interactive":
+    case "button":
+    case "flow":
+      return (message.body || "").slice(0, 60);
+    default:
+      return (message.body || "").slice(0, 60) || `[${message.type}]`;
+  }
 }
 
 export async function getLastInboundWamid(db: DB, orgId: string, conversationId: string): Promise<string | null> {

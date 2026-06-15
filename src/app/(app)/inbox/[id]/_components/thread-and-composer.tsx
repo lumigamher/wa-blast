@@ -42,6 +42,7 @@ export function ThreadAndComposer({
   stickers = [],
   reactions = {},
   notes = [],
+  quotes = {},
 }: {
   conversationId: string;
   messages: Message[];
@@ -51,6 +52,7 @@ export function ThreadAndComposer({
   stickers?: Sticker[];
   reactions?: Record<string, { direction: "in" | "out"; emoji: string }[]>;
   notes?: Note[];
+  quotes?: Record<string, { label: string; direction: "in" | "out" }>;
 }) {
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -62,7 +64,7 @@ export function ThreadAndComposer({
   return (
     <>
       <div className="flex-1 overflow-y-auto p-4">
-        <Thread messages={messages} onReplyTo={setReplyTo} reactions={reactions} notes={notes} />
+        <Thread messages={messages} onReplyTo={setReplyTo} reactions={reactions} notes={notes} quotes={quotes} />
         <div ref={bottomRef} />
       </div>
 

@@ -10,10 +10,12 @@ export function StickerPicker({
   conversationId,
   stickers,
   disabled,
+  replyToWamid,
 }: {
   conversationId: string;
   stickers: Sticker[];
   disabled?: boolean;
+  replyToWamid?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -36,7 +38,7 @@ export function StickerPicker({
 
   const onSend = async (id: string) => {
     setBusy(true);
-    await sendStickerAction(conversationId, { stickerId: id });
+    await sendStickerAction(conversationId, { stickerId: id, replyTo: replyToWamid });
     setBusy(false);
     setOpen(false);
   };

@@ -41,6 +41,7 @@ type ThreadProps = {
   onReplyTo: (target: ReplyTarget) => void;
   reactions: Record<string, { direction: "in" | "out"; emoji: string }[]>;
   notes?: Note[];
+  quotes?: Record<string, { label: string; direction: "in" | "out" }>;
 };
 
 function replyLabel(message: Message): string {
@@ -95,7 +96,7 @@ function dayLabel(d: Date): string {
   });
 }
 
-export function Thread({ messages, onReplyTo, reactions, notes = [] }: ThreadProps) {
+export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {} }: ThreadProps) {
   // Filter out legacy standalone reaction messages
   const visible = messages.filter((m) => m.type !== "reaction");
 
@@ -140,6 +141,7 @@ export function Thread({ messages, onReplyTo, reactions, notes = [] }: ThreadPro
                 message={item.msg}
                 onReplyTo={onReplyTo}
                 reactions={reactions[item.msg.wamid ?? ""] ?? []}
+                quote={quotes[item.msg.id]}
               />
             ) : (
               <NoteBubble note={item.note} />
@@ -155,10 +157,12 @@ function MessageBubble({
   message,
   onReplyTo,
   reactions,
+  quote,
 }: {
   message: Message;
   onReplyTo: (target: ReplyTarget) => void;
   reactions: { direction: "in" | "out"; emoji: string }[];
+  quote?: { label: string; direction: "in" | "out" };
 }) {
   const [showReactionPopover, setShowReactionPopover] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -361,6 +365,13 @@ function MessageBubble({
                 : "bg-muted text-foreground"
             }`}
           >
+            {quote && (
+              <div className="border-l-2 border-emerald-500/60 bg-black/5 dark:bg-white/5 rounded px-2 py-1 mb-1">
+                <p className="text-xs text-muted-foreground line-clamp-1">
+                  {quote.label}
+                </p>
+              </div>
+            )}
             <div className={`text-sm ${message.type !== "audio" ? "whitespace-pre-wrap break-words" : ""}`}>
               {bubbleContent}
             </div>

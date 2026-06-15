@@ -57,6 +57,7 @@ export async function sendMessageAction(
     type: "text",
     body,
     status: "sent",
+    replyToWamid: opts?.replyTo,
   });
 
   revalidatePath(`/inbox/${conversationId}`);
@@ -190,7 +191,7 @@ export async function sendMediaAction(
   const asset = await saveMediaAsset(db, { orgId, bytes: arrayBuffer, mime: input.mime, kind: input.kind });
   await recordOutboundMessage(db, {
     orgId, conversationId, wamid: sendRes.wamid, type: input.kind,
-    body: input.caption ?? null, status: "sent", mediaId: asset.id,
+    body: input.caption ?? null, status: "sent", mediaId: asset.id, replyToWamid: input.replyTo,
   });
 
   revalidatePath(`/inbox/${conversationId}`);
@@ -223,7 +224,7 @@ export async function sendReactionAction(
 
 export async function sendVoiceAction(
   conversationId: string,
-  input: { dataBase64: string; mime: string },
+  input: { dataBase64: string; mime: string; replyTo?: string },
 ): Promise<SendResult> {
   const { orgId } = await requireOrg();
   const gate = await checkSubscriptionGate(db, orgId);
@@ -283,6 +284,7 @@ export async function sendVoiceAction(
     body: null,
     status: "sent",
     mediaId: asset.id,
+    replyToWamid: input.replyTo,
   });
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
@@ -303,7 +305,7 @@ export async function addStickerAction(input: { dataBase64: string }): Promise<{
   return { ok: true };
 }
 
-export async function sendStickerAction(conversationId: string, input: { stickerId: string }): Promise<SendResult> {
+export async function sendStickerAction(conversationId: string, input: { stickerId: string; replyTo?: string }): Promise<SendResult> {
   const { orgId } = await requireOrg();
   const gate = await checkSubscriptionGate(db, orgId);
   if (!gate.ok) return { ok: false, error: gate.error };
@@ -354,6 +356,7 @@ export async function sendStickerAction(conversationId: string, input: { sticker
     body: null,
     status: "sent",
     mediaId: asset.id,
+    replyToWamid: input.replyTo,
   });
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };

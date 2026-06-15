@@ -271,6 +271,7 @@ export default async function InboxThreadPage({
             stickers={stickers}
             reactions={thread.reactions}
             notes={thread.notes}
+            quotes={thread.quotes}
           />
         </div>
       </div>

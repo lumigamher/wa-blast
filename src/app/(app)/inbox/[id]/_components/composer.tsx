@@ -445,6 +445,7 @@ export function Composer({
                       conversationId={conversationId}
                       stickers={stickers}
                       disabled={isPending || !windowOpen}
+                      replyToWamid={replyTo?.wamid}
                     />
                     <EmojiPicker
                       onPick={handleEmojiPick}
@@ -484,11 +485,12 @@ export function Composer({
                         disabled={isPending || !windowOpen}
                         onSend={async (dataBase64, mime) => {
                           setIsPending(true);
-                          const result = await sendVoiceAction(conversationId, { dataBase64, mime });
+                          const result = await sendVoiceAction(conversationId, { dataBase64, mime, replyTo: replyTo?.wamid });
                           setState(result);
                           setIsPending(false);
                           if (result.ok) {
                             router.refresh();
+                            setReplyTo(null);
                           }
                         }}
                       />
