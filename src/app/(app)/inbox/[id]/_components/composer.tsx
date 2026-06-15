@@ -54,7 +54,10 @@ export function Composer({
   const [state, setState] = useState<SendResult | null>(null);
   const [isTemplatePending, setIsTemplatePending] = useState(false);
   const [templateState, setTemplateState] = useState<SendResult | null>(null);
-  const [replyTo, setReplyTo] = useState<ReplyTarget | null>(initialReplyTo);
+  // Controlado por el padre: usar el prop directamente (antes se copiaba a estado
+  // interno con useState, que solo leía el valor inicial → el preview no aparecía
+  // al dar "Responder" después de montar).
+  const replyTo = initialReplyTo;
   const [selectedFile, setSelectedFile] = useState<{ name: string; mime: string; base64: string; caption: string } | null>(null);
   const [hasText, setHasText] = useState(false);
   const [noteBody, setNoteBody] = useState("");
@@ -99,7 +102,6 @@ export function Composer({
       ) as HTMLFormElement;
       if (form) form.reset();
       setHasText(false);
-      setReplyTo(null);
       onReplyToChange?.(null);
       setQuickReplySearch("");
       setShowQuickReplyDropdown(false);
@@ -154,7 +156,6 @@ export function Composer({
 
     if (result.ok) {
       setSelectedFile(null);
-      setReplyTo(null);
       onReplyToChange?.(null);
     }
   };
@@ -355,7 +356,6 @@ export function Composer({
                 </div>
                 <button
                   onClick={() => {
-                    setReplyTo(null);
                     onReplyToChange?.(null);
                   }}
                   className="flex-shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
@@ -490,7 +490,7 @@ export function Composer({
                           setIsPending(false);
                           if (result.ok) {
                             router.refresh();
-                            setReplyTo(null);
+                            onReplyToChange?.(null);
                           }
                         }}
                       />

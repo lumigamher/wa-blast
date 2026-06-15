@@ -7,6 +7,7 @@ import {
   CheckCheckIcon,
   FileIcon,
   SmilePlusIcon,
+  ReplyIcon,
   StickyNoteIcon,
 } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
@@ -254,10 +255,7 @@ function MessageBubble({
                     title="Responder"
                     aria-label="Responder"
                   >
-                    <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="21 15 16 10 21 5"></polyline>
-                      <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
-                    </svg>
+                    <ReplyIcon className="size-4" />
                   </button>
                   <button
                     onClick={() => setShowReactionPopover(!showReactionPopover)}
@@ -406,10 +404,7 @@ function MessageBubble({
                   title="Responder"
                   aria-label="Responder"
                 >
-                  <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="21 15 16 10 21 5"></polyline>
-                    <path d="M21 15H9a6 6 0 0 0-6 6v0a6 6 0 0 0 6 6h12"></path>
-                  </svg>
+                  <ReplyIcon className="size-4" />
                 </button>
                 <button
                   onClick={() => setShowReactionPopover(!showReactionPopover)}
