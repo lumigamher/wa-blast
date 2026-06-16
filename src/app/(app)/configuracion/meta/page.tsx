@@ -82,8 +82,9 @@ export default async function MetaSettingsPage() {
                   <code className="rounded bg-muted px-1 text-foreground">messages</code>,{" "}
                   <code className="rounded bg-muted px-1 text-foreground">message_template_status_update</code>,{" "}
                   <code className="rounded bg-muted px-1 text-foreground">message_template_quality_update</code>,{" "}
-                  <code className="rounded bg-muted px-1 text-foreground">template_category_update</code> y{" "}
-                  <code className="rounded bg-muted px-1 text-foreground">history</code> (mensajes, plantillas e historial).
+                  <code className="rounded bg-muted px-1 text-foreground">template_category_update</code>,{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">history</code> y{" "}
+                  <code className="rounded bg-muted px-1 text-foreground">calls</code> (mensajes, plantillas, historial y llamadas).
                 </span>
               </li>
             </ol>
