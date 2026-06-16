@@ -4,6 +4,7 @@ import { verifyMetaSignature, webhookPayloadSchema } from "@/lib/meta/webhook";
 import { handleInboundMessage, handleStatusEvent, handleCallEvent, handleCallPermissionReply } from "@/lib/meta/webhook-handlers";
 import { forwardWebhook } from "@/lib/meta/forward";
 import { resolveOrgByPhoneId } from "@/lib/org/resolve-by-phone-id";
+import { logCallWebhook } from "@/lib/meta/call-webhook-log";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
   if (!verifyMetaSignature(rawBody, sigHeader, settings.metaAppSecret)) {
     return new NextResponse("unauthorized", { status: 401 });
   }
+
+  logCallWebhook(rawBody); // TEMPORAL: observabilidad de llamadas/permiso (ver call-webhook-log.ts)
 
   for (const entry of parsed.data.entry) {
     for (const change of entry.changes) {
