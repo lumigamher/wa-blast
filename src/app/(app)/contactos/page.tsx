@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { listContactsAction } from "./actions";
 import { OptOutToggle } from "./_optout-toggle";
+import { NuevoContactoDialog } from "./_nuevo-contacto-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +23,13 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
             {rows.length} en total · {activeCount} activos · {rows.length - activeCount} opt-out
           </p>
         </div>
-        <Link href="/contactos/import" className={buttonVariants({ size: "sm" })}>
-          <UploadIcon className="size-4" />
-          Importar CSV / Excel
-        </Link>
+        <div className="flex items-center gap-2">
+          <NuevoContactoDialog />
+          <Link href="/contactos/import" className={buttonVariants({ size: "sm" })}>
+            <UploadIcon className="size-4" />
+            Importar CSV / Excel
+          </Link>
+        </div>
       </header>
 
       <Card>
@@ -57,6 +61,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                   <tr>
                     <th className="text-left px-3 py-2 font-medium">Nombre</th>
                     <th className="text-left px-3 py-2 font-medium">Teléfono</th>
+                    <th className="text-left px-3 py-2 font-medium">Empresa</th>
                     <th className="text-left px-3 py-2 font-medium">Tags</th>
                     <th className="text-left px-3 py-2 font-medium">Email</th>
                     <th className="text-left px-3 py-2 font-medium">Estado</th>
@@ -65,8 +70,13 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="border-t transition-colors hover:bg-muted/30">
-                      <td className="px-3 py-2">{r.name ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <Link href={`/contactos/${r.id}`} className="font-medium hover:underline">
+                          {r.name ?? r.phone}
+                        </Link>
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs">{r.phone}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.company ?? "—"}</td>
                       <td className="px-3 py-2">
                         {r.tagList.length === 0 ? (
                           <span className="text-xs text-muted-foreground">—</span>
