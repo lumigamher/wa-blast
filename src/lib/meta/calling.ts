@@ -90,3 +90,47 @@ export function rejectCall(s: DecryptedSettings, callId: string) {
 export function terminateCall(s: DecryptedSettings, callId: string) {
   return callAction(s, { call_id: callId, action: "terminate" });
 }
+
+export async function requestCallPermission(
+  s: DecryptedSettings,
+  toPhone: string,
+): Promise<{ ok: true } | { error: string }> {
+  if (!s.metaPhoneId || !s.metaAccessToken) return { error: "Meta no configurado" };
+  const res = await fetch(`${GRAPH}/${s.metaPhoneId}/messages`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${s.metaAccessToken}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: toPhone,
+      type: "interactive",
+      interactive: { type: "call_permission_request" },
+    }),
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    return { error: j.error?.message ?? "No se pudo solicitar permiso" };
+  }
+  return { ok: true };
+}
+
+export async function placeCall(
+  s: DecryptedSettings,
+  offerSdp: string,
+  toPhone: string,
+): Promise<{ ok: true; callId: string } | { error: string }> {
+  if (!s.metaPhoneId || !s.metaAccessToken) return { error: "Meta no configurado" };
+  const res = await fetch(`${GRAPH_CALLS}/${s.metaPhoneId}/calls`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${s.metaAccessToken}`, "content-type": "application/json" },
+    body: JSON.stringify({ to: toPhone, action: "connect", session: { sdp: offerSdp, sdp_type: "offer" } }),
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    return { error: j.error?.message ?? "No se pudo iniciar la llamada" };
+  }
+  const j = (await res.json()) as { calls?: { id: string }[] };
+  const callId = j.calls?.[0]?.id;
+  if (!callId) return { error: "Meta no devolvió id de llamada" };
+  return { ok: true, callId };
+}
