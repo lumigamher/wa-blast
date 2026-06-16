@@ -57,7 +57,7 @@ export function ContactoPeek({ row }: { row: Row }) {
             <span className="truncate">{form.name || row.phone}</span>
           </SheetTitle>
         </SheetHeader>
-        <div className="space-y-3 px-1">
+        <div className="space-y-3 px-4">
           <div className="font-mono text-xs text-muted-foreground">{row.phone}</div>
           <div className="space-y-1.5">
             <Label>Nombre</Label>

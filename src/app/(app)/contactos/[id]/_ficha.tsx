@@ -55,7 +55,11 @@ export function FichaContacto({ contact, allTags }: { contact: Contact; allTags:
 
   async function remove() {
     if (!confirm("¿Borrar este contacto?")) return;
-    await deleteContactAction(contact.id);
+    const res = await deleteContactAction(contact.id);
+    if (!res.ok) {
+      toast.error("No se pudo borrar el contacto");
+      return;
+    }
     toast.success("Contacto borrado");
     router.push("/contactos");
   }
@@ -138,10 +142,11 @@ function Field({
   onChange: (v: string) => void;
   type?: string;
 }) {
+  const id = `field-${label.toLowerCase().replace(/\s+/g, "-")}`;
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
