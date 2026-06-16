@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { campaignRecipients, campaigns } from "@/lib/db/schema";
+import { campaignRecipients, campaigns, templateCardMedia } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { sendTemplate, sendFlow } from "@/lib/meta/client";
 import { buildSendComponents, type ComponentPlan, type FlowPlan } from "./component-plan";
@@ -129,6 +129,83 @@ export class InProcessSenderWorker implements SenderWorker {
               flowId: flowPlan.flowId,
               cta: flowPlan.cta,
               bodyText: flowPlan.bodyText,
+            });
+          } else if (plan && plan.kind === "carousel") {
+            // Build carousel payload with card details
+            type CarouselPlanType = {
+              kind: "carousel";
+              bodyVarKeys: string[];
+              cards: Array<{
+                headerFormat: "IMAGE" | "VIDEO";
+                headerLink: string;
+                bodyVarKeys: string[];
+                buttons: Array<{ type: "URL" | "QUICK_REPLY" | "PHONE_NUMBER"; dynamicUrlSuffixKey?: string }>;
+              }>;
+            };
+            const carouselPlan = plan as CarouselPlanType;
+
+            // Render main body text with params
+            let mainBodyText = "";
+            if (carouselPlan.bodyVarKeys && carouselPlan.bodyVarKeys.length > 0) {
+              const paramValues = Object.values(params);
+              mainBodyText = paramValues[0] || "";
+            }
+
+            // Build cards with rendered body text and media URLs
+            const cards = await Promise.all(
+              carouselPlan.cards.map(async (card, cardIdx) => {
+                // Render card body text: card body uses params like "card.0.body.1"
+                let cardBodyText = "";
+                if (card.bodyVarKeys && card.bodyVarKeys.length > 0) {
+                  // Map "card.0.body.1" -> extract the value from params
+                  for (const varKey of card.bodyVarKeys) {
+                    if (varKey in params) {
+                      cardBodyText = params[varKey];
+                      break;
+                    }
+                  }
+                }
+
+                // Get media URL: first try templateCardMedia table, then use headerLink as fallback
+                let mediaUrl: string | undefined;
+                try {
+                  const cardMedia = await this.db
+                    .select()
+                    .from(templateCardMedia)
+                    .where(
+                      and(
+                        eq(templateCardMedia.orgId, camp.orgId),
+                        eq(templateCardMedia.templateName, camp.templateName),
+                        eq(templateCardMedia.templateLanguage, camp.templateLanguage),
+                        eq(templateCardMedia.cardIndex, cardIdx)
+                      )
+                    );
+                  if (cardMedia.length > 0) {
+                    mediaUrl = `/api/inbox/media/${cardMedia[0].assetId}`;
+                  } else {
+                    // Fallback to headerLink from the plan
+                    mediaUrl = card.headerLink;
+                  }
+                } catch {
+                  // If query fails, use headerLink
+                  mediaUrl = card.headerLink;
+                }
+
+                return {
+                  bodyText: cardBodyText,
+                  mediaUrl,
+                  buttons: card.buttons.map((btn) => ({
+                    type: btn.type,
+                    text: "", // Button text would come from template metadata; not populated here
+                  })),
+                };
+              })
+            );
+
+            payloadJson = JSON.stringify({
+              kind: "carousel",
+              bodyText: mainBodyText,
+              cards,
             });
           } else if (templateMetadata && camp.templateName in templateMetadata) {
             const tmpl = templateMetadata[camp.templateName];

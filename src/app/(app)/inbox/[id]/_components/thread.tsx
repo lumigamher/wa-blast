@@ -661,9 +661,9 @@ function renderMessageContent(message: Message): React.ReactNode {
       if (message.payloadJson) {
         try {
           const payload = JSON.parse(message.payloadJson) as {
-            kind: "template";
-            templateName: string;
-            language: string;
+            kind: "template" | "carousel";
+            templateName?: string;
+            language?: string;
             headerType?: string;
             bodyText: string;
             buttons?: Array<{
@@ -673,7 +673,73 @@ function renderMessageContent(message: Message): React.ReactNode {
               phone_number?: string;
               flow_id?: string;
             }>;
+            cards?: Array<{
+              bodyText: string;
+              mediaUrl?: string;
+              buttons: Array<{
+                type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER";
+                text: string;
+              }>;
+            }>;
           };
+
+          // Render carousel
+          if (payload.kind === "carousel" && payload.cards) {
+            return (
+              <div className="flex flex-col gap-3">
+                {payload.bodyText && <div className="text-sm font-medium">{payload.bodyText}</div>}
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                  {payload.cards.map((card, idx) => (
+                    <div
+                      key={idx}
+                      className="flex-shrink-0 w-48 rounded-lg border border-black/10 dark:border-white/10 overflow-hidden bg-white dark:bg-slate-950 shadow-sm"
+                    >
+                      {card.mediaUrl && (
+                        <div className="h-32 w-full bg-gray-100 dark:bg-gray-800 overflow-hidden rounded-t-lg">
+                          <MediaImage
+                            src={card.mediaUrl}
+                            alt="Card"
+                          />
+                        </div>
+                      )}
+                      <div className="p-3 flex flex-col gap-2">
+                        {card.bodyText && (
+                          <div className="text-xs line-clamp-2 leading-tight">
+                            {card.bodyText}
+                          </div>
+                        )}
+                        {card.buttons && card.buttons.length > 0 && (
+                          <div className="flex flex-col gap-1 border-t border-black/10 dark:border-white/10 pt-2">
+                            {card.buttons.map((btn, btnIdx) => {
+                              const icon =
+                                btn.type === "URL" ? (
+                                  <LinkIcon className="size-3" />
+                                ) : btn.type === "PHONE_NUMBER" ? (
+                                  <PhoneIcon className="size-3" />
+                                ) : (
+                                  <MessageSquareIcon className="size-3" />
+                                );
+                              return (
+                                <div
+                                  key={btnIdx}
+                                  className="flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900 px-2 py-1 text-xs font-medium text-green-900 dark:text-green-100"
+                                >
+                                  {icon}
+                                  <span className="truncate text-xs">{btn.text}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // Render standard template
           return (
             <div className="flex flex-col gap-2">
               <div className="text-sm">{payload.bodyText}</div>
