@@ -21,3 +21,19 @@ export function logCallWebhook(rawBody: string): void {
     /* noop */
   }
 }
+
+/**
+ * TEMPORAL — observabilidad de mensajes de MEDIA entrantes (imagen/documento/…).
+ * Loguea el payload crudo del mensaje para confirmar el formato actual de Meta
+ * (p.ej. dónde viene el id del media). QUITAR tras diagnosticar.
+ * Ver:  journalctl -u wa-blast -f | grep MEDIA-WEBHOOK
+ */
+export function logInboundMessageRaw(msg: unknown): void {
+  try {
+    const m = msg as { type?: string };
+    if (!m?.type || !["image", "video", "audio", "document", "sticker"].includes(m.type)) return;
+    console.log("[MEDIA-WEBHOOK]", JSON.stringify(msg).slice(0, 3000));
+  } catch {
+    /* noop */
+  }
+}

@@ -28,16 +28,20 @@ export async function ensureInboundMedia(
       headers: { authorization: `Bearer ${p.accessToken}` },
     });
     if (!metaRes.ok) {
+      // TEMPORAL: diagnóstico de media entrante
+      console.log("[MEDIA-DBG] metadata FAIL", metaRes.status, (await metaRes.text().catch(() => "")).slice(0, 300));
       return null;
     }
 
     const meta = (await metaRes.json()) as { url: string; mime_type: string };
+    console.log("[MEDIA-DBG] metadata OK", JSON.stringify(meta).slice(0, 300)); // TEMPORAL
 
     // Download file
     const fileRes = await fetch(meta.url, {
       headers: { authorization: `Bearer ${p.accessToken}` },
     });
     if (!fileRes.ok) {
+      console.log("[MEDIA-DBG] download FAIL", fileRes.status); // TEMPORAL
       return null;
     }
 
