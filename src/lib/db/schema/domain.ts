@@ -322,6 +322,8 @@ export const calls = sqliteTable(
     durationSec: integer("duration_sec"),
     startedAt: integer("started_at", { mode: "timestamp" }),
     endedAt: integer("ended_at", { mode: "timestamp" }),
+    sdp: text("sdp"),
+    sdpType: text("sdp_type"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
