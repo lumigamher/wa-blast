@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import { calls, organization } from "@/lib/db/schema";
-import { handleCallEvent } from "@/lib/meta/webhook-handlers";
+import { handleCallEvent, handleCallPermissionReply } from "@/lib/meta/webhook-handlers";
+import { getContactCallPermission } from "@/lib/calls/store";
+import { getOrCreateConversation } from "@/lib/inbox/store";
 import type { DB } from "@/lib/db/client";
 
 async function seed(db: DB) {
@@ -92,5 +94,43 @@ describe("handleCallEvent", () => {
     await handleCallEvent(db, "o1", payload);
     const rows = await db.select().from(calls).where(eq(calls.wacid, "wacid.OUT"));
     expect(rows[0].answerSdp).toBe("v=0 answer-remoto");
+  });
+});
+
+describe("handleCallPermissionReply", () => {
+  async function contactFor(db: DB, phone: string) {
+    const conv = await getOrCreateConversation(db, "o1", phone, new Date());
+    return conv.contactId!;
+  }
+
+  it("accept con expiración → temporary vigente", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const id = await contactFor(db, "+57400");
+    await handleCallPermissionReply(db, "o1", { fromPhone: "57400", response: "accept", expirationTs: Math.floor(Date.now() / 1000) + 3600 });
+    const p = await getContactCallPermission(db, "o1", id);
+    expect(p.status).toBe("temporary");
+    expect(p.valid).toBe(true);
+  });
+  it("accept sin expiración → permanent", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const id = await contactFor(db, "+57401");
+    await handleCallPermissionReply(db, "o1", { fromPhone: "57401", response: "ACCEPTED" });
+    const p = await getContactCallPermission(db, "o1", id);
+    expect(p.status).toBe("permanent");
+    expect(p.valid).toBe(true);
+  });
+  it("reject → no vigente", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const id = await contactFor(db, "+57402");
+    await handleCallPermissionReply(db, "o1", { fromPhone: "57402", response: "reject" });
+    expect((await getContactCallPermission(db, "o1", id)).valid).toBe(false);
+  });
+  it("teléfono huérfano no rompe", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await expect(handleCallPermissionReply(db, "o1", { fromPhone: "57403", response: "accept" })).resolves.toBeUndefined();
   });
 });

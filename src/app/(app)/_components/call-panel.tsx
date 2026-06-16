@@ -134,15 +134,34 @@ export function CallPanel() {
         return;
       }
       setIncoming({ id: res.callId, phone: detail.phone ?? "", contactName: detail.name ?? null, conversationId: res.conversationId });
-      // Poll del answer hasta que el usuario conteste
+      // Poll del answer hasta que el usuario conteste, con tope (~60s) para no colgarse en "Llamando…"
+      let tries = 0;
       pollRef.current = setInterval(async () => {
+        tries += 1;
+        if (tries > 30) {
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          await terminateCallAction(res.callId).catch(() => {});
+          session.current?.hangup();
+          reset();
+          return;
+        }
         const ans = await getCallAnswerAction(res.callId);
         if ("sdp" in ans) {
           if (pollRef.current) {
             clearInterval(pollRef.current);
             pollRef.current = null;
           }
-          await session.current?.applyAnswer(ans.sdp);
+          try {
+            await session.current?.applyAnswer(ans.sdp);
+          } catch (err) {
+            console.error("applyAnswer falló", err);
+            session.current?.hangup();
+            reset();
+            return;
+          }
           if (audioEl.current && session.current?.remoteStream) {
             audioEl.current.srcObject = session.current.remoteStream;
           }
@@ -150,7 +169,13 @@ export function CallPanel() {
       }, 2000);
     }
     window.addEventListener("lula:place-call", onPlace as EventListener);
-    return () => window.removeEventListener("lula:place-call", onPlace as EventListener);
+    return () => {
+      window.removeEventListener("lula:place-call", onPlace as EventListener);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
   }, [state]);
 
   async function onAccept() {
