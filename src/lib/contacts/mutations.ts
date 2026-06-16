@@ -110,7 +110,10 @@ export async function updateContact(
 		>;
 		set.customFields = JSON.stringify({ ...current, ...patch.customFields });
 	}
-	await db.update(contacts).set(set).where(eq(contacts.id, id));
+	await db
+		.update(contacts)
+		.set(set)
+		.where(and(eq(contacts.orgId, orgId), eq(contacts.id, id)));
 	return { ok: true };
 }
 
