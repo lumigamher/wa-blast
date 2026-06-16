@@ -38,6 +38,7 @@ export function IncomingCallPoller() {
       try {
         const ringing = await pollRingingCallsAction();
         if (cancelled) return;
+        if (seen.current.size > 5000) seen.current.clear();
         for (const call of ringing) {
           if (seen.current.has(call.id)) continue;
           seen.current.add(call.id);

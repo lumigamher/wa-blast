@@ -19,7 +19,10 @@ export default async function LlamadasPage({
   const { orgId } = await requireOrg();
 
   const calls = await listCalls(db, orgId, { status, direction, q });
-  const missedCount = (await listCalls(db, orgId, { status: "missed" })).length;
+  const missedCount =
+    status === "missed" && !direction && !q
+      ? calls.length
+      : (await listCalls(db, orgId, { status: "missed" })).length;
 
   function dayLabel(d: Date): string {
     const now = new Date();
@@ -93,7 +96,10 @@ export default async function LlamadasPage({
           >
             {filter.label}
             {filter.label === "Perdidas" && missedCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">
+              <span
+                aria-label={`${missedCount} llamadas perdidas`}
+                className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white"
+              >
                 {missedCount}
               </span>
             )}
