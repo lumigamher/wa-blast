@@ -25,6 +25,7 @@ export async function getIceServersAction(): Promise<IceServer[]> {
   await requireOrg();
   return buildIceServers({
     turnUrl: env.TURN_URL,
+    turnTlsUrl: env.TURN_TLS_URL,
     turnSecret: env.TURN_SECRET,
     nowSec: Math.floor(Date.now() / 1000),
   });

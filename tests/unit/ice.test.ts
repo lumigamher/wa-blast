@@ -16,4 +16,18 @@ describe("buildIceServers", () => {
     expect(turn.credential).toBe(expectedCred);
     expect(servers.some((s) => String(s.urls).startsWith("stun:"))).toBe(true);
   });
+  it("incluye turns: con la misma credencial cuando se pasa turnTlsUrl", () => {
+    const servers = buildIceServers({
+      turnUrl: "turn:1.2.3.4:3478",
+      turnTlsUrl: "turns:luladev.com:5349",
+      turnSecret: "shh",
+      nowSec: 1000,
+      ttlSec: 3600,
+    });
+    const turn = servers.find((s) => String(s.urls).startsWith("turn:"))!;
+    const turns = servers.find((s) => String(s.urls).startsWith("turns:"))!;
+    expect(turns).toBeTruthy();
+    expect(turns.username).toBe(turn.username);
+    expect(turns.credential).toBe(turn.credential);
+  });
 });

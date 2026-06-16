@@ -25,6 +25,7 @@ const schema = z.object({
   META_APP_SECRET: z.string().optional(),
   META_GRAPH_VERSION: z.string().default("v24.0"),
   TURN_URL: z.string().optional(),
+  TURN_TLS_URL: z.string().optional(),
   TURN_SECRET: z.string().optional(),
 
   ANTHROPIC_API_KEY: z.string().startsWith("sk-ant-").optional(),
