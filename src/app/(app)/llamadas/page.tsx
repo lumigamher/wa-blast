@@ -7,6 +7,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { listCalls } from "@/lib/calls/store";
 import { ContactAvatar } from "../inbox/[id]/_components/contact-avatar";
 import { LocalDateTime } from "@/components/local-datetime";
+import { NuevaLlamada } from "./_nueva-llamada";
 
 export const dynamic = "force-dynamic";
 
@@ -77,9 +78,12 @@ export default async function LlamadasPage({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Llamadas</h1>
-        <p className="text-sm text-muted-foreground">Registro de todas tus llamadas de WhatsApp</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Llamadas</h1>
+          <p className="text-sm text-muted-foreground">Registro de todas tus llamadas de WhatsApp</p>
+        </div>
+        <NuevaLlamada />
       </div>
 
       {/* Filters */}
