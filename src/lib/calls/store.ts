@@ -177,3 +177,56 @@ export async function setRecordingMediaId(db: DB, orgId: string, id: string, med
     .set({ recordingMediaId: mediaId })
     .where(and(eq(calls.orgId, orgId), eq(calls.id, id)));
 }
+
+export async function markCallPermission(
+  db: DB,
+  orgId: string,
+  contactId: string,
+  status: "temporary" | "permanent",
+  expiresAt: Date | null,
+): Promise<void> {
+  await db
+    .update(contacts)
+    .set({ callPermissionStatus: status, callPermissionExpiresAt: expiresAt, updatedAt: new Date() })
+    .where(and(eq(contacts.orgId, orgId), eq(contacts.id, contactId)));
+}
+
+export async function getContactCallPermission(
+  db: DB,
+  orgId: string,
+  contactId: string,
+): Promise<{ status: "temporary" | "permanent" | null; expiresAt: Date | null; valid: boolean }> {
+  const [c] = await db.select().from(contacts).where(and(eq(contacts.orgId, orgId), eq(contacts.id, contactId)));
+  const status = c?.callPermissionStatus ?? null;
+  const expiresAt = c?.callPermissionExpiresAt ?? null;
+  const valid = status === "permanent" || (status === "temporary" && !!expiresAt && expiresAt.getTime() > Date.now());
+  return { status, expiresAt, valid };
+}
+
+export async function createOutboundCall(
+  db: DB,
+  e: { orgId: string; conversationId: string; phone: string; wacid: string },
+): Promise<string> {
+  const id = randomUUID();
+  await db.insert(calls).values({
+    id,
+    orgId: e.orgId,
+    conversationId: e.conversationId,
+    phone: e.phone,
+    direction: "out",
+    status: "ringing",
+    wacid: e.wacid,
+    startedAt: new Date(),
+    createdAt: new Date(),
+  });
+  return id;
+}
+
+export async function setCallAnswer(db: DB, orgId: string, id: string, sdp: string): Promise<void> {
+  await db.update(calls).set({ answerSdp: sdp }).where(and(eq(calls.orgId, orgId), eq(calls.id, id)));
+}
+
+export async function getCallAnswer(db: DB, orgId: string, id: string): Promise<string | null> {
+  const [row] = await db.select().from(calls).where(and(eq(calls.orgId, orgId), eq(calls.id, id)));
+  return row?.answerSdp ?? null;
+}

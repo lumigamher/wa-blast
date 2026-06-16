@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import type { DB } from "@/lib/db/client";
-import { calls, conversations, organization } from "@/lib/db/schema";
-import { getCallById, getCallsForConversation, getRingingCalls, listCalls, markCallConnected, markCallRejected, recordCallEvent } from "@/lib/calls/store";
+import { calls, contacts, conversations, organization } from "@/lib/db/schema";
+import { createOutboundCall, getCallAnswer, getCallById, getCallsForConversation, getContactCallPermission, getRingingCalls, listCalls, markCallConnected, markCallPermission, markCallRejected, recordCallEvent, setCallAnswer } from "@/lib/calls/store";
 
 async function seed(db: DB) {
   await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
@@ -108,5 +108,26 @@ describe("calls store", () => {
     const id = (await db.select().from(calls).where(eq(calls.wacid, "rj")))[0].id;
     await markCallRejected(db, "o1", id);
     expect((await getCallById(db, "o1", id))?.status).toBe("rejected");
+  });
+  it("markCallPermission + getContactCallPermission: temporal vigente vs expirado vs permanente", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await db.insert(contacts).values({ id: "ct1", orgId: "o1", phone: "+57300", customFields: "{}", createdAt: new Date(), updatedAt: new Date() });
+    await markCallPermission(db, "o1", "ct1", "temporary", new Date(Date.now() + 60_000));
+    expect((await getContactCallPermission(db, "o1", "ct1")).valid).toBe(true);
+    await markCallPermission(db, "o1", "ct1", "temporary", new Date(Date.now() - 60_000));
+    expect((await getContactCallPermission(db, "o1", "ct1")).valid).toBe(false);
+    await markCallPermission(db, "o1", "ct1", "permanent", null);
+    expect((await getContactCallPermission(db, "o1", "ct1")).valid).toBe(true);
+  });
+  it("createOutboundCall inserta out/ringing; setCallAnswer/getCallAnswer", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const id = await createOutboundCall(db, { orgId: "o1", conversationId: "c1", phone: "+57300", wacid: "out1" });
+    const row = (await db.select().from(calls).where(eq(calls.id, id)))[0];
+    expect(row.direction).toBe("out");
+    expect(row.status).toBe("ringing");
+    await setCallAnswer(db, "o1", id, "v=0 answer");
+    expect(await getCallAnswer(db, "o1", id)).toBe("v=0 answer");
   });
 });
