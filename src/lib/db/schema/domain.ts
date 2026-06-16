@@ -304,3 +304,25 @@ export const conversationNotes = sqliteTable(
   },
   (t) => ({ convIdx: index("conversation_notes_conv").on(t.conversationId, t.createdAt) }),
 );
+
+export const calls = sqliteTable(
+  "calls",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    phone: text("phone").notNull(),
+    direction: text("direction", { enum: ["in", "out"] }).notNull(),
+    status: text("status", { enum: ["ringing", "missed", "completed", "rejected", "failed"] }).notNull(),
+    wacid: text("wacid").notNull(),
+    durationSec: integer("duration_sec"),
+    startedAt: integer("started_at", { mode: "timestamp" }),
+    endedAt: integer("ended_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({
+    orgIdx: index("calls_org_created").on(t.orgId, t.createdAt),
+    convIdx: index("calls_conv").on(t.conversationId),
+    wacidUnique: uniqueIndex("calls_org_wacid").on(t.orgId, t.wacid),
+  }),
+);
