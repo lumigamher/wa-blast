@@ -9,9 +9,13 @@ import {
   markCallRejected,
   type RingingCall,
 } from "@/lib/calls/store";
-import { acceptCall, rejectCall, terminateCall } from "@/lib/meta/calling";
+import { acceptCall, placeCall, rejectCall, requestCallPermission, terminateCall } from "@/lib/meta/calling";
 import { getOrgSettings } from "@/lib/org/settings";
 import { buildIceServers } from "@/lib/calls/ice";
+import { createOutboundCall, getContactCallPermission } from "@/lib/calls/store";
+import { getOrCreateConversation } from "@/lib/inbox/store";
+import { contacts } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
 import { env } from "@/lib/env";
 
 type IceServer = { urls: string; username?: string; credential?: string };
@@ -67,4 +71,46 @@ export async function terminateCallAction(callId: string): Promise<{ ok: true } 
   if (!call) return { error: "Llamada no encontrada" };
   const settings = await getOrgSettings(db, orgId);
   return terminateCall(settings, call.wacid);
+}
+
+export async function getCallPermissionAction(contactId: string) {
+  const { orgId } = await requireOrg();
+  return getContactCallPermission(db, orgId, contactId);
+}
+
+export async function requestCallPermissionAction(
+  contactId: string,
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  const [c] = await db.select().from(contacts).where(and(eq(contacts.orgId, orgId), eq(contacts.id, contactId)));
+  if (!c) return { error: "Contacto no encontrado" };
+  const settings = await getOrgSettings(db, orgId);
+  return requestCallPermission(settings, c.phone);
+}
+
+export async function placeCallAction(
+  contactId: string,
+  offerSdp: string,
+): Promise<{ ok: true; callId: string; conversationId: string } | { error: string }> {
+  const { orgId } = await requireOrg();
+  const perm = await getContactCallPermission(db, orgId, contactId);
+  if (!perm.valid) return { error: "Sin permiso de llamada vigente" };
+  const [c] = await db.select().from(contacts).where(and(eq(contacts.orgId, orgId), eq(contacts.id, contactId)));
+  if (!c) return { error: "Contacto no encontrado" };
+  const settings = await getOrgSettings(db, orgId);
+  const conv = await getOrCreateConversation(db, orgId, c.phone, new Date());
+  const res = await placeCall(settings, offerSdp, c.phone);
+  if ("error" in res) return res;
+  const id = await createOutboundCall(db, { orgId, conversationId: conv.id, phone: c.phone, wacid: res.callId });
+  return { ok: true, callId: id, conversationId: conv.id };
+}
+
+export async function getCallAnswerAction(
+  callId: string,
+): Promise<{ sdp: string } | { pending: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  const call = await getCallById(db, orgId, callId);
+  if (!call) return { error: "Llamada no encontrada" };
+  if (!call.answerSdp) return { pending: true };
+  return { sdp: call.answerSdp };
 }
