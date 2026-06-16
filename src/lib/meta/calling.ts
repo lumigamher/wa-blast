@@ -1,7 +1,10 @@
 import type { DecryptedSettings } from "@/lib/org/settings";
 import { env } from "@/lib/env";
 
-const GRAPH = `https://graph.facebook.com/${env.META_GRAPH_VERSION}`;
+// Settings de calling probado en v22 (Fase 1). Las acciones de llamada
+// (accept/reject/terminate) usan la versión configurable (default v24).
+const GRAPH = "https://graph.facebook.com/v22.0";
+const GRAPH_CALLS = `https://graph.facebook.com/${env.META_GRAPH_VERSION}`;
 
 export type CallingSettings = {
   status: "ENABLED" | "DISABLED";
@@ -61,7 +64,7 @@ export async function callAction(
   if (!s.metaPhoneId || !s.metaAccessToken) {
     return { error: "Meta no configurado" };
   }
-  const res = await fetch(`${GRAPH}/${s.metaPhoneId}/calls`, {
+  const res = await fetch(`${GRAPH_CALLS}/${s.metaPhoneId}/calls`, {
     method: "POST",
     headers: {
       authorization: `Bearer ${s.metaAccessToken}`,
