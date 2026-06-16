@@ -6,21 +6,21 @@ export class CallSession {
   remoteStream: MediaStream | null = null;
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
+  private recordDest: MediaStreamAudioDestinationNode | null = null;
 
   constructor(
     private iceServers: RTCIceServer[],
     private onState: (s: CallState) => void,
   ) {}
 
-  /** Crea la answer (ICE no-trickle) a partir del offer remoto. */
-  async answer(offerSdp: string): Promise<string> {
+  /** Prepara la PeerConnection: mic, tracks, grabación, callbacks. Común a offer/answer. */
+  private async setupPc(): Promise<RTCPeerConnection> {
     this.onState("connecting");
     this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const pc = new RTCPeerConnection({ iceServers: this.iceServers });
     this.pc = pc;
     for (const track of this.localStream.getTracks()) pc.addTrack(track, this.localStream);
 
-    // Mezcla local + remoto para grabar; se rellena al llegar el track remoto.
     let recordCtx: AudioContext | null = null;
     let recordDest: MediaStreamAudioDestinationNode | null = null;
     try {
@@ -29,6 +29,7 @@ export class CallSession {
       recordCtx.createMediaStreamSource(this.localStream).connect(recordDest);
     } catch {
       recordCtx = null;
+      recordDest = null;
     }
 
     pc.ontrack = (e) => {
@@ -46,26 +47,50 @@ export class CallSession {
       if (pc.connectionState === "failed" || pc.connectionState === "closed") this.onState("ended");
     };
 
-    await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await this.waitIceComplete(pc);
+    this.recordDest = recordDest;
+    return pc;
+  }
 
-    if (!pc.localDescription) throw new Error("No se generó la descripción local (answer)");
-
-    if (recordDest) {
-      try {
-        this.recorder = new MediaRecorder(recordDest.stream, { mimeType: "audio/webm;codecs=opus" });
-        this.recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) this.chunks.push(e.data);
-        };
-        this.recorder.start();
-      } catch {
-        this.recorder = null;
-      }
+  private startRecording(): void {
+    if (!this.recordDest) return;
+    try {
+      this.recorder = new MediaRecorder(this.recordDest.stream, { mimeType: "audio/webm;codecs=opus" });
+      this.recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) this.chunks.push(e.data);
+      };
+      this.recorder.start();
+    } catch {
+      this.recorder = null;
     }
+  }
 
-    return pc.localDescription!.sdp;
+  /** Entrante: crea la answer (ICE no-trickle) a partir del offer remoto. */
+  async answer(offerSdp: string): Promise<string> {
+    const pc = await this.setupPc();
+    await pc.setRemoteDescription({ type: "offer", sdp: offerSdp });
+    const a = await pc.createAnswer();
+    await pc.setLocalDescription(a);
+    await this.waitIceComplete(pc);
+    if (!pc.localDescription) throw new Error("No se generó la descripción local (answer)");
+    this.startRecording();
+    return pc.localDescription.sdp;
+  }
+
+  /** Saliente: crea el offer (ICE no-trickle) para enviarlo a Meta. */
+  async offer(): Promise<string> {
+    const pc = await this.setupPc();
+    const o = await pc.createOffer({ offerToReceiveAudio: true });
+    await pc.setLocalDescription(o);
+    await this.waitIceComplete(pc);
+    if (!pc.localDescription) throw new Error("No se generó la descripción local (offer)");
+    this.startRecording();
+    return pc.localDescription.sdp;
+  }
+
+  /** Saliente: aplica el answer remoto que llegó por webhook. */
+  async applyAnswer(answerSdp: string): Promise<void> {
+    if (!this.pc) throw new Error("Sin conexión activa");
+    await this.pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
   }
 
   private waitIceComplete(pc: RTCPeerConnection): Promise<void> {
