@@ -19,6 +19,26 @@ export default async function LlamadasPage({
   const { orgId } = await requireOrg();
 
   const calls = await listCalls(db, orgId, { status, direction, q });
+  const missedCount = (await listCalls(db, orgId, { status: "missed" })).length;
+
+  function dayLabel(d: Date): string {
+    const now = new Date();
+    const sameDay = (a: Date, b: Date) =>
+      a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (sameDay(d, now)) return "Hoy";
+    if (sameDay(d, yesterday)) return "Ayer";
+    return d.toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
+  }
+
+  const groups: { label: string; items: typeof calls }[] = [];
+  for (const call of calls) {
+    const label = dayLabel(new Date(call.createdAt));
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(call);
+    else groups.push({ label, items: [call] });
+  }
 
   function getStatusIcon(call: typeof calls[0]) {
     const missed = call.status === "missed" || call.status === "rejected" || call.status === "failed";
@@ -37,7 +57,7 @@ export default async function LlamadasPage({
   }
 
   function getDurationLabel(durationSec: number | null) {
-    if (!durationSec) return null;
+    if (!durationSec) return "—";
     const minutes = Math.floor(durationSec / 60);
     const seconds = durationSec % 60;
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -72,6 +92,11 @@ export default async function LlamadasPage({
             }`}
           >
             {filter.label}
+            {filter.label === "Perdidas" && missedCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">
+                {missedCount}
+              </span>
+            )}
           </Link>
         ))}
       </div>
@@ -87,38 +112,55 @@ export default async function LlamadasPage({
         {calls.length === 0 ? (
           <Card className="p-8 flex items-center justify-center h-full">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground">{q ? "Sin llamadas encontradas" : "Sin llamadas todavía"}</p>
+              <p className="text-sm text-muted-foreground">
+                {q
+                  ? "Sin llamadas encontradas"
+                  : status === "missed"
+                    ? "Sin llamadas perdidas"
+                    : status === "completed"
+                      ? "Sin llamadas contestadas"
+                      : direction === "in"
+                        ? "Sin llamadas entrantes"
+                        : direction === "out"
+                          ? "Sin llamadas salientes"
+                          : "Sin llamadas todavía"}
+              </p>
             </div>
           </Card>
         ) : (
-          <div className="space-y-2">
-            {calls.map((call) => (
-              <Link
-                key={call.id}
-                href={`/inbox/${call.conversationId}`}
-                className="block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <ContactAvatar seed={call.phone} name={call.contactName} size={40} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium">{call.contactName || call.phone}</div>
-                      <div className="text-xs text-muted-foreground">{call.phone}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <div className="flex items-center gap-1.5 text-xs">
-                      {getStatusIcon(call)}
-                      <span>{getStatusLabel(call)}</span>
-                    </div>
-                    {getDurationLabel(call.durationSec) && (
-                      <div className="text-xs text-muted-foreground">{getDurationLabel(call.durationSec)}</div>
-                    )}
-                    <LocalDateTime iso={String(call.createdAt)} />
-                  </div>
+          <div className="space-y-4">
+            {groups.map((group) => (
+              <div key={group.label} className="space-y-2">
+                <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.label}
                 </div>
-              </Link>
+                {group.items.map((call) => (
+                  <Link
+                    key={call.id}
+                    href={`/inbox/${call.conversationId}`}
+                    className="block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <ContactAvatar seed={call.phone} name={call.contactName} size={40} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium">{call.contactName || call.phone}</div>
+                          <div className="text-xs text-muted-foreground">{call.phone}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          {getStatusIcon(call)}
+                          <span>{getStatusLabel(call)}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">{getDurationLabel(call.durationSec)}</div>
+                        <LocalDateTime iso={String(call.createdAt)} />
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             ))}
           </div>
         )}
