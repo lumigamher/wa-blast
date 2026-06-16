@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { read, utils } from "xlsx";
 import { CalendarClockIcon, ChevronRightIcon, SendIcon, StarIcon, UploadIcon, UsersIcon, SearchIcon } from "lucide-react";
@@ -560,13 +561,13 @@ export function Wizard({
                     {tags.length === 0 ? (
                       <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                         No tienes tags todavía.{" "}
-                        <a href="/contactos/tags" className="underline">
+                        <Link href="/contactos/tags" className="underline">
                           Crear tag
-                        </a>{" "}
+                        </Link>{" "}
                         o{" "}
-                        <a href="/contactos/import" className="underline">
+                        <Link href="/contactos/import" className="underline">
                           importa contactos
-                        </a>
+                        </Link>
                         .
                       </div>
                     ) : (
@@ -601,9 +602,9 @@ export function Wizard({
                     {contacts.length === 0 ? (
                       <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
                         No tienes contactos guardados.{" "}
-                        <a href="/contactos/import" className="underline">
+                        <Link href="/contactos/import" className="underline">
                           Importa contactos
-                        </a>
+                        </Link>
                         .
                       </div>
                     ) : (
