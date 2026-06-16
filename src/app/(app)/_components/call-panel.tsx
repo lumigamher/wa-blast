@@ -106,7 +106,16 @@ export function CallPanel() {
       if (s === "ended") reset();
     });
     session.current = cs;
-    const answerSdp = await cs.answer(offer.sdp);
+    let answerSdp: string;
+    try {
+      answerSdp = await cs.answer(offer.sdp);
+    } catch (err) {
+      // Permiso de micrófono denegado o getUserMedia falló.
+      console.error("No se pudo iniciar el audio de la llamada", err);
+      cs.hangup();
+      reset();
+      return;
+    }
     const res = await acceptCallAction(incoming.id, answerSdp);
     if ("error" in res) {
       cs.hangup();
@@ -133,8 +142,9 @@ export function CallPanel() {
           body: blob,
           headers: { "content-type": "audio/webm" },
         });
-      } catch {
-        /* la grabación es best-effort */
+      } catch (err) {
+        // La grabación es best-effort; no debe romper el colgado.
+        console.error("No se pudo subir la grabación de la llamada", err);
       }
     }
     session.current?.hangup();

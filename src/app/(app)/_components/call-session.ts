@@ -51,6 +51,8 @@ export class CallSession {
     await pc.setLocalDescription(answer);
     await this.waitIceComplete(pc);
 
+    if (!pc.localDescription) throw new Error("No se generó la descripción local (answer)");
+
     if (recordDest) {
       try {
         this.recorder = new MediaRecorder(recordDest.stream, { mimeType: "audio/webm;codecs=opus" });
@@ -101,7 +103,7 @@ export class CallSession {
   }
 
   hangup(): void {
-    this.localStream?.getTracks().forEach((t) => t.stop());
+    for (const t of this.localStream?.getTracks() ?? []) t.stop();
     this.pc?.close();
     this.pc = null;
     this.onState("ended");
