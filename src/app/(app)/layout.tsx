@@ -20,7 +20,7 @@ import { logoutAction } from "@/lib/auth/actions";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NavGroup, NavLink, NavSection } from "./_components/nav-link";
-import { IncomingCallPoller } from "./_components/incoming-call-poller";
+import { CallPanel } from "./_components/call-panel";
 
 type NavItem = { href: string; icon: typeof HomeIcon; label: string };
 type NavSection = { label: string; items: NavItem[] };
@@ -138,7 +138,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </main>
-      <IncomingCallPoller />
+      <CallPanel />
       <Toaster richColors position="top-right" />
     </div>
   );
