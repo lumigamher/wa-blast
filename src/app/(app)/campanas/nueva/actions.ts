@@ -13,7 +13,7 @@ import { campaignRecipients, campaigns, contactTags, contacts } from "@/lib/db/s
 const inputSchema = z.object({
   name: z.string().min(1),
   templateName: z.string().min(1),
-  templateLanguage: z.string().min(1),
+  templateLanguage: z.string(),
   source: z.enum(["tags", "adhoc", "contacts"]),
   tagIds: z.array(z.string()).optional(),
   contactIds: z.array(z.string()).optional(),
@@ -27,7 +27,7 @@ const inputSchema = z.object({
     )
     .optional(),
   paramsByContact: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-  templateType: z.enum(["standard", "carousel"]).optional(),
+  templateType: z.enum(["standard", "carousel", "flow"]).optional(),
   componentPlanJson: z.string().optional().nullable(),
   varMapping: z
     .record(

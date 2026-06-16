@@ -30,8 +30,13 @@ type ContactRow = { id: string; name: string | null; phone: string };
 
 type AdhocRow = { phone: string; name: string; params: Record<string, string> };
 
+type FlowRow = { id: string; name: string };
+
+type SendMode = "template" | "flow";
+
 export function Wizard({
   templates,
+  flows = [],
   tags,
   contacts = [],
   prefillMedia = {},
@@ -39,6 +44,7 @@ export function Wizard({
   initialFavorites = [],
 }: {
   templates: WhatsAppTemplate[];
+  flows?: FlowRow[];
   tags: TagRow[];
   contacts?: ContactRow[];
   prefillMedia?: Record<string, Record<number, string>>;
@@ -73,6 +79,14 @@ export function Wizard({
     () => (selected && isCarousel(selected) ? parseCarousel(selected) : null),
     [selected],
   );
+
+  // Send mode toggle: template or flow
+  const [sendMode, setSendMode] = useState<SendMode>("template");
+
+  // Flow mode state
+  const [selectedFlowId, setSelectedFlowId] = useState<string>("");
+  const [flowCta, setFlowCta] = useState<string>("Abrir formulario");
+  const [flowBodyText, setFlowBodyText] = useState<string>("");
 
   const [source, setSource] = useState<Source>("tags");
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
@@ -193,8 +207,49 @@ export function Wizard({
   }
 
   function submit() {
-    if (!selected) return toast.error("Selecciona una plantilla");
     if (!name.trim()) return toast.error("Ponle un nombre a la campaña");
+
+    // Flow mode
+    if (sendMode === "flow") {
+      if (!selectedFlowId) return toast.error("Selecciona un flujo");
+      if (!flowBodyText.trim()) return toast.error("Escribe un mensaje acompañante");
+
+      const selectedFlow = flows.find((f) => f.id === selectedFlowId);
+      if (!selectedFlow) return toast.error("Flujo no encontrado");
+
+      const plan = {
+        kind: "flow" as const,
+        flowId: selectedFlowId,
+        cta: flowCta || "Abrir formulario",
+        bodyText: flowBodyText,
+      };
+
+      const payload = {
+        name: name.trim(),
+        templateName: `flow:${selectedFlow.name}`,
+        templateLanguage: "",
+        templateType: "flow" as const,
+        componentPlanJson: JSON.stringify(plan),
+        source,
+        tagIds: source === "tags" ? [...selectedTagIds] : undefined,
+        contactIds: source === "contacts" ? [...selectedContactIds] : undefined,
+        adhocRows:
+          source === "adhoc"
+            ? adhocRows.map((r) => ({
+                phone: r.phone,
+                name: r.name,
+                params: {},
+              }))
+            : undefined,
+        scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      };
+
+      launch(payload);
+      return;
+    }
+
+    // Template mode
+    if (!selected) return toast.error("Selecciona una plantilla");
 
     // Carousel flow
     if (carousel) {
@@ -241,7 +296,7 @@ export function Wizard({
       return;
     }
 
-    // Standard flow
+    // Standard template flow
     const paramsByContact: Record<string, Record<string, string>> | undefined =
       source === "tags" && Object.keys(bulkParams).length > 0 ? undefined : undefined;
 
@@ -267,14 +322,19 @@ export function Wizard({
     launch(payload);
   }
 
-  if (approved.length === 0) {
+  if (approved.length === 0 && flows.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-          <div className="text-sm text-muted-foreground">No tienes plantillas aprobadas en Meta.</div>
-          <a href="/plantillas/nueva" className={buttonVariants({ size: "sm" })}>
-            Crear plantilla
-          </a>
+          <div className="text-sm text-muted-foreground">No tienes plantillas aprobadas ni flujos publicados en Meta.</div>
+          <div className="flex gap-2">
+            <a href="/plantillas/nueva" className={buttonVariants({ size: "sm" })}>
+              Crear plantilla
+            </a>
+            <a href="/flows/nueva" className={buttonVariants({ size: "sm", variant: "outline" })}>
+              Crear flujo
+            </a>
+          </div>
         </CardContent>
       </Card>
     );
@@ -294,8 +354,37 @@ export function Wizard({
                   {approved.length} aprobadas · {favCount} favorita{favCount === 1 ? "" : "s"} · {templates.length} en total
                 </p>
               </CardHeader>
+              {/* Mode toggle: Template vs Flow */}
+              <div className="border-b px-6 py-3">
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSendMode("template")}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                      sendMode === "template"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    Plantilla
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSendMode("flow")}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                      sendMode === "flow"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    }`}
+                  >
+                    Flujo (formulario)
+                  </button>
+                </div>
+              </div>
               <CardContent className="space-y-5">
-                {/* Search and filter controls */}
+                {sendMode === "template" && (
+                  <>
+                    {/* Search and filter controls */}
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative min-w-64 flex-1">
                     <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -369,6 +458,69 @@ export function Wizard({
                     no la podrás disparar hasta que Meta la apruebe.
                   </p>
                 ) : null}
+                  </>
+                )}
+
+                {sendMode === "flow" && (
+                  <div className="space-y-4">
+                    {flows.length === 0 ? (
+                      <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
+                        <p>No tienes flujos publicados.</p>
+                        <a href="/flows/nueva" className={buttonVariants({ size: "sm", className: "mt-2" })}>
+                          Crear flujo
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <Label htmlFor="flow-select" className="text-sm font-medium">
+                          Selecciona un flujo
+                        </Label>
+                        <select
+                          id="flow-select"
+                          value={selectedFlowId}
+                          onChange={(e) => setSelectedFlowId(e.target.value)}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        >
+                          <option value="">-- Selecciona un flujo --</option>
+                          {flows.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {flows.length > 0 && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="flow-cta" className="text-sm font-medium">
+                            Texto del botón
+                          </Label>
+                          <Input
+                            id="flow-cta"
+                            placeholder="Ej: Abrir formulario"
+                            value={flowCta}
+                            onChange={(e) => setFlowCta(e.target.value)}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="flow-body" className="text-sm font-medium">
+                            Mensaje acompañante
+                          </Label>
+                          <textarea
+                            id="flow-body"
+                            placeholder="Mensaje que aparecerá antes del botón del flujo..."
+                            value={flowBodyText}
+                            onChange={(e) => setFlowBodyText(e.target.value)}
+                            className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -530,13 +682,19 @@ export function Wizard({
                 {/* 4-column stat grid */}
                 <div className="grid gap-3 md:grid-cols-4">
                   <div className="rounded-md border bg-background p-3">
-                    <div className="text-xs text-muted-foreground">Plantilla</div>
-                    <div className="font-semibold">{selected?.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {sendMode === "template" ? "Plantilla" : "Flujo"}
+                    </div>
+                    <div className="font-semibold">
+                      {sendMode === "template" ? selected?.name : flows.find((f) => f.id === selectedFlowId)?.name}
+                    </div>
                   </div>
-                  <div className="rounded-md border bg-background p-3">
-                    <div className="text-xs text-muted-foreground">Idioma</div>
-                    <div className="font-semibold">{selected?.language.toUpperCase()}</div>
-                  </div>
+                  {sendMode === "template" && (
+                    <div className="rounded-md border bg-background p-3">
+                      <div className="text-xs text-muted-foreground">Idioma</div>
+                      <div className="font-semibold">{selected?.language.toUpperCase()}</div>
+                    </div>
+                  )}
                   <div className="rounded-md border bg-background p-3">
                     <div className="text-xs text-muted-foreground">Fuente</div>
                     <div className="font-semibold">
@@ -560,27 +718,29 @@ export function Wizard({
                   />
                 </div>
 
-                {/* WhatsApp bubble preview */}
-                <div className="space-y-2">
-                  <Label>Previsualización (primer destinatario)</Label>
-                  {selected ? (
-                    <div className="mx-auto max-w-sm">
-                      <WhatsAppBubble template={selected} highlightVars size="md" />
+                {sendMode === "template" && (
+                  <>
+                    {/* WhatsApp bubble preview */}
+                    <div className="space-y-2">
+                      <Label>Previsualización (primer destinatario)</Label>
+                      {selected ? (
+                        <div className="mx-auto max-w-sm">
+                          <WhatsAppBubble template={selected} highlightVars size="md" />
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">Selecciona una plantilla</div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">Selecciona una plantilla</div>
-                  )}
-                </div>
 
-                {carousel ? (
-                  <div className="space-y-2">
-                    <Label>Mapeo de variables y media</Label>
-                    <CarouselMapping
-                      parsed={carousel}
-                      prefillMedia={prefillMedia[`${selected!.name}|${selected!.language}`] ?? {}}
-                      value={carouselMapping}
-                      onChange={setCarouselMapping}
-                    />
+                    {carousel ? (
+                      <div className="space-y-2">
+                        <Label>Mapeo de variables y media</Label>
+                        <CarouselMapping
+                          parsed={carousel}
+                          prefillMedia={prefillMedia[`${selected!.name}|${selected!.language}`] ?? {}}
+                          value={carouselMapping}
+                          onChange={setCarouselMapping}
+                        />
                   </div>
                 ) : (
                   vars.length > 0 && (
@@ -611,6 +771,24 @@ export function Wizard({
                       ))}
                     </div>
                   )
+                )}
+                  </>
+                )}
+
+                {sendMode === "flow" && (
+                  <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50 p-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-blue-900">Flujo: {flows.find((f) => f.id === selectedFlowId)?.name}</p>
+                      <p className="text-xs text-blue-700">
+                        Botón: <span className="font-semibold">{flowCta || "Abrir formulario"}</span>
+                      </p>
+                      {flowBodyText && (
+                        <p className="text-xs text-blue-700 mt-2">
+                          Mensaje: <span className="italic">{flowBodyText}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 )}
 
                 <div className="space-y-2">

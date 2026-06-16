@@ -5,6 +5,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { tags, contactTags, contacts, templateCardMedia, templateFavorites } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
+import { listFlows } from "@/lib/meta/flows";
 import { publicMediaUrl } from "@/lib/media/store";
 import { Wizard } from "./wizard";
 
@@ -35,8 +36,9 @@ export default async function NuevaCampanaPage({
     );
   }
 
-  const [templates, tagRows, contactRows, cardMediaRows, favs] = await Promise.all([
+  const [templates, flows, tagRows, contactRows, cardMediaRows, favs] = await Promise.all([
     listTemplates(creds).catch(() => []),
+    listFlows(creds).catch(() => []),
     db
       .select({
         id: tags.id,
@@ -96,6 +98,7 @@ export default async function NuevaCampanaPage({
       </header>
       <Wizard
         templates={templates}
+        flows={flows.map((f) => ({ id: f.id, name: f.name }))}
         tags={tagRows.map((t) => ({ id: t.id, name: t.name, color: t.color, count: Number(t.count) }))}
         contacts={contactRows}
         prefillMedia={prefillMedia}

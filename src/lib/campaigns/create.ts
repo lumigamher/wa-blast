@@ -10,7 +10,7 @@ export type CreateCampaignInput = {
   templateLanguage: string;
   headerType: "NONE" | "TEXT" | "IMAGE" | "VIDEO" | "DOCUMENT";
   headerHandle?: string | null;
-  templateType?: "standard" | "carousel";
+  templateType?: "standard" | "carousel" | "flow";
   componentPlanJson?: string | null;
   source: "segment" | "adhoc";
   segmentId?: string | null;
