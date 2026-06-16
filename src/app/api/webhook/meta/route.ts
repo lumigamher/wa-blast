@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { verifyMetaSignature, webhookPayloadSchema } from "@/lib/meta/webhook";
-import { handleInboundMessage, handleStatusEvent, handleCallEvent } from "@/lib/meta/webhook-handlers";
+import { handleInboundMessage, handleStatusEvent, handleCallEvent, handleCallPermissionReply } from "@/lib/meta/webhook-handlers";
 import { forwardWebhook } from "@/lib/meta/forward";
 import { resolveOrgByPhoneId } from "@/lib/org/resolve-by-phone-id";
 
@@ -58,7 +58,22 @@ export async function POST(req: Request) {
       }
       if (v.messages) {
         const profileName = v.contacts?.[0]?.profile?.name ?? null;
-        for (const m of v.messages) await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords, profileName);
+        for (const m of v.messages) {
+          // Reply al permiso de llamada (forma exacta a verificar contra doc Meta; parseo tolerante).
+          const inter = (m as Record<string, unknown>).interactive as
+            | { type?: string; call_permission_reply?: { response?: string; expiration_timestamp?: number } }
+            | undefined;
+          const reply = inter?.call_permission_reply;
+          if (inter?.type?.includes("call_permission") && reply?.response) {
+            await handleCallPermissionReply(db, settings.orgId, {
+              fromPhone: String((m as Record<string, unknown>).from ?? ""),
+              response: reply.response,
+              expirationTs: reply.expiration_timestamp,
+            });
+            continue;
+          }
+          await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords, profileName);
+        }
       }
       if (v.calls) {
         for (const c of v.calls) await handleCallEvent(db, settings.orgId, c);

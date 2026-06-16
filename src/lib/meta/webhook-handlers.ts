@@ -1,13 +1,13 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { campaignRecipients, campaigns, contacts, messageEvents } from "@/lib/db/schema";
+import { calls, campaignRecipients, campaigns, contacts, messageEvents } from "@/lib/db/schema";
 import { matchOptOut } from "@/lib/optout/match";
 import { parseInboundMessage } from "@/lib/inbox/parse-inbound";
 import { recordInboundMessage, updateMessageStatusByWamid, getOrCreateConversation } from "@/lib/inbox/store";
 import { upsertReaction } from "@/lib/inbox/reactions";
 import { ensureInboundMedia } from "@/lib/media/inbound";
 import { getOrgSettings } from "@/lib/org/settings";
-import { recordCallEvent } from "@/lib/calls/store";
+import { markCallPermission, recordCallEvent, setCallAnswer } from "@/lib/calls/store";
 
 export async function handleStatusEvent(
   db: DB,
@@ -138,6 +138,11 @@ export async function handleCallEvent(
   const ts = call.timestamp ? new Date(Number(call.timestamp) * 1000) : new Date();
   const direction: "in" | "out" = call.direction === "BUSINESS_INITIATED" ? "out" : "in";
   const conv = await getOrCreateConversation(db, orgId, phone, ts);
+  // Saliente: el SDP answer del usuario llega aquí → persistirlo en la fila existente.
+  if (direction === "out" && call.session?.sdp && call.session?.sdp_type === "answer") {
+    const [existing] = await db.select().from(calls).where(and(eq(calls.orgId, orgId), eq(calls.wacid, call.id)));
+    if (existing) await setCallAnswer(db, orgId, existing.id, call.session.sdp);
+  }
   const event: "connect" | "terminate" = call.event === "terminate" ? "terminate" : "connect";
   await recordCallEvent(db, {
     orgId,
@@ -152,4 +157,25 @@ export async function handleCallEvent(
     sdpType: call.session?.sdp_type,
     ts,
   });
+}
+
+export async function handleCallPermissionReply(
+  db: DB,
+  orgId: string,
+  reply: { fromPhone: string; response: string; expirationTs?: number },
+) {
+  const phone = "+" + reply.fromPhone.replace(/^\+/, "");
+  const conv = await getOrCreateConversation(db, orgId, phone, new Date());
+  if (!conv.contactId) return;
+  const accepted = reply.response.toLowerCase().includes("accept");
+  if (!accepted) {
+    // rechazo: dejar permiso temporal ya expirado (no vigente)
+    await markCallPermission(db, orgId, conv.contactId, "temporary", new Date(0));
+    return;
+  }
+  if (reply.expirationTs) {
+    await markCallPermission(db, orgId, conv.contactId, "temporary", new Date(reply.expirationTs * 1000));
+  } else {
+    await markCallPermission(db, orgId, conv.contactId, "permanent", null);
+  }
 }

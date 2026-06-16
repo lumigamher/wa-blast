@@ -74,4 +74,23 @@ describe("handleCallEvent", () => {
     expect(rows[0].sdp).toBe("v=0 offer");
     expect(rows[0].sdpType).toBe("offer");
   });
+
+  it("answer de una llamada saliente persiste answerSdp", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const { createOutboundCall } = await import("@/lib/calls/store");
+    const { getOrCreateConversation } = await import("@/lib/inbox/store");
+    const conv = await getOrCreateConversation(db, "o1", "+57305", new Date());
+    await createOutboundCall(db, { orgId: "o1", conversationId: conv.id, phone: "+57305", wacid: "wacid.OUT" });
+    const payload: CallPayload = {
+      id: "wacid.OUT",
+      to: "57305",
+      event: "connect",
+      direction: "BUSINESS_INITIATED",
+      session: { sdp: "v=0 answer-remoto", sdp_type: "answer" },
+    };
+    await handleCallEvent(db, "o1", payload);
+    const rows = await db.select().from(calls).where(eq(calls.wacid, "wacid.OUT"));
+    expect(rows[0].answerSdp).toBe("v=0 answer-remoto");
+  });
 });
