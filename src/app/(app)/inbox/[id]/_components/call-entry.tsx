@@ -8,6 +8,7 @@ export function CallEntry({
     status: string;
     durationSec: number | null;
     createdAt: Date;
+    recordingMediaId?: string | null;
   };
 }) {
   const missed =
@@ -34,7 +35,7 @@ export function CallEntry({
     minute: "2-digit",
   });
   return (
-    <div className="my-2 flex justify-center">
+    <div className="my-2 flex flex-col items-center gap-1">
       <div
         className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs ${
           missed
@@ -45,6 +46,9 @@ export function CallEntry({
         <Icon className="size-3.5" /> <span>{label}</span>{" "}
         <span className="opacity-60">{time}</span>
       </div>
+      {call.recordingMediaId && (
+        <audio controls preload="none" src={`/media/${call.recordingMediaId}`} className="h-8 max-w-[240px]" />
+      )}
     </div>
   );
 }

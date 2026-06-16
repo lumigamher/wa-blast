@@ -161,6 +161,14 @@ export default async function LlamadasPage({
                           <span>{getStatusLabel(call)}</span>
                         </div>
                         <div className="text-xs text-muted-foreground">{getDurationLabel(call.durationSec)}</div>
+                        {call.recordingMediaId && (
+                          <audio
+                            controls
+                            preload="none"
+                            src={`/media/${call.recordingMediaId}`}
+                            className="h-8 max-w-[180px]"
+                          />
+                        )}
                         <LocalDateTime iso={String(call.createdAt)} />
                       </div>
                     </div>

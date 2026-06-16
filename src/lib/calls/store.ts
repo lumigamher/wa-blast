@@ -74,6 +74,7 @@ export type CallListItem = {
   durationSec: number | null;
   createdAt: Date;
   conversationId: string;
+  recordingMediaId: string | null;
 };
 
 export async function listCalls(
@@ -102,6 +103,7 @@ export async function listCalls(
       durationSec: calls.durationSec,
       createdAt: calls.createdAt,
       conversationId: calls.conversationId,
+      recordingMediaId: calls.recordingMediaId,
     })
     .from(calls)
     .leftJoin(conversations, eq(calls.conversationId, conversations.id))
