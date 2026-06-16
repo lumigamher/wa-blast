@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import type { DB } from "@/lib/db/client";
 import { calls, conversations, organization } from "@/lib/db/schema";
-import { getCallsForConversation, getRingingCalls, listCalls, recordCallEvent } from "@/lib/calls/store";
+import { getCallById, getCallsForConversation, getRingingCalls, listCalls, markCallConnected, markCallRejected, recordCallEvent } from "@/lib/calls/store";
 
 async function seed(db: DB) {
   await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
@@ -78,5 +78,35 @@ describe("calls store", () => {
     const ringing = await getRingingCalls(db, "o1");
     const liveId = (await db.select().from(calls).where(eq(calls.wacid, "live")))[0].id;
     expect(ringing.map((r) => r.id)).toEqual([liveId]);
+  });
+  it("markCallConnected pone connected + answeredAt; terminate luego cierra a completed", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await recordCallEvent(db, { orgId: "o1", conversationId: "c1", phone: "+57300", wacid: "cc", direction: "in", event: "connect", ts: new Date(1000) });
+    const before = (await db.select().from(calls).where(eq(calls.wacid, "cc")))[0];
+    await markCallConnected(db, "o1", before.id, new Date(3000));
+    let row = await getCallById(db, "o1", before.id);
+    expect(row?.status).toBe("connected");
+    expect(row?.answeredAt?.getTime()).toBe(3000);
+    await recordCallEvent(db, { orgId: "o1", conversationId: "c1", phone: "+57300", wacid: "cc", direction: "in", event: "terminate", durationSec: 12, ts: new Date(5000) });
+    row = await getCallById(db, "o1", before.id);
+    expect(row?.status).toBe("completed");
+  });
+  it("connect duplicado no degrada un connected", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await recordCallEvent(db, { orgId: "o1", conversationId: "c1", phone: "+57300", wacid: "dup", direction: "in", event: "connect", ts: new Date(1000) });
+    const id = (await db.select().from(calls).where(eq(calls.wacid, "dup")))[0].id;
+    await markCallConnected(db, "o1", id, new Date(3000));
+    await recordCallEvent(db, { orgId: "o1", conversationId: "c1", phone: "+57300", wacid: "dup", direction: "in", event: "connect", ts: new Date(4000) });
+    expect((await getCallById(db, "o1", id))?.status).toBe("connected");
+  });
+  it("markCallRejected pone rejected", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await recordCallEvent(db, { orgId: "o1", conversationId: "c1", phone: "+57300", wacid: "rj", direction: "in", event: "connect", ts: new Date(1000) });
+    const id = (await db.select().from(calls).where(eq(calls.wacid, "rj")))[0].id;
+    await markCallRejected(db, "o1", id);
+    expect((await getCallById(db, "o1", id))?.status).toBe("rejected");
   });
 });

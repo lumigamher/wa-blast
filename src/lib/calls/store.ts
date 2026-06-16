@@ -39,7 +39,7 @@ export async function recordCallEvent(db: DB, e: CallEvent): Promise<void> {
     await db
       .update(calls)
       .set({
-        status: existing.status === "ringing" ? status : existing.status,
+        status: e.event === "terminate" ? status : existing.status,
         durationSec: e.durationSec ?? existing.durationSec ?? null,
         endedAt: e.event === "terminate" ? e.ts : existing.endedAt,
         sdp: e.sdp ?? existing.sdp ?? null,
@@ -148,4 +148,30 @@ export async function getRingingCalls(db: DB, orgId: string, windowSec = 90): Pr
       ),
     )
     .orderBy(desc(calls.createdAt));
+}
+
+export async function getCallById(db: DB, orgId: string, id: string) {
+  const [row] = await db.select().from(calls).where(and(eq(calls.orgId, orgId), eq(calls.id, id)));
+  return row ?? null;
+}
+
+export async function markCallConnected(db: DB, orgId: string, id: string, at: Date): Promise<void> {
+  await db
+    .update(calls)
+    .set({ status: "connected", answeredAt: at, startedAt: at })
+    .where(and(eq(calls.orgId, orgId), eq(calls.id, id)));
+}
+
+export async function markCallRejected(db: DB, orgId: string, id: string): Promise<void> {
+  await db
+    .update(calls)
+    .set({ status: "rejected", endedAt: new Date() })
+    .where(and(eq(calls.orgId, orgId), eq(calls.id, id)));
+}
+
+export async function setRecordingMediaId(db: DB, orgId: string, id: string, mediaId: string): Promise<void> {
+  await db
+    .update(calls)
+    .set({ recordingMediaId: mediaId })
+    .where(and(eq(calls.orgId, orgId), eq(calls.id, id)));
 }
