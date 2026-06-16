@@ -12,6 +12,7 @@ import {
   WorkflowIcon,
   CreditCardIcon,
   MessageSquareIcon,
+  PhoneIcon,
 } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { isAdminEmail } from "@/lib/auth/admin";
@@ -26,6 +27,7 @@ type NavSection = { label: string; items: NavItem[] };
 const STANDALONE_ITEMS: NavItem[] = [
   { href: "/panel", icon: HomeIcon, label: "Inicio" },
   { href: "/inbox", icon: MessageSquareIcon, label: "Inbox" },
+  { href: "/llamadas", icon: PhoneIcon, label: "Llamadas" },
 ];
 
 const NAV_SECTIONS: NavSection[] = [

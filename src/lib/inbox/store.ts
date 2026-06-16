@@ -1,4 +1,5 @@
 import { and, desc, eq, gt, like, or, sql, type SQL } from "drizzle-orm";
+import { getCallsForConversation } from "@/lib/calls/store";
 import { randomUUID } from "node:crypto";
 import type { DB } from "@/lib/db/client";
 import { contacts, conversations, messages } from "@/lib/db/schema";
@@ -182,7 +183,9 @@ export async function getThread(db: DB, orgId: string, conversationId: string) {
     }
   }
 
-  return { conversation: conv, messages: msgs, contact: contact ?? null, reactions: reactionsByWamid, notes, quotes };
+  const callRows = await getCallsForConversation(db, orgId, conversationId);
+
+  return { conversation: conv, messages: msgs, contact: contact ?? null, reactions: reactionsByWamid, notes, quotes, calls: callRows };
 }
 
 function replyLabelForQuote(message: typeof messages.$inferSelect): string {

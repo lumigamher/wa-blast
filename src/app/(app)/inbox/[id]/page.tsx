@@ -272,6 +272,7 @@ export default async function InboxThreadPage({
             reactions={thread.reactions}
             notes={thread.notes}
             quotes={thread.quotes}
+            calls={thread.calls}
           />
         </div>
       </div>

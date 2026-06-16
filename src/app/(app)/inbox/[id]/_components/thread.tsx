@@ -25,6 +25,7 @@ import { AudioPlayer } from "./audio-player";
 import { EmojiPicker } from "./emoji-picker";
 import { ReactionChips } from "./reaction-chip";
 import { MediaImage } from "./media-image";
+import { CallEntry } from "./call-entry";
 
 type Message = InferSelectModel<typeof messagesSchema>;
 
@@ -41,9 +42,18 @@ type Note = {
   createdAt: Date;
 };
 
+type Call = {
+  id: string;
+  direction: "in" | "out";
+  status: string;
+  durationSec: number | null;
+  createdAt: Date;
+};
+
 type TimelineItem =
   | { kind: "message"; at: Date; msg: Message }
-  | { kind: "note"; at: Date; note: Note };
+  | { kind: "note"; at: Date; note: Note }
+  | { kind: "call"; at: Date; call: Call };
 
 type ThreadProps = {
   messages: Message[];
@@ -51,6 +61,7 @@ type ThreadProps = {
   reactions: Record<string, { direction: "in" | "out"; emoji: string }[]>;
   notes?: Note[];
   quotes?: Record<string, { label: string; direction: "in" | "out" }>;
+  calls?: Call[];
 };
 
 function replyLabel(message: Message): string {
@@ -105,14 +116,15 @@ function dayLabel(d: Date): string {
   });
 }
 
-export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {} }: ThreadProps) {
+export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}, calls = [] }: ThreadProps) {
   // Filter out legacy standalone reaction messages
   const visible = messages.filter((m) => m.type !== "reaction");
 
-  // Build merged, time-sorted timeline of messages and notes
+  // Build merged, time-sorted timeline of messages, notes, and calls
   const timeline: TimelineItem[] = [
     ...visible.map((msg) => ({ kind: "message" as const, at: msg.createdAt, msg })),
     ...notes.map((note) => ({ kind: "note" as const, at: note.createdAt, note })),
+    ...calls.map((call) => ({ kind: "call" as const, at: call.createdAt, call })),
   ].filter((item) => item.at != null).sort((a, b) => a.at!.getTime() - b.at!.getTime());
 
   if (timeline.length === 0) {
@@ -137,7 +149,7 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
           currentDay.getDate() !== prevDay.getDate();
 
         return (
-          <div key={`${item.kind}-${item.kind === "message" ? item.msg.id : item.note.id}`}>
+          <div key={`${item.kind}-${item.kind === "message" ? item.msg.id : item.kind === "note" ? item.note.id : item.call.id}`}>
             {isDifferentDay && (
               <div className="my-3 flex justify-center">
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -152,8 +164,10 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
                 reactions={reactions[item.msg.wamid ?? ""] ?? []}
                 quote={quotes[item.msg.id]}
               />
-            ) : (
+            ) : item.kind === "note" ? (
               <NoteBubble note={item.note} />
+            ) : (
+              <CallEntry call={item.call} />
             )}
           </div>
         );

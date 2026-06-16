@@ -33,6 +33,14 @@ type Note = {
   createdAt: Date;
 };
 
+type Call = {
+  id: string;
+  direction: "in" | "out";
+  status: string;
+  durationSec: number | null;
+  createdAt: Date;
+};
+
 export function ThreadAndComposer({
   conversationId,
   messages,
@@ -43,6 +51,7 @@ export function ThreadAndComposer({
   reactions = {},
   notes = [],
   quotes = {},
+  calls = [],
 }: {
   conversationId: string;
   messages: Message[];
@@ -53,18 +62,19 @@ export function ThreadAndComposer({
   reactions?: Record<string, { direction: "in" | "out"; emoji: string }[]>;
   notes?: Note[];
   quotes?: Record<string, { label: string; direction: "in" | "out" }>;
+  calls?: Call[];
 }) {
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
-  }, [messages.length, notes.length]);
+  }, [messages.length, notes.length, calls.length]);
 
   return (
     <>
       <div className="flex-1 overflow-y-auto p-4">
-        <Thread messages={messages} onReplyTo={setReplyTo} reactions={reactions} notes={notes} quotes={quotes} />
+        <Thread messages={messages} onReplyTo={setReplyTo} reactions={reactions} notes={notes} quotes={quotes} calls={calls} />
         <div ref={bottomRef} />
       </div>
 
