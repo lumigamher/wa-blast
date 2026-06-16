@@ -13,6 +13,8 @@ import {
   PhoneIcon,
   MessageSquareIcon,
   Zap,
+  MousePointerClickIcon,
+  ClipboardListIcon,
 } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import { useRouter } from "next/navigation";
@@ -625,6 +627,15 @@ function renderMessageContent(message: Message): React.ReactNode {
       );
 
     case "interactive":
+      // Inbound interactive reply (button_reply or list_reply)
+      if (message.direction === "in" && message.body) {
+        return (
+          <div className="flex items-center gap-2 rounded-full bg-blue-100 dark:bg-blue-900 px-3 py-1.5 text-xs font-medium text-blue-900 dark:text-blue-100 w-fit max-w-xs">
+            <MousePointerClickIcon className="size-3.5 flex-shrink-0" />
+            <span className="truncate">{message.body}</span>
+          </div>
+        );
+      }
       return (
         <div>
           <div className="text-sm">{message.body}</div>
@@ -643,18 +654,6 @@ function renderMessageContent(message: Message): React.ReactNode {
           <div className="text-xs text-muted-foreground mt-1 opacity-75">
             [Presionó botón]
           </div>
-        </div>
-      );
-
-    case "flow":
-      return (
-        <div>
-          <div className="text-sm">{message.body}</div>
-          {message.payloadJson && (
-            <div className="text-xs text-muted-foreground mt-1 opacity-75">
-              [Formulario completado]
-            </div>
-          )}
         </div>
       );
 
@@ -722,6 +721,76 @@ function renderMessageContent(message: Message): React.ReactNode {
     }
 
     case "flow": {
+      // Inbound nfm_reply (completed form)
+      if (message.direction === "in") {
+        if (message.payloadJson) {
+          try {
+            const payload = JSON.parse(message.payloadJson) as {
+              interactive?: {
+                type: "nfm_reply";
+                nfm_reply?: {
+                  response_json?: string;
+                };
+              };
+            };
+
+            const responseJson = payload.interactive?.nfm_reply?.response_json;
+            if (responseJson) {
+              const formData = JSON.parse(responseJson) as Record<
+                string,
+                unknown
+              >;
+              // Filter out flow_token and convert values to strings
+              const entries = Object.entries(formData)
+                .filter(([key]) => key !== "flow_token")
+                .map(([key, value]) => [
+                  key,
+                  String(value || "").slice(0, 50),
+                ]);
+
+              if (entries.length > 0) {
+                return (
+                  <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 p-3 max-w-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ClipboardListIcon className="size-4 text-blue-600 dark:text-blue-400" />
+                      <div className="text-xs font-semibold text-blue-900 dark:text-blue-100">
+                        Formulario completado
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      {entries.map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="flex justify-between text-xs text-blue-800 dark:text-blue-200"
+                        >
+                          <span className="font-medium">{key}:</span>
+                          <span className="text-right max-w-xs truncate">
+                            {value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+            }
+          } catch {
+            // Fall back to body text if JSON parse fails
+            return (
+              <div className="text-sm italic text-muted-foreground">
+                {message.body || "[formulario]"}
+              </div>
+            );
+          }
+        }
+        return (
+          <div className="text-sm italic text-muted-foreground">
+            {message.body || "[formulario]"}
+          </div>
+        );
+      }
+
+      // Outbound flow (template we sent)
       if (message.payloadJson) {
         try {
           const payload = JSON.parse(message.payloadJson) as {
