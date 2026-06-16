@@ -1,4 +1,4 @@
-import { and, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, like, or, sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { DB } from "@/lib/db/client";
 import { calls, contacts, conversations } from "@/lib/db/schema";
@@ -12,6 +12,8 @@ type CallEvent = {
   event: "connect" | "terminate";
   status?: string;
   durationSec?: number;
+  sdp?: string;
+  sdpType?: string;
   ts: Date;
 };
 
@@ -19,7 +21,8 @@ function statusFor(e: CallEvent): "ringing" | "missed" | "completed" | "rejected
   if (e.event === "connect") return "ringing";
   const s = (e.status ?? "").toLowerCase();
   if (s.includes("reject")) return "rejected";
-  if (s.includes("fail")) return "failed";
+  if (s.includes("fail") || s.includes("error")) return "failed";
+  if (s.includes("no_answer") || s.includes("no-answer") || s.includes("miss") || s.includes("expire") || s.includes("timeout")) return "missed";
   if ((e.durationSec ?? 0) > 0) return "completed";
   return "missed";
 }
@@ -36,9 +39,11 @@ export async function recordCallEvent(db: DB, e: CallEvent): Promise<void> {
     await db
       .update(calls)
       .set({
-        status,
+        status: existing.status === "ringing" ? status : existing.status,
         durationSec: e.durationSec ?? existing.durationSec ?? null,
         endedAt: e.event === "terminate" ? e.ts : existing.endedAt,
+        sdp: e.sdp ?? existing.sdp ?? null,
+        sdpType: e.sdpType ?? existing.sdpType ?? null,
       })
       .where(eq(calls.id, existing.id));
     return;
@@ -54,6 +59,8 @@ export async function recordCallEvent(db: DB, e: CallEvent): Promise<void> {
     durationSec: e.durationSec ?? null,
     startedAt: e.event === "connect" ? e.ts : null,
     endedAt: e.event === "terminate" ? e.ts : null,
+    sdp: e.sdp ?? null,
+    sdpType: e.sdpType ?? null,
     createdAt: e.ts,
   });
 }
@@ -109,4 +116,36 @@ export async function getCallsForConversation(db: DB, orgId: string, conversatio
     .from(calls)
     .where(and(eq(calls.orgId, orgId), eq(calls.conversationId, conversationId)))
     .orderBy(calls.createdAt);
+}
+
+export type RingingCall = {
+  id: string;
+  phone: string;
+  contactName: string | null;
+  conversationId: string;
+  createdAt: Date;
+};
+
+export async function getRingingCalls(db: DB, orgId: string, windowSec = 90): Promise<RingingCall[]> {
+  const since = new Date(Date.now() - windowSec * 1000);
+  return db
+    .select({
+      id: calls.id,
+      phone: calls.phone,
+      contactName: contacts.name,
+      conversationId: calls.conversationId,
+      createdAt: calls.createdAt,
+    })
+    .from(calls)
+    .leftJoin(conversations, eq(calls.conversationId, conversations.id))
+    .leftJoin(contacts, eq(conversations.contactId, contacts.id))
+    .where(
+      and(
+        eq(calls.orgId, orgId),
+        eq(calls.direction, "in"),
+        eq(calls.status, "ringing"),
+        gte(calls.createdAt, since),
+      ),
+    )
+    .orderBy(desc(calls.createdAt));
 }

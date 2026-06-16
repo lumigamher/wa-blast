@@ -18,6 +18,7 @@ interface CallPayload {
   direction?: string;
   status?: string;
   duration?: number;
+  session?: { sdp?: string; sdp_type?: string };
 }
 
 describe("handleCallEvent", () => {
@@ -55,5 +56,22 @@ describe("handleCallEvent", () => {
     expect(rows[0].direction).toBe("out");
     expect(rows[0].phone).toBe("+57301");
     expect(rows[0].status).toBe("completed");
+  });
+
+  it("captura session.sdp del connect", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const payload: CallPayload = {
+      id: "wacid.Z",
+      from: "57300",
+      event: "connect",
+      timestamp: "1700000000",
+      direction: "USER_INITIATED",
+      session: { sdp: "v=0 offer", sdp_type: "offer" },
+    };
+    await handleCallEvent(db, "o1", payload);
+    const rows = await db.select().from(calls).where(eq(calls.wacid, "wacid.Z"));
+    expect(rows[0].sdp).toBe("v=0 offer");
+    expect(rows[0].sdpType).toBe("offer");
   });
 });

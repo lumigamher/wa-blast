@@ -70,6 +70,12 @@ export const webhookPayloadSchema = z.object({
                   direction: z.string().optional(),
                   status: z.string().optional(),
                   duration: z.number().optional(),
+                  session: z
+                    .object({
+                      sdp: z.string().optional(),
+                      sdp_type: z.string().optional(),
+                    })
+                    .optional(),
                 }).passthrough(),
               )
               .optional(),

@@ -130,7 +130,7 @@ export async function handleInboundMessage(
 export async function handleCallEvent(
   db: DB,
   orgId: string,
-  call: { id: string; from?: string; to?: string; event: string; timestamp?: string; direction?: string; status?: string; duration?: number },
+  call: { id: string; from?: string; to?: string; event: string; timestamp?: string; direction?: string; status?: string; duration?: number; session?: { sdp?: string; sdp_type?: string } },
 ) {
   const phoneRaw = call.direction === "BUSINESS_INITIATED" ? call.to : call.from;
   if (!phoneRaw) return;
@@ -148,6 +148,8 @@ export async function handleCallEvent(
     event,
     status: call.status,
     durationSec: call.duration,
+    sdp: call.session?.sdp,
+    sdpType: call.session?.sdp_type,
     ts,
   });
 }
