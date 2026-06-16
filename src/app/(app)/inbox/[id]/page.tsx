@@ -254,6 +254,7 @@ export default async function InboxThreadPage({
                 <ContactInfoToggle
                   conversationId={conversationId}
                   contact={thread.contact}
+                  contactId={thread.contact?.id ?? null}
                   phone={thread.conversation.phone}
                   notes={contactPanelNotes}
                 />

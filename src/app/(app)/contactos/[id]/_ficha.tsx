@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ContactAvatar } from "../../inbox/[id]/_components/contact-avatar";
+import { CallButton } from "../../_components/call-button";
 import {
   updateContactAction,
   deleteContactAction,
@@ -78,10 +79,13 @@ export function FichaContacto({ contact, allTags }: { contact: Contact; allTags:
             <div className="font-mono text-xs text-muted-foreground">{contact.phone}</div>
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={remove} className="text-destructive">
-          <Trash2Icon className="size-4" />
-          Borrar
-        </Button>
+        <div className="flex items-center gap-2">
+          <CallButton contactId={contact.id} name={form.name || contact.name} phone={contact.phone} />
+          <Button variant="ghost" size="sm" onClick={remove} className="text-destructive">
+            <Trash2Icon className="size-4" />
+            Borrar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

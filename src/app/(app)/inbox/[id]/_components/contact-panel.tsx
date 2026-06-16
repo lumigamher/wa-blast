@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { deleteNoteAction } from "../../actions";
 import { ContactAvatar } from "./contact-avatar";
+import { CallButton } from "../../../_components/call-button";
 
 type Note = {
   id: string;
@@ -92,11 +93,13 @@ function NotesList({ notes, conversationId }: { notes: Note[]; conversationId: s
 export function ContactInfoToggle({
   conversationId,
   contact,
+  contactId,
   phone,
   notes,
 }: {
   conversationId: string;
   contact: { name?: string | null } | null;
+  contactId?: string | null;
   phone: string;
   notes: Note[];
 }) {
@@ -146,6 +149,9 @@ export function ContactInfoToggle({
                   </div>
                 </div>
               </div>
+              {contactId && (
+                <CallButton contactId={contactId} name={contact?.name ?? null} phone={phone} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50" />
+              )}
             </div>
 
             {/* Internal Notes Section */}
