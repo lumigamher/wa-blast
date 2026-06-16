@@ -255,7 +255,7 @@ function MessageBubble({
       <div
         className={`flex gap-2 group relative ${
           isOutbound ? "flex-row-reverse justify-start" : "flex-row"
-        }`}
+        } ${reactions.length > 0 ? "mb-2" : ""}`}
         onContextMenu={handleContextMenu}
       >
         <div className="relative">
@@ -321,14 +321,13 @@ function MessageBubble({
                 </div>
               </div>
             )}
+            {/* Reacciones: chip absoluto sobre el borde inferior (no empuja el flujo) */}
+            {reactions.length > 0 && (
+              <div className={`absolute -bottom-1.5 z-10 ${isOutbound ? "right-2" : "left-2"}`}>
+                <ReactionChips reactions={reactions} />
+              </div>
+            )}
           </div>
-
-          {/* Reaction chips - below bubble, no overlap */}
-          {reactions.length > 0 && (
-            <div className={`mt-1 flex gap-0.5 ${isOutbound ? "justify-end" : "justify-start"}`}>
-              <ReactionChips reactions={reactions} />
-            </div>
-          )}
         </div>
 
         {/* Right-click context menu */}
@@ -378,7 +377,7 @@ function MessageBubble({
     <div
       className={`flex gap-2 group relative ${
         isOutbound ? "flex-row-reverse justify-start" : "flex-row"
-      }`}
+      } ${reactions.length > 0 ? "mb-2" : ""}`}
       onContextMenu={handleContextMenu}
     >
       <div className="relative">
@@ -470,14 +469,13 @@ function MessageBubble({
               </div>
             </div>
           )}
+          {/* Reacciones: chip absoluto sobre el borde inferior de la burbuja (no empuja el flujo) */}
+          {reactions.length > 0 && (
+            <div className={`absolute -bottom-1.5 z-10 ${isOutbound ? "right-2" : "left-2"}`}>
+              <ReactionChips reactions={reactions} />
+            </div>
+          )}
         </div>
-
-        {/* Reaction chips - below bubble, no overlap with timestamp */}
-        {reactions.length > 0 && (
-          <div className={`mt-1 flex gap-0.5 ${isOutbound ? "justify-end" : "justify-start"}`}>
-            <ReactionChips reactions={reactions} />
-          </div>
-        )}
       </div>
 
       {isOutbound && message.status === "failed" && message.errorMessage && (
