@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { verifyMetaSignature, webhookPayloadSchema } from "@/lib/meta/webhook";
-import { handleInboundMessage, handleStatusEvent } from "@/lib/meta/webhook-handlers";
+import { handleInboundMessage, handleStatusEvent, handleCallEvent } from "@/lib/meta/webhook-handlers";
 import { forwardWebhook } from "@/lib/meta/forward";
 import { resolveOrgByPhoneId } from "@/lib/org/resolve-by-phone-id";
 
@@ -59,6 +59,9 @@ export async function POST(req: Request) {
       if (v.messages) {
         const profileName = v.contacts?.[0]?.profile?.name ?? null;
         for (const m of v.messages) await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords, profileName);
+      }
+      if (v.calls) {
+        for (const c of v.calls) await handleCallEvent(db, settings.orgId, c);
       }
     }
   }

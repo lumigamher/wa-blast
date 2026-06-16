@@ -7,6 +7,7 @@ import { recordInboundMessage, updateMessageStatusByWamid, getOrCreateConversati
 import { upsertReaction } from "@/lib/inbox/reactions";
 import { ensureInboundMedia } from "@/lib/media/inbound";
 import { getOrgSettings } from "@/lib/org/settings";
+import { recordCallEvent } from "@/lib/calls/store";
 
 export async function handleStatusEvent(
   db: DB,
@@ -124,4 +125,29 @@ export async function handleInboundMessage(
       // Best-effort: log silently and continue
     }
   }
+}
+
+export async function handleCallEvent(
+  db: DB,
+  orgId: string,
+  call: { id: string; from?: string; to?: string; event: string; timestamp?: string; direction?: string; status?: string; duration?: number },
+) {
+  const phoneRaw = call.direction === "BUSINESS_INITIATED" ? call.to : call.from;
+  if (!phoneRaw) return;
+  const phone = "+" + phoneRaw.replace(/^\+/, "");
+  const ts = call.timestamp ? new Date(Number(call.timestamp) * 1000) : new Date();
+  const direction: "in" | "out" = call.direction === "BUSINESS_INITIATED" ? "out" : "in";
+  const conv = await getOrCreateConversation(db, orgId, phone, ts);
+  const event: "connect" | "terminate" = call.event === "terminate" ? "terminate" : "connect";
+  await recordCallEvent(db, {
+    orgId,
+    conversationId: conv.id,
+    phone,
+    wacid: call.id,
+    direction,
+    event,
+    status: call.status,
+    durationSec: call.duration,
+    ts,
+  });
 }

@@ -59,6 +59,20 @@ export const webhookPayloadSchema = z.object({
                 }),
               )
               .optional(),
+            calls: z
+              .array(
+                z.object({
+                  id: z.string(),
+                  from: z.string().optional(),
+                  to: z.string().optional(),
+                  event: z.string(),
+                  timestamp: z.string().optional(),
+                  direction: z.string().optional(),
+                  status: z.string().optional(),
+                  duration: z.number().optional(),
+                }).passthrough(),
+              )
+              .optional(),
           }),
         }),
       ),
