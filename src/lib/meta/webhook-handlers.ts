@@ -119,6 +119,8 @@ export async function handleInboundMessage(
           orgId,
           metaMediaId: parsed.mediaId,
           accessToken: settings.metaAccessToken,
+          directUrl: parsed.mediaUrl,
+          mime: parsed.mediaMime,
         });
       }
     } catch {

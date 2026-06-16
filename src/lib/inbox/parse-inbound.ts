@@ -2,6 +2,8 @@ export type ParsedInbound = {
   type: string; // text|image|video|audio|document|sticker|reaction|interactive|flow|button|unknown
   body: string | null;
   mediaId: string | null;
+  mediaUrl?: string | null; // Meta ahora incluye el url del media en el webhook (lookaside, expira ~5min)
+  mediaMime?: string | null;
   payloadJson: string | null;
   replyToWamid: string | null;
 };
@@ -17,7 +19,7 @@ export function parseInboundMessage(msg: AnyMsg): ParsedInbound {
   if ((MEDIA_TYPES as readonly string[]).includes(msg.type)) {
     const m = msg[msg.type] ?? {};
     const body = m.caption ?? m.filename ?? null;
-    return { type: msg.type, body, mediaId: m.id ?? null, payloadJson: raw, replyToWamid };
+    return { type: msg.type, body, mediaId: m.id ?? null, mediaUrl: m.url ?? null, mediaMime: m.mime_type ?? null, payloadJson: raw, replyToWamid };
   }
   if (msg.type === "interactive") {
     const i = msg.interactive ?? {};

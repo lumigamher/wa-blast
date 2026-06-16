@@ -12,6 +12,11 @@ describe("parseInboundMessage", () => {
     const r = parseInboundMessage({ ...base, type: "image", image: { id: "MEDIA1", mime_type: "image/jpeg", caption: "mira" } });
     expect(r).toMatchObject({ type: "image", body: "mira", mediaId: "MEDIA1" });
   });
+  it("captura url/mime del media cuando Meta los incluye en el webhook", () => {
+    const r = parseInboundMessage({ ...base, type: "image", image: { id: "MEDIA1", mime_type: "image/jpeg", url: "https://lookaside.fbsbx.com/x?source=webhook" } });
+    expect(r.mediaUrl).toBe("https://lookaside.fbsbx.com/x?source=webhook");
+    expect(r.mediaMime).toBe("image/jpeg");
+  });
   it("audio/video/document/sticker llevan mediaId", () => {
     for (const t of ["audio", "video", "document", "sticker"] as const) {
       const r = parseInboundMessage({ ...base, type: t, [t]: { id: "M2", mime_type: "x/y" } });

@@ -92,6 +92,58 @@ describe("ensureInboundMedia", () => {
     fetchSpy.mockRestore();
   });
 
+  test("directUrl descarga directo sin llamar a metadata", async () => {
+    const db = await seedOrg();
+    const dir = mkdtempSync(join(tmpdir(), "wablast-media-"));
+    process.env.MEDIA_DIR = dir;
+
+    const imageData = new TextEncoder().encode("direct image").buffer;
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    fetchSpy.mockResolvedValue(new Response(imageData, { status: 200 }));
+
+    const result = await ensureInboundMedia(db, {
+      orgId: "o",
+      metaMediaId: "mDirect",
+      accessToken: "token",
+      directUrl: "https://lookaside.fbsbx.com/x?source=webhook",
+      mime: "image/jpeg",
+    });
+
+    expect(result).toMatch(/^media_/);
+    // Una sola llamada (la descarga directa), NO el GET de metadata
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0][0])).toContain("lookaside.fbsbx.com");
+    fetchSpy.mockRestore();
+  });
+
+  test("directUrl que falla cae al metadata (fallback)", async () => {
+    const db = await seedOrg();
+    const dir = mkdtempSync(join(tmpdir(), "wablast-media-"));
+    process.env.MEDIA_DIR = dir;
+
+    const imageData = new TextEncoder().encode("fallback image").buffer;
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    let n = 0;
+    fetchSpy.mockImplementation(async (input) => {
+      n++;
+      if (String(input).includes("lookaside")) return new Response(null, { status: 410 }); // url expirado
+      if (String(input).includes("graph.facebook.com")) return new Response(JSON.stringify({ url: "https://cdn/x.jpg", mime_type: "image/jpeg" }), { status: 200 });
+      return new Response(imageData, { status: 200 }); // descarga del cdn
+    });
+
+    const result = await ensureInboundMedia(db, {
+      orgId: "o",
+      metaMediaId: "mFallback",
+      accessToken: "token",
+      directUrl: "https://lookaside.fbsbx.com/expired",
+      mime: "image/jpeg",
+    });
+
+    expect(result).toMatch(/^media_/);
+    expect(n).toBe(3); // directUrl(falla) + metadata + descarga cdn
+    fetchSpy.mockRestore();
+  });
+
   test("no accessToken returns null", async () => {
     const db = await seedOrg();
 
