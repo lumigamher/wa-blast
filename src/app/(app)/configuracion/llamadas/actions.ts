@@ -13,10 +13,12 @@ export async function saveCallingSettingsAction(
     const { orgId } = await requireOrg();
     const settings = await getOrgSettings(db, orgId);
     const status = formData.get("status") === "on" ? "ENABLED" : "DISABLED";
+    // Solo enviar enums válidos: Meta rechaza cualquier otra cosa (p.ej. "NOT_SET").
+    const call_icon_visibility =
+      formData.get("call_icon_visibility") === "DISABLE_ALL" ? "DISABLE_ALL" : "DEFAULT";
     const r = await setCallingSettings(settings, {
       status,
-      call_icon_visibility:
-        (formData.get("call_icon_visibility") as "DEFAULT" | "DISABLE_ALL") || "DEFAULT",
+      call_icon_visibility,
       callback_permission_status: formData.get("callback_permission") === "on" ? "ENABLED" : "DISABLED",
     });
     if ("error" in r) {

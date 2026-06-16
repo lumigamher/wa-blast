@@ -12,6 +12,22 @@ export type CallingSettings = {
   callback_permission_status?: "ENABLED" | "DISABLED";
 };
 
+/**
+ * Meta devuelve "NOT_SET" (y a veces otros valores) cuando un campo nunca se
+ * configuró; esos valores NO son enums válidos para reenviar en el POST.
+ * Normaliza la respuesta cruda a nuestro tipo, descartando lo no-válido.
+ */
+export function normalizeCallingSettings(raw: Record<string, unknown> | undefined | null): CallingSettings {
+  const status = raw?.status === "ENABLED" ? "ENABLED" : "DISABLED";
+  const icon = raw?.call_icon_visibility;
+  const callback = raw?.callback_permission_status;
+  return {
+    status,
+    call_icon_visibility: icon === "DEFAULT" || icon === "DISABLE_ALL" ? icon : undefined,
+    callback_permission_status: callback === "ENABLED" || callback === "DISABLED" ? callback : undefined,
+  };
+}
+
 export async function getCallingSettings(
   s: DecryptedSettings,
 ): Promise<CallingSettings | { error: string }> {
@@ -25,8 +41,8 @@ export async function getCallingSettings(
     const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
     return { error: j.error?.message ?? "No se pudo leer la configuración" };
   }
-  const j = (await res.json()) as { calling?: CallingSettings };
-  return j.calling ?? { status: "DISABLED" };
+  const j = (await res.json()) as { calling?: Record<string, unknown> };
+  return normalizeCallingSettings(j.calling);
 }
 
 export async function setCallingSettings(

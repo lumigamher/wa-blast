@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { acceptCall, placeCall, rejectCall, requestCallPermission, terminateCall } from "@/lib/meta/calling";
+import { acceptCall, normalizeCallingSettings, placeCall, rejectCall, requestCallPermission, terminateCall } from "@/lib/meta/calling";
 import type { DecryptedSettings } from "@/lib/org/settings";
 
 const s = { metaPhoneId: "PID", metaAccessToken: "TOK" } as DecryptedSettings;
@@ -49,6 +49,19 @@ describe("calling actions", () => {
     expect(body.to).toBe("+57300");
     expect(body.type).toBe("interactive");
     expect(body.interactive.type).toBe("call_permission_request");
+  });
+  it("normalizeCallingSettings descarta NOT_SET y valores inválidos", () => {
+    expect(normalizeCallingSettings({ status: "NOT_SET", call_icon_visibility: "NOT_SET", callback_permission_status: "NOT_SET" })).toEqual({
+      status: "DISABLED",
+      call_icon_visibility: undefined,
+      callback_permission_status: undefined,
+    });
+    expect(normalizeCallingSettings({ status: "ENABLED", call_icon_visibility: "DISABLE_ALL", callback_permission_status: "ENABLED" })).toEqual({
+      status: "ENABLED",
+      call_icon_visibility: "DISABLE_ALL",
+      callback_permission_status: "ENABLED",
+    });
+    expect(normalizeCallingSettings(undefined)).toEqual({ status: "DISABLED", call_icon_visibility: undefined, callback_permission_status: undefined });
   });
   it("placeCall postea action connect con offer y devuelve callId", async () => {
     const fn = vi.fn(async () => new Response(JSON.stringify({ calls: [{ id: "CID-OUT" }] }), { status: 200 }));
