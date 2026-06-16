@@ -8,12 +8,21 @@ import { upsertContacts } from "@/lib/contacts/upsert";
 import { db } from "@/lib/db/client";
 import { contacts, contactTags, tags } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
+import {
+	createContact,
+	updateContact,
+	deleteContact,
+	setContactTagsForOrg,
+	getContact,
+	type ContactPatch,
+} from "@/lib/contacts/mutations";
 
 export type ContactWithTags = {
 	id: string;
 	phone: string;
 	name: string | null;
 	email: string | null;
+	company: string | null;
 	optOutAt: Date | null;
 	tagList: { id: string; name: string; color: string }[];
 };
@@ -64,6 +73,7 @@ export async function listContactsAction(
 		phone: r.phone,
 		name: r.name,
 		email: r.email,
+		company: r.company,
 		optOutAt: r.optOutAt,
 		tagList: byContact.get(r.id) ?? [],
 	}));
@@ -119,4 +129,62 @@ export async function toggleOptOutAction(
 		.where(eq(contacts.id, contactId));
 	revalidatePath("/contactos");
 	return { ok: true, optedOut };
+}
+
+export async function createContactAction(input: {
+	phone: string;
+	name?: string;
+	email?: string;
+	company?: string;
+	tagIds?: string[];
+}): Promise<{ ok: true; id: string } | { ok: false; error: string; existingId?: string }> {
+	const { orgId } = await requireOrg();
+	const settings = await getOrgSettings(db, orgId);
+	const res = await createContact(db, orgId, settings.defaultCountry, input);
+	if (res.ok) revalidatePath("/contactos");
+	return res;
+}
+
+export async function updateContactAction(
+	id: string,
+	patch: ContactPatch,
+): Promise<{ ok: boolean; error?: string }> {
+	const { orgId } = await requireOrg();
+	const res = await updateContact(db, orgId, id, patch);
+	if (res.ok) {
+		revalidatePath("/contactos");
+		revalidatePath(`/contactos/${id}`);
+	}
+	return res;
+}
+
+export async function deleteContactAction(id: string): Promise<{ ok: boolean }> {
+	const { orgId } = await requireOrg();
+	const res = await deleteContact(db, orgId, id);
+	revalidatePath("/contactos");
+	return res;
+}
+
+export async function setContactTagsAction(
+	id: string,
+	tagIds: string[],
+): Promise<{ ok: boolean; error?: string }> {
+	const { orgId } = await requireOrg();
+	const res = await setContactTagsForOrg(db, orgId, id, tagIds);
+	if (res.ok) {
+		revalidatePath("/contactos");
+		revalidatePath(`/contactos/${id}`);
+	}
+	return res;
+}
+
+export async function getContactAction(id: string) {
+	const { orgId } = await requireOrg();
+	return getContact(db, orgId, id);
+}
+
+export async function listTagsAction() {
+	const { orgId } = await requireOrg();
+	const { listTags } = await import("@/lib/contacts/tags");
+	return listTags(db, orgId);
 }
