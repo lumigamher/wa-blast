@@ -69,7 +69,7 @@ export async function recordInboundMessage(db: DB, input: {
 
 export async function recordOutboundMessage(db: DB, input: {
   orgId: string; conversationId: string; wamid: string | null; type: string;
-  body: string | null; status?: "pending" | "sent" | "failed"; errorMessage?: string | null; mediaId?: string | null; replyToWamid?: string | null;
+  body: string | null; status?: "pending" | "sent" | "failed"; errorMessage?: string | null; mediaId?: string | null; replyToWamid?: string | null; payloadJson?: string | null;
 }): Promise<string> {
   const id = randomUUID();
   const now = new Date();
@@ -77,7 +77,7 @@ export async function recordOutboundMessage(db: DB, input: {
     id, conversationId: input.conversationId, orgId: input.orgId, direction: "out",
     wamid: input.wamid, type: input.type, body: input.body, mediaId: input.mediaId ?? null,
     status: input.status ?? (input.wamid ? "sent" : "failed"),
-    errorMessage: input.errorMessage ?? null, payloadJson: null, replyToWamid: input.replyToWamid ?? null, createdAt: now,
+    errorMessage: input.errorMessage ?? null, payloadJson: input.payloadJson ?? null, replyToWamid: input.replyToWamid ?? null, createdAt: now,
   });
   await db.update(conversations).set({ lastMessageAt: now }).where(eq(conversations.id, input.conversationId));
   return id;

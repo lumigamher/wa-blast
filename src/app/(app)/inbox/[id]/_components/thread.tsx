@@ -9,6 +9,10 @@ import {
   SmilePlusIcon,
   ReplyIcon,
   StickyNoteIcon,
+  LinkIcon,
+  PhoneIcon,
+  MessageSquareIcon,
+  Zap,
 } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import { useRouter } from "next/navigation";
@@ -107,7 +111,7 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
   const timeline: TimelineItem[] = [
     ...visible.map((msg) => ({ kind: "message" as const, at: msg.createdAt, msg })),
     ...notes.map((note) => ({ kind: "note" as const, at: note.createdAt, note })),
-  ].sort((a, b) => a.at.getTime() - b.at.getTime());
+  ].filter((item) => item.at != null).sort((a, b) => a.at!.getTime() - b.at!.getTime());
 
   if (timeline.length === 0) {
     return (
@@ -654,12 +658,102 @@ function renderMessageContent(message: Message): React.ReactNode {
         </div>
       );
 
-    case "template":
+    case "template": {
+      if (message.payloadJson) {
+        try {
+          const payload = JSON.parse(message.payloadJson) as {
+            kind: "template";
+            templateName: string;
+            language: string;
+            headerType?: string;
+            bodyText: string;
+            buttons?: Array<{
+              type: "QUICK_REPLY" | "URL" | "PHONE_NUMBER" | "FLOW";
+              text: string;
+              url?: string;
+              phone_number?: string;
+              flow_id?: string;
+            }>;
+          };
+          return (
+            <div className="flex flex-col gap-2">
+              <div className="text-sm">{payload.bodyText}</div>
+              {payload.buttons && payload.buttons.length > 0 && (
+                <div className="flex flex-col gap-1 border-t border-black/10 dark:border-white/10 pt-2">
+                  {payload.buttons.map((btn, idx) => {
+                    const icon =
+                      btn.type === "URL" ? (
+                        <LinkIcon className="size-3.5" />
+                      ) : btn.type === "PHONE_NUMBER" ? (
+                        <PhoneIcon className="size-3.5" />
+                      ) : btn.type === "FLOW" ? (
+                        <Zap className="size-3.5" />
+                      ) : (
+                        <MessageSquareIcon className="size-3.5" />
+                      );
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 rounded-full bg-green-100 dark:bg-green-900 px-3 py-1.5 text-xs font-medium text-green-900 dark:text-green-100"
+                      >
+                        {icon}
+                        <span>{btn.text}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        } catch {
+          // Fall back to body text if JSON parse fails
+          return (
+            <div className="text-sm italic">
+              {message.body || "[plantilla]"}
+            </div>
+          );
+        }
+      }
       return (
         <div className="text-sm italic">
-          {message.body}
+          {message.body || "[plantilla]"}
         </div>
       );
+    }
+
+    case "flow": {
+      if (message.payloadJson) {
+        try {
+          const payload = JSON.parse(message.payloadJson) as {
+            kind: "flow";
+            flowId: string;
+            cta: string;
+            bodyText: string;
+          };
+          return (
+            <div className="flex flex-col gap-2">
+              <div className="text-sm">{payload.bodyText}</div>
+              <div className="flex items-center gap-2 rounded-full bg-blue-100 dark:bg-blue-900 px-3 py-1.5 text-xs font-medium text-blue-900 dark:text-blue-100">
+                <Zap className="size-3.5" />
+                <span>{payload.cta}</span>
+              </div>
+            </div>
+          );
+        } catch {
+          // Fall back to body text if JSON parse fails
+          return (
+            <div className="text-sm italic">
+              {message.body || "[formulario]"}
+            </div>
+          );
+        }
+      }
+      return (
+        <div className="text-sm italic">
+          {message.body || "[formulario]"}
+        </div>
+      );
+    }
 
     case "reaction":
       return <span className="text-2xl">{message.body}</span>;

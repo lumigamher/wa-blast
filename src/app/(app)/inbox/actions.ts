@@ -14,6 +14,8 @@ import { getMediaAsset, saveMediaAsset } from "@/lib/media/store";
 import { toOggOpus, toWebpSticker } from "@/lib/media/transcode";
 import { addNote, deleteNote } from "@/lib/inbox/notes";
 import { addSticker, listStickers } from "@/lib/inbox/stickers";
+import { listTemplates, credsFromSettings } from "@/lib/meta/graph";
+import type { ButtonSpec } from "@/lib/meta/types";
 
 export type SendResult = { ok: true } | { ok: false; error: string; windowClosed?: boolean };
 
@@ -87,15 +89,65 @@ export async function sendTemplateToConversationAction(
     components,
   });
 
+  // Build payload JSON for template rendering with buttons
+  let payloadJson: string | null = null;
+  try {
+    const creds = credsFromSettings(settings);
+    if (creds) {
+      const templates = await listTemplates(creds);
+      const template = templates.find((t) => t.name === input.templateName);
+      if (template) {
+        const bodyComp = template.components.find((c) => c.type === "BODY");
+        const buttonsComp = template.components.find((c) => c.type === "BUTTONS");
+        const headerComp = template.components.find((c) => c.type === "HEADER");
+
+        const buttonSpecs: ButtonSpec[] = [];
+        if (buttonsComp?.buttons) {
+          for (const btn of buttonsComp.buttons) {
+            if (btn.type === "QUICK_REPLY") {
+              buttonSpecs.push({ type: "QUICK_REPLY", text: btn.text });
+            } else if (btn.type === "URL") {
+              buttonSpecs.push({ type: "URL", text: btn.text, url: btn.url || "" });
+            } else if (btn.type === "PHONE_NUMBER") {
+              buttonSpecs.push({ type: "PHONE_NUMBER", text: btn.text, phone_number: btn.phone_number || "" });
+            }
+          }
+        }
+
+        // Substitute params into body text
+        let renderedBody = bodyComp?.text || "";
+        for (let i = 0; i < input.params.length; i++) {
+          renderedBody = renderedBody.replace(`{{${i + 1}}}`, input.params[i]);
+        }
+
+        payloadJson = JSON.stringify({
+          kind: "template",
+          templateName: input.templateName,
+          language: input.language,
+          headerType: headerComp?.format,
+          bodyText: renderedBody,
+          buttons: buttonSpecs,
+        });
+      }
+    }
+  } catch {
+    // Silently continue; we'll use fallback body
+  }
+
+  const messageBody = payloadJson
+    ? JSON.parse(payloadJson).bodyText || `[plantilla ${input.templateName}]`
+    : `[plantilla ${input.templateName}]`;
+
   if ("error" in r) {
     await recordOutboundMessage(db, {
       orgId,
       conversationId,
       wamid: null,
       type: "template",
-      body: `[plantilla ${input.templateName}]`,
+      body: messageBody,
       status: "failed",
       errorMessage: r.error.message,
+      payloadJson,
     });
     return { ok: false, error: `No se pudo enviar: ${r.error.message}` };
   }
@@ -105,8 +157,9 @@ export async function sendTemplateToConversationAction(
     conversationId,
     wamid: r.wamid,
     type: "template",
-    body: `[plantilla ${input.templateName}]`,
+    body: messageBody,
     status: "sent",
+    payloadJson,
   });
 
   revalidatePath(`/inbox/${conversationId}`);

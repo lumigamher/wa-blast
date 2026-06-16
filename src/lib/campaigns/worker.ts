@@ -5,6 +5,9 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { sendTemplate, sendFlow } from "@/lib/meta/client";
 import { buildSendComponents, type ComponentPlan, type FlowPlan } from "./component-plan";
 import { TokenBucket } from "./rate-limit";
+import { getOrCreateConversation, recordOutboundMessage } from "@/lib/inbox/store";
+import { listTemplates, credsFromSettings } from "@/lib/meta/graph";
+import type { ButtonSpec } from "@/lib/meta/types";
 
 export interface SenderWorker {
   runCampaign(campaignId: string): Promise<void>;
@@ -26,6 +29,47 @@ export class InProcessSenderWorker implements SenderWorker {
       .select()
       .from(campaignRecipients)
       .where(and(eq(campaignRecipients.campaignId, campaignId), eq(campaignRecipients.status, "pending")));
+
+    // Fetch template metadata once for all recipients (templates are reused)
+    let templateMetadata: Record<string, { bodyText: string; buttons: ButtonSpec[]; headerType?: string }> | null = null;
+    if (!camp.componentPlanJson || JSON.parse(camp.componentPlanJson).kind !== "flow") {
+      try {
+        const creds = credsFromSettings(settings);
+        if (creds) {
+          const templates = await listTemplates(creds);
+          const template = templates.find((t) => t.name === camp.templateName);
+          if (template) {
+            // Extract body text and buttons from template components
+            const bodyComp = template.components.find((c) => c.type === "BODY");
+            const buttonsComp = template.components.find((c) => c.type === "BUTTONS");
+            const headerComp = template.components.find((c) => c.type === "HEADER");
+
+            const buttonSpecs: ButtonSpec[] = [];
+            if (buttonsComp?.buttons) {
+              for (const btn of buttonsComp.buttons) {
+                if (btn.type === "QUICK_REPLY") {
+                  buttonSpecs.push({ type: "QUICK_REPLY", text: btn.text });
+                } else if (btn.type === "URL") {
+                  buttonSpecs.push({ type: "URL", text: btn.text, url: btn.url || "" });
+                } else if (btn.type === "PHONE_NUMBER") {
+                  buttonSpecs.push({ type: "PHONE_NUMBER", text: btn.text, phone_number: btn.phone_number || "" });
+                }
+              }
+            }
+
+            templateMetadata = {
+              [camp.templateName]: {
+                bodyText: bodyComp?.text || "",
+                buttons: buttonSpecs,
+                headerType: headerComp?.format,
+              },
+            };
+          }
+        }
+      } catch {
+        // Silently continue if template fetch fails; we'll use fallback body
+      }
+    }
 
     for (const rec of pending) {
       await bucket.take();
@@ -72,6 +116,56 @@ export class InProcessSenderWorker implements SenderWorker {
           .set({ failed: sql`${campaigns.failed} + 1` })
           .where(eq(campaigns.id, campaignId));
       } else {
+        // Campaign send succeeded; record it in inbox (best-effort, don't block on failure)
+        try {
+          const conv = await getOrCreateConversation(this.db, camp.orgId, rec.phone, now);
+          const params = JSON.parse(rec.params) as Record<string, string>;
+
+          let payloadJson: string | null = null;
+          if (plan && plan.kind === "flow") {
+            const flowPlan = plan as FlowPlan;
+            payloadJson = JSON.stringify({
+              kind: "flow",
+              flowId: flowPlan.flowId,
+              cta: flowPlan.cta,
+              bodyText: flowPlan.bodyText,
+            });
+          } else if (templateMetadata && camp.templateName in templateMetadata) {
+            const tmpl = templateMetadata[camp.templateName];
+            // Substitute params into body text: {{1}}, {{2}}, etc.
+            let renderedBody = tmpl.bodyText;
+            const paramValues = Object.values(params);
+            for (let i = 0; i < paramValues.length; i++) {
+              renderedBody = renderedBody.replace(`{{${i + 1}}}`, paramValues[i]);
+            }
+
+            payloadJson = JSON.stringify({
+              kind: "template",
+              templateName: camp.templateName,
+              language: camp.templateLanguage,
+              headerType: tmpl.headerType,
+              bodyText: renderedBody,
+              buttons: tmpl.buttons,
+            });
+          }
+
+          const messageBody = payloadJson
+            ? JSON.parse(payloadJson).bodyText || `[plantilla ${camp.templateName}]`
+            : `[plantilla ${camp.templateName}]`;
+
+          await recordOutboundMessage(this.db, {
+            orgId: camp.orgId,
+            conversationId: conv.id,
+            wamid: result.wamid,
+            type: plan && plan.kind === "flow" ? "flow" : "template",
+            body: messageBody,
+            status: "sent",
+            payloadJson,
+          });
+        } catch {
+          // Silently continue if inbox recording fails; campaign send already succeeded
+        }
+
         await this.db
           .update(campaignRecipients)
           .set({ status: "sent", wamid: result.wamid, sentAt: now })
