@@ -602,7 +602,7 @@ function renderMessageContent(message: Message): React.ReactNode {
           <video
             src={`/api/inbox/media/${message.mediaId}`}
             controls
-            className="max-h-80 max-w-sm rounded-lg border border-black/5 object-cover"
+            className="h-auto max-h-80 w-auto max-w-full rounded-lg border border-black/5 object-contain"
           />
           {message.body && <div className="text-xs">{message.body}</div>}
         </div>
