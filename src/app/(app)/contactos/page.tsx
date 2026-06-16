@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { listContactsAction } from "./actions";
 import { OptOutToggle } from "./_optout-toggle";
 import { NuevoContactoDialog } from "./_nuevo-contacto-dialog";
+import { ContactoPeek } from "./_contacto-peek";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,7 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                     <th className="text-left px-3 py-2 font-medium">Tags</th>
                     <th className="text-left px-3 py-2 font-medium">Email</th>
                     <th className="text-left px-3 py-2 font-medium">Estado</th>
+                    <th className="px-3 py-2" />
                   </tr>
                 </thead>
                 <tbody>
@@ -100,6 +102,9 @@ export default async function ContactosPage({ searchParams }: { searchParams: Pr
                       <td className="px-3 py-2 text-muted-foreground">{r.email ?? "—"}</td>
                       <td className="px-3 py-2">
                         <OptOutToggle contactId={r.id} optedOut={Boolean(r.optOutAt)} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <ContactoPeek row={{ id: r.id, phone: r.phone, name: r.name, email: r.email, company: r.company }} />
                       </td>
                     </tr>
                   ))}
