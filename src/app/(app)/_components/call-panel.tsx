@@ -10,6 +10,8 @@ import {
   acceptCallAction,
   rejectCallAction,
   terminateCallAction,
+  placeCallAction,
+  getCallAnswerAction,
 } from "../llamadas/actions";
 
 type Incoming = { id: string; phone: string; contactName: string | null; conversationId: string };
@@ -44,12 +46,19 @@ export function CallPanel() {
   const [state, setState] = useState<CallState | "idle">("idle");
   const [muted, setMuted] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [isOutbound, setIsOutbound] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function reset() {
     setIncoming(null);
     setState("idle");
     setMuted(false);
     setSeconds(0);
+    setIsOutbound(false);
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
     session.current = null;
   }
 
@@ -92,6 +101,56 @@ export function CallPanel() {
     if (state === "connected" && audioEl.current && session.current?.remoteStream) {
       audioEl.current.srcObject = session.current.remoteStream;
     }
+  }, [state]);
+
+  // Inicio de llamada saliente disparado por los botones "Llamar"
+  useEffect(() => {
+    async function onPlace(ev: Event) {
+      const detail = (ev as CustomEvent<{ contactId: string; name?: string; phone?: string }>).detail;
+      if (state !== "idle") return;
+      setIsOutbound(true);
+      setIncoming({ id: "", phone: detail.phone ?? "", contactName: detail.name ?? null, conversationId: "" });
+      setState("connecting");
+      const ice = await getIceServersAction();
+      const cs = new CallSession(ice as RTCIceServer[], (s) => {
+        setState(s);
+        if (s === "ended") reset();
+      });
+      session.current = cs;
+      let offerSdp: string;
+      try {
+        offerSdp = await cs.offer();
+      } catch (err) {
+        console.error("No se pudo iniciar el audio saliente", err);
+        cs.hangup();
+        reset();
+        return;
+      }
+      const res = await placeCallAction(detail.contactId, offerSdp);
+      if ("error" in res) {
+        console.error("placeCall falló", res.error);
+        cs.hangup();
+        reset();
+        return;
+      }
+      setIncoming({ id: res.callId, phone: detail.phone ?? "", contactName: detail.name ?? null, conversationId: res.conversationId });
+      // Poll del answer hasta que el usuario conteste
+      pollRef.current = setInterval(async () => {
+        const ans = await getCallAnswerAction(res.callId);
+        if ("sdp" in ans) {
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          await session.current?.applyAnswer(ans.sdp);
+          if (audioEl.current && session.current?.remoteStream) {
+            audioEl.current.srcObject = session.current.remoteStream;
+          }
+        }
+      }, 2000);
+    }
+    window.addEventListener("lula:place-call", onPlace as EventListener);
+    return () => window.removeEventListener("lula:place-call", onPlace as EventListener);
   }, [state]);
 
   async function onAccept() {
@@ -166,11 +225,15 @@ export function CallPanel() {
       <audio ref={audioEl} autoPlay className="hidden" />
       <div className="text-sm font-semibold">{name}</div>
       <div className="text-xs text-muted-foreground">
-        {state === "idle" || state === "connecting"
-          ? "Llamada entrante…"
-          : state === "connected"
-            ? `En llamada · ${mm}:${ss}`
-            : "Finalizando…"}
+        {state === "connected"
+          ? `En llamada · ${mm}:${ss}`
+          : state === "connecting"
+            ? isOutbound
+              ? "Llamando…"
+              : "Conectando…"
+            : state === "idle"
+              ? "Llamada entrante…"
+              : "Finalizando…"}
       </div>
       <div className="mt-3 flex items-center gap-2">
         {state === "idle" ? (
