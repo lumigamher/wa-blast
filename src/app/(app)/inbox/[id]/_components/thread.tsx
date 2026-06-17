@@ -6,6 +6,8 @@ import {
   CheckIcon,
   CheckCheckIcon,
   FileIcon,
+  DownloadIcon,
+  SearchIcon,
   SmilePlusIcon,
   ReplyIcon,
   StickyNoteIcon,
@@ -25,6 +27,7 @@ import { AudioPlayer } from "./audio-player";
 import { EmojiPicker } from "./emoji-picker";
 import { ReactionChips } from "./reaction-chip";
 import { MediaImage } from "./media-image";
+import { MediaVideo } from "./media-video";
 import { CallEntry } from "./call-entry";
 
 type Message = InferSelectModel<typeof messagesSchema>;
@@ -117,6 +120,7 @@ function dayLabel(d: Date): string {
 }
 
 export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}, calls = [] }: ThreadProps) {
+  const [query, setQuery] = useState("");
   // Filter out legacy standalone reaction messages
   const visible = messages.filter((m) => m.type !== "reaction");
 
@@ -135,10 +139,36 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
     );
   }
 
+  // Búsqueda dentro de la conversación: filtra a los mensajes cuyo texto coincide
+  const q = query.trim().toLowerCase();
+  const items = q
+    ? timeline.filter((it) => it.kind === "message" && (it.msg.body ?? "").toLowerCase().includes(q))
+    : timeline;
+
   return (
     <div className="flex flex-col gap-3">
-      {timeline.map((item, idx) => {
-        const prevItem = idx > 0 ? timeline[idx - 1] : null;
+      <div className="sticky top-0 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur">
+        <div className="relative">
+          <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar en la conversación…"
+            aria-label="Buscar en la conversación"
+            className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          {q && (
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
+              {items.length} result.
+            </span>
+          )}
+        </div>
+      </div>
+      {q && items.length === 0 && (
+        <p className="py-6 text-center text-sm text-muted-foreground">Sin resultados</p>
+      )}
+      {items.map((item, idx) => {
+        const prevItem = idx > 0 ? items[idx - 1] : null;
         const currentDay = new Date(item.at);
         const prevDay = prevItem ? new Date(prevItem.at) : null;
 
@@ -597,11 +627,7 @@ function renderMessageContent(message: Message): React.ReactNode {
     case "video":
       return message.mediaId ? (
         <div className="space-y-2">
-          <video
-            src={`/api/inbox/media/${message.mediaId}`}
-            controls
-            className="h-auto max-h-80 w-auto max-w-full rounded-lg border border-black/5 object-contain"
-          />
+          <MediaVideo src={`/api/inbox/media/${message.mediaId}`} />
           {message.body && <div className="text-xs">{message.body}</div>}
         </div>
       ) : (
@@ -619,10 +645,18 @@ function renderMessageContent(message: Message): React.ReactNode {
       return (
         <a
           href={message.mediaId ? `/api/inbox/media/${message.mediaId}` : "#"}
-          className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
+          download={message.body || "documento"}
+          className="flex items-center gap-3 rounded-lg border border-black/10 dark:border-white/10 bg-background/60 px-3 py-2 transition-colors hover:bg-background"
         >
-          <FileIcon className="size-4" />
-          {message.body || "Documento"}
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            <FileIcon className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium">{message.body || "Documento"}</div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <DownloadIcon className="size-3" /> Descargar
+            </div>
+          </div>
         </a>
       );
 

@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ImageOffIcon, XIcon, DownloadIcon } from "lucide-react";
+import { XIcon, DownloadIcon, Maximize2Icon } from "lucide-react";
 
-export function MediaImage({ src, alt }: { src: string; alt: string }) {
-  const [errored, setErrored] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+export function MediaVideo({ src }: { src: string }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -17,47 +15,36 @@ export function MediaImage({ src, alt }: { src: string; alt: string }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (errored) {
-    return (
-      <div className="flex items-center justify-center max-h-80 w-full max-w-full rounded-lg border border-black/5 bg-muted/50 aspect-square">
-        <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-          <ImageOffIcon className="size-6" />
-          <span className="text-xs">Imagen no disponible</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="relative">
-        {!loaded && (
-          <div className="absolute inset-0 animate-pulse rounded-lg bg-muted" aria-hidden />
-        )}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <video
           src={src}
-          alt={alt}
-          className={`h-auto max-h-80 w-auto max-w-full cursor-zoom-in rounded-lg border border-black/5 object-contain transition-opacity ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
-          onClick={() => setOpen(true)}
-          onLoad={() => setLoaded(true)}
-          onError={() => setErrored(true)}
+          controls
+          preload="metadata"
+          className="h-auto max-h-80 w-auto max-w-full rounded-lg border border-black/5 object-contain"
         />
+        <button
+          type="button"
+          aria-label="Ampliar"
+          className="absolute right-2 top-2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
+          onClick={() => setOpen(true)}
+        >
+          <Maximize2Icon className="size-4" />
+        </button>
       </div>
       {open && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={alt}
+          aria-label="Video"
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
           <div className="absolute right-4 top-4 flex gap-2">
             <a
               href={src}
-              download={alt || "imagen"}
+              download="video"
               aria-label="Descargar"
               className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
               onClick={(e) => e.stopPropagation()}
@@ -73,11 +60,11 @@ export function MediaImage({ src, alt }: { src: string; alt: string }) {
               <XIcon className="size-5" />
             </button>
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <video
             src={src}
-            alt={alt}
-            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            controls
+            autoPlay
+            className="max-h-[90vh] max-w-[90vw] rounded-lg"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
