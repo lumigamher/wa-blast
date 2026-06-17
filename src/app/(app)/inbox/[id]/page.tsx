@@ -18,6 +18,7 @@ import { ThreadAndComposer } from "./_components/thread-and-composer";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { Poller } from "../_components/poller";
 import { ContactInfoToggle } from "./_components/contact-panel";
+import { ConversationSearch } from "./_components/conversation-search";
 import { ResolveButton } from "./_components/resolve-button";
 import { ContactAvatar } from "./_components/contact-avatar";
 
@@ -236,6 +237,7 @@ export default async function InboxThreadPage({
                 </div>
               </div>
               <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                <ConversationSearch />
                 <div className="text-xs px-2.5 py-1 rounded-full bg-muted border whitespace-nowrap">
                   {windowOpen ? (
                     <span className="text-emerald-700 dark:text-emerald-400">

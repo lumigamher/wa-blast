@@ -7,7 +7,6 @@ import {
   CheckCheckIcon,
   FileIcon,
   DownloadIcon,
-  SearchIcon,
   SmilePlusIcon,
   ReplyIcon,
   StickyNoteIcon,
@@ -121,6 +120,14 @@ function dayLabel(d: Date): string {
 
 export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}, calls = [] }: ThreadProps) {
   const [query, setQuery] = useState("");
+
+  // La búsqueda vive en el header (ConversationSearch) y llega por evento.
+  useEffect(() => {
+    const onSearch = (e: Event) => setQuery((e as CustomEvent<{ query: string }>).detail?.query ?? "");
+    window.addEventListener("lula:thread-search", onSearch as EventListener);
+    return () => window.removeEventListener("lula:thread-search", onSearch as EventListener);
+  }, []);
+
   // Filter out legacy standalone reaction messages
   const visible = messages.filter((m) => m.type !== "reaction");
 
@@ -147,23 +154,11 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="sticky top-0 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur">
-        <div className="relative">
-          <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar en la conversación…"
-            aria-label="Buscar en la conversación"
-            className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          {q && (
-            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
-              {items.length} result.
-            </span>
-          )}
+      {q && (
+        <div className="py-1 text-center text-[11px] text-muted-foreground">
+          {items.length} resultado{items.length === 1 ? "" : "s"} para “{query.trim()}”
         </div>
-      </div>
+      )}
       {q && items.length === 0 && (
         <p className="py-6 text-center text-sm text-muted-foreground">Sin resultados</p>
       )}
