@@ -111,7 +111,7 @@ export function ContactInfoToggle({
         type="button"
         onClick={() => setOpen(!open)}
         aria-label="Información del contacto"
-        className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        className="inline-flex size-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
       >
         <UserIcon className="size-4" />
       </button>

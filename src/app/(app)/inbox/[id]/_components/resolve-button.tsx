@@ -26,17 +26,18 @@ export function ResolveButton({
   if (resolved) {
     return (
       <div className="flex items-center gap-2">
-        <div className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
-          Resuelta
+        <div className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs whitespace-nowrap">
+          <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+          <span className="text-emerald-700 dark:text-emerald-400">Resuelta</span>
         </div>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={handleResolve}
           disabled={isPending}
           aria-label="Reabrir conversación"
           title="Reabrir conversación"
-          className="h-9 px-2.5 text-xs"
+          className="h-9 w-9 rounded-full p-0 text-muted-foreground"
         >
           <RotateCcwIcon className="size-4" />
         </Button>
@@ -52,7 +53,7 @@ export function ResolveButton({
       disabled={isPending}
       aria-label="Resolver conversación"
       title="Resolver conversación"
-      className="h-9 px-2.5 text-xs"
+      className="h-9 rounded-full px-3.5 text-xs"
     >
       <CheckIcon className="size-4" />
       Resolver

@@ -238,16 +238,16 @@ export default async function InboxThreadPage({
               </div>
               <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                 <ConversationSearch />
-                <div className="text-xs px-2.5 py-1 rounded-full bg-muted border whitespace-nowrap">
-                  {windowOpen ? (
-                    <span className="text-emerald-700 dark:text-emerald-400">
-                      Ventana abierta
-                    </span>
-                  ) : (
-                    <span className="text-amber-700 dark:text-amber-400">
-                      Ventana cerrada
-                    </span>
-                  )}
+                <div className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs whitespace-nowrap">
+                  <span
+                    className={`size-1.5 rounded-full ${
+                      windowOpen ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
+                    aria-hidden
+                  />
+                  <span className={windowOpen ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}>
+                    {windowOpen ? "Ventana abierta" : "Ventana cerrada"}
+                  </span>
                 </div>
                 <ResolveButton
                   conversationId={conversationId}

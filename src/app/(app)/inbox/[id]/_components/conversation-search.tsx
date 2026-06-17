@@ -27,7 +27,7 @@ export function ConversationSearch() {
 
   return (
     <div
-      className={`flex items-center overflow-hidden rounded-full border bg-muted transition-[width] duration-200 ease-out ${
+      className={`flex h-9 items-center overflow-hidden rounded-full border border-border bg-background transition-[width] duration-200 ease-out ${
         open ? "w-48" : "w-9"
       }`}
     >
