@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { campaigns } from "@/lib/db/schema";
+import { CampaignActions } from "./campaign-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -114,6 +115,7 @@ function CampaignRow({ c, accent }: { c: Campaign; accent?: boolean }) {
           {c.templateName}
         </Badge>
         <StatusBadge status={c.status} />
+        <CampaignActions id={c.id} status={c.status} scheduledAt={c.scheduledAt ? c.scheduledAt.getTime() : null} />
       </div>
       <div className="mt-2 flex items-center gap-3">
         <Progress value={pct} className="flex-1" />
@@ -150,6 +152,7 @@ function ScheduledRow({ c }: { c: Campaign }) {
       <Badge variant="outline" className="font-mono text-xs">
         {c.templateName}
       </Badge>
+      <CampaignActions id={c.id} status={c.status} scheduledAt={c.scheduledAt ? c.scheduledAt.getTime() : null} />
     </li>
   );
 }
