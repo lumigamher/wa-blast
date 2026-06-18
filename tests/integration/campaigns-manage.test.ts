@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import { campaigns, campaignRecipients, organization, user } from "@/lib/db/schema";
-import { cancelCampaign } from "@/lib/campaigns/manage";
+import { cancelCampaign, deleteCampaign } from "@/lib/campaigns/manage";
 
 async function seedCampaign(status: string, scheduledAt: Date | null = null) {
   const { db } = makeTestDb();
@@ -38,5 +38,37 @@ describe("cancelCampaign", () => {
     expect(r.ok).toBe(false);
     const [c] = await db.select().from(campaigns).where(eq(campaigns.id, "camp1"));
     expect(c.status).toBe("draft");
+  });
+});
+
+describe("deleteCampaign", () => {
+  test("borra draft y sus destinatarios (cascade)", async () => {
+    const { db } = await seedCampaign("draft");
+    const r = await deleteCampaign(db, "o", "camp1");
+    expect(r.ok).toBe(true);
+    expect(await db.select().from(campaigns).where(eq(campaigns.id, "camp1"))).toHaveLength(0);
+    expect(await db.select().from(campaignRecipients).where(eq(campaignRecipients.campaignId, "camp1"))).toHaveLength(0);
+  });
+
+  test("borra cancelled/done/failed", async () => {
+    for (const s of ["cancelled", "done", "failed"]) {
+      const { db } = await seedCampaign(s);
+      expect((await deleteCampaign(db, "o", "camp1")).ok).toBe(true);
+    }
+  });
+
+  test("rechaza queued/sending", async () => {
+    for (const s of ["queued", "sending"]) {
+      const { db } = await seedCampaign(s);
+      const r = await deleteCampaign(db, "o", "camp1");
+      expect(r.ok).toBe(false);
+      expect(await db.select().from(campaigns).where(eq(campaigns.id, "camp1"))).toHaveLength(1);
+    }
+  });
+
+  test("rechaza cross-org", async () => {
+    const { db } = await seedCampaign("draft");
+    expect((await deleteCampaign(db, "o2", "camp1")).ok).toBe(false);
+    expect(await db.select().from(campaigns).where(eq(campaigns.id, "camp1"))).toHaveLength(1);
   });
 });
