@@ -8,6 +8,7 @@ import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { createCampaign } from "@/lib/campaigns/create";
 import { getWorker } from "@/lib/campaigns/worker";
 import { resolveVarMapping } from "@/lib/campaigns/build-carousel-plan";
+import { deleteCampaign } from "@/lib/campaigns/manage";
 import { campaignRecipients, campaigns, contactTags, contacts } from "@/lib/db/schema";
 
 const inputSchema = z.object({
@@ -37,6 +38,7 @@ const inputSchema = z.object({
     .optional(),
   scheduledAt: z.string().optional().nullable(),
   force: z.boolean().optional(),
+  replacesDraftId: z.string().optional(),
 });
 
 export type CreateCampaignResult =
@@ -221,6 +223,10 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
     void getWorker(db)
       .runCampaign(campaignId)
       .catch((e) => console.error("sender error", e));
+  }
+
+  if (data.replacesDraftId) {
+    await deleteCampaign(db, orgId, data.replacesDraftId); // guard de org dentro
   }
 
   return { ok: true, campaignId, scheduled: Boolean(scheduledAt) };

@@ -2,22 +2,41 @@ import Link from "next/link";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
-import { tags, contactTags, contacts, templateCardMedia, templateFavorites } from "@/lib/db/schema";
+import { tags, contactTags, contacts, templateCardMedia, templateFavorites, campaigns } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { listFlows } from "@/lib/meta/flows";
 import { publicMediaUrl } from "@/lib/media/store";
-import { Wizard } from "./wizard";
+import { Wizard, type WizardInitial } from "./wizard";
 
 export const dynamic = "force-dynamic";
 
 export default async function NuevaCampanaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ template?: string }>;
+  searchParams: Promise<{ template?: string; from?: string }>;
 }) {
-  const { template: initialTemplateKey } = await searchParams;
+  const { template: initialTemplateKey, from } = await searchParams;
   const { orgId, session } = await requireOrg();
+  let initial: WizardInitial | undefined;
+  let replacesDraftId: string | undefined;
+  if (from) {
+    const [draft] = await db
+      .select()
+      .from(campaigns)
+      .where(and(eq(campaigns.id, from), eq(campaigns.orgId, orgId)));
+    if (draft && draft.status === "draft") {
+      initial = {
+        name: draft.name,
+        templateName: draft.templateName,
+        templateLanguage: draft.templateLanguage,
+        templateType: (draft.templateType as "standard" | "carousel" | "flow") ?? "standard",
+        componentPlanJson: draft.componentPlanJson,
+        scheduledAt: draft.scheduledAt?.toISOString() ?? null,
+      };
+      replacesDraftId = from;
+    }
+  }
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
 
@@ -104,6 +123,8 @@ export default async function NuevaCampanaPage({
         prefillMedia={prefillMedia}
         initialTemplateKey={initialTemplateKey}
         initialFavorites={initialFavorites}
+        initial={initial}
+        replacesDraftId={replacesDraftId}
       />
     </div>
   );

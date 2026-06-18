@@ -35,6 +35,15 @@ type FlowRow = { id: string; name: string };
 
 type SendMode = "template" | "flow";
 
+export type WizardInitial = {
+  name: string;
+  templateName: string;
+  templateLanguage: string;
+  templateType: "standard" | "carousel" | "flow";
+  componentPlanJson: string | null;
+  scheduledAt: string | null;
+};
+
 export function Wizard({
   templates,
   flows = [],
@@ -43,6 +52,8 @@ export function Wizard({
   prefillMedia = {},
   initialTemplateKey,
   initialFavorites = [],
+  initial,
+  replacesDraftId,
 }: {
   templates: WhatsAppTemplate[];
   flows?: FlowRow[];
@@ -51,6 +62,8 @@ export function Wizard({
   prefillMedia?: Record<string, Record<number, string>>;
   initialTemplateKey?: string;
   initialFavorites?: string[];
+  initial?: WizardInitial;
+  replacesDraftId?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
@@ -59,6 +72,13 @@ export function Wizard({
   const favorites = useMemo(() => new Set(initialFavorites), [initialFavorites]);
   const approved = useMemo(() => templates.filter((t) => t.status === "APPROVED"), [templates]);
   const [selectedKey, setSelectedKey] = useState<string>(() => {
+    // Prefer initial draft prefill (from ?from param)
+    if (initial && initial.templateName && initial.templateLanguage) {
+      const key = `${initial.templateName}|${initial.templateLanguage}`;
+      if (templates.some((t) => `${t.name}|${t.language}` === key)) {
+        return key;
+      }
+    }
     // Prefer initialTemplateKey if provided and exists
     if (initialTemplateKey && approved.some((t) => `${t.name}|${t.language}` === initialTemplateKey)) {
       return initialTemplateKey;
@@ -82,7 +102,12 @@ export function Wizard({
   );
 
   // Send mode toggle: template or flow
-  const [sendMode, setSendMode] = useState<SendMode>("template");
+  const [sendMode, setSendMode] = useState<SendMode>(() => {
+    if (initial && initial.templateType === "flow") {
+      return "flow";
+    }
+    return "template";
+  });
 
   // Flow mode state
   const [selectedFlowId, setSelectedFlowId] = useState<string>("");
@@ -102,14 +127,26 @@ export function Wizard({
   // Contacts UI state
   const [contactSearchQuery, setContactSearchQuery] = useState("");
 
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initial?.name ?? "");
   const [bulkParams, setBulkParams] = useState<Record<string, string>>({});
   const [carouselMapping, setCarouselMapping] = useState<CarouselMappingValue>({
     vars: {},
     cardMedia: {},
   });
-  const [scheduleMode, setScheduleMode] = useState<"now" | "later">("now");
-  const [scheduledAt, setScheduledAt] = useState<string>("");
+  const [scheduleMode, setScheduleMode] = useState<"now" | "later">(() => {
+    if (initial?.scheduledAt) {
+      return "later";
+    }
+    return "now";
+  });
+  const [scheduledAt, setScheduledAt] = useState<string>(() => {
+    if (initial?.scheduledAt) {
+      const d = new Date(initial.scheduledAt);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    return "";
+  });
 
   const tagsCount = useMemo(() => {
     return tags.filter((t) => selectedTagIds.has(t.id)).reduce((s, t) => s + t.count, 0);
@@ -243,6 +280,7 @@ export function Wizard({
               }))
             : undefined,
         scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        replacesDraftId,
       };
 
       launch(payload);
@@ -291,6 +329,7 @@ export function Wizard({
         componentPlanJson: JSON.stringify(plan),
         varMapping: carouselMapping.vars,
         scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        replacesDraftId,
       };
 
       launch(payload);
@@ -318,6 +357,7 @@ export function Wizard({
           : undefined,
       paramsByContact,
       scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      replacesDraftId,
     };
 
     launch(payload);
