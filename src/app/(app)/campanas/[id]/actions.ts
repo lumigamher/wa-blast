@@ -1,11 +1,13 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { createCampaign } from "@/lib/campaigns/create";
 import { getWorker } from "@/lib/campaigns/worker";
 import { campaignRecipients, campaigns } from "@/lib/db/schema";
+import { cancelCampaign, deleteCampaign, rescheduleCampaign, type ManageResult } from "@/lib/campaigns/manage";
 
 export type RetryFailedResult =
   | { ok: true; campaignId: string; total: number }
@@ -50,4 +52,25 @@ export async function retryFailedAction(campaignId: string): Promise<RetryFailed
     .catch((e) => console.error("retry sender error", e));
 
   return { ok: true, campaignId: newId, total };
+}
+
+export async function cancelCampaignAction(id: string): Promise<ManageResult> {
+  const { orgId } = await requireOrg();
+  const r = await cancelCampaign(db, orgId, id);
+  if (r.ok) revalidatePath("/campanas");
+  return r;
+}
+
+export async function deleteCampaignAction(id: string): Promise<ManageResult> {
+  const { orgId } = await requireOrg();
+  const r = await deleteCampaign(db, orgId, id);
+  if (r.ok) revalidatePath("/campanas");
+  return r;
+}
+
+export async function rescheduleCampaignAction(id: string, scheduledAtIso: string): Promise<ManageResult> {
+  const { orgId } = await requireOrg();
+  const r = await rescheduleCampaign(db, orgId, id, scheduledAtIso);
+  if (r.ok) revalidatePath("/campanas");
+  return r;
 }
