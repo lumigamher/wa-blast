@@ -31,3 +31,22 @@ export async function deleteCampaign(db: DB, orgId: string, id: string): Promise
   await db.delete(campaigns).where(eq(campaigns.id, id));
   return { ok: true };
 }
+
+export async function rescheduleCampaign(
+  db: DB,
+  orgId: string,
+  id: string,
+  scheduledAtIso: string,
+): Promise<ManageResult> {
+  const camp = await loadOwned(db, orgId, id);
+  if (!camp) return { ok: false, error: "Campaña no encontrada" };
+  if (camp.status !== "draft") {
+    return { ok: false, error: "Solo se pueden reprogramar campañas que aún no han salido" };
+  }
+  const when = new Date(scheduledAtIso);
+  if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000) {
+    return { ok: false, error: "La fecha programada debe ser a futuro" };
+  }
+  await db.update(campaigns).set({ scheduledAt: when }).where(eq(campaigns.id, id));
+  return { ok: true };
+}

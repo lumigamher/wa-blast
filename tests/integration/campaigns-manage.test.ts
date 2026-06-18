@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import { campaigns, campaignRecipients, organization, user } from "@/lib/db/schema";
-import { cancelCampaign, deleteCampaign } from "@/lib/campaigns/manage";
+import { cancelCampaign, deleteCampaign, rescheduleCampaign } from "@/lib/campaigns/manage";
 
 async function seedCampaign(status: string, scheduledAt: Date | null = null) {
   const { db } = makeTestDb();
@@ -70,5 +70,35 @@ describe("deleteCampaign", () => {
     const { db } = await seedCampaign("draft");
     expect((await deleteCampaign(db, "o2", "camp1")).ok).toBe(false);
     expect(await db.select().from(campaigns).where(eq(campaigns.id, "camp1"))).toHaveLength(1);
+  });
+});
+
+describe("rescheduleCampaign", () => {
+  test("draft + fecha futura → actualiza scheduledAt", async () => {
+    const { db } = await seedCampaign("draft", new Date(Date.now() + 3_600_000));
+    const futureTime = Date.now() + 7_200_000;
+    const future = new Date(futureTime).toISOString();
+    const r = await rescheduleCampaign(db, "o", "camp1", future);
+    expect(r.ok).toBe(true);
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.id, "camp1"));
+    expect(c.scheduledAt?.getTime()).toBe(Math.floor(futureTime / 1000) * 1000);
+  });
+
+  test("rechaza fecha pasada", async () => {
+    const { db } = await seedCampaign("draft");
+    const r = await rescheduleCampaign(db, "o", "camp1", new Date(Date.now() - 3_600_000).toISOString());
+    expect(r.ok).toBe(false);
+  });
+
+  test("rechaza si no es draft", async () => {
+    const { db } = await seedCampaign("sending");
+    const r = await rescheduleCampaign(db, "o", "camp1", new Date(Date.now() + 3_600_000).toISOString());
+    expect(r.ok).toBe(false);
+  });
+
+  test("rechaza cross-org", async () => {
+    const { db } = await seedCampaign("draft");
+    const r = await rescheduleCampaign(db, "o2", "camp1", new Date(Date.now() + 3_600_000).toISOString());
+    expect(r.ok).toBe(false);
   });
 });
