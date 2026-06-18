@@ -23,9 +23,9 @@ export default async function CampanasPage() {
     .orderBy(desc(campaigns.createdAt))
     .limit(200);
 
-  const scheduled = all.filter((c) => c.status === "draft" && c.scheduledAt);
+  const scheduled = all.filter((c) => c.status === "draft");
   const running = all.filter((c) => c.status === "queued" || c.status === "sending");
-  const done = all.filter((c) => c.status === "done" || c.status === "failed");
+  const done = all.filter((c) => c.status === "done" || c.status === "failed" || c.status === "cancelled");
 
   return (
     <div className="space-y-8">
@@ -143,7 +143,7 @@ function ScheduledRow({ c }: { c: Campaign }) {
         </Link>
         <div className="text-xs text-muted-foreground">
           Se enviará{" "}
-          <LocalDateTime iso={when ? when.toISOString() : null} fallback="pronto" /> · {c.total}{" "}
+          <LocalDateTime iso={when ? when.toISOString() : null} fallback="sin programar" /> · {c.total}{" "}
           destinatarios
         </div>
       </div>
@@ -163,5 +163,6 @@ function StatusBadge({ status }: { status: string }) {
         : status === "sending"
           ? "secondary"
           : "outline";
-  return <Badge variant={variant}>{status}</Badge>;
+  const label = status === "cancelled" ? "cancelada" : status;
+  return <Badge variant={variant}>{label}</Badge>;
 }
