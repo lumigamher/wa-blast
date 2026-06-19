@@ -1,21 +1,47 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { PauseIcon, PlayIcon, PlusIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { adminExtendAction, adminSetSuspendedAction } from "../actions";
+import {
+  adminExtendAction,
+  adminSetPlanAction,
+  adminSetSuspendedAction,
+} from "../actions";
+
+const PLAN_OPTIONS: { value: "esencial" | "pro" | "premium"; label: string }[] =
+  [
+    { value: "esencial", label: "Esencial" },
+    { value: "pro", label: "Pro" },
+    { value: "premium", label: "Premium" },
+  ];
 
 export function OrgActions({
   orgId,
   subStatus,
+  planId,
 }: {
   orgId: string;
   subStatus: "none" | "active" | "expired" | "suspended";
+  planId: "esencial" | "pro" | "premium";
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  function changePlan(next: string) {
+    if (next === planId) return;
+    startTransition(async () => {
+      const result = await adminSetPlanAction(orgId, next);
+      if ("error" in result && result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Plan actualizado");
+      router.refresh();
+    });
+  }
 
   function extend() {
     startTransition(async () => {
@@ -43,7 +69,20 @@ export function OrgActions({
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center gap-2">
+      <select
+        value={planId}
+        onChange={(e) => changePlan(e.target.value)}
+        disabled={pending}
+        aria-label="Plan de la organización"
+        className="h-8 rounded-md border bg-background px-2 text-sm"
+      >
+        {PLAN_OPTIONS.map((p) => (
+          <option key={p.value} value={p.value}>
+            {p.label}
+          </option>
+        ))}
+      </select>
       <Button variant="outline" size="sm" onClick={extend} disabled={pending}>
         <PlusIcon className="size-3.5" />
         +30 días

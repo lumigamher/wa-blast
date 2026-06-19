@@ -42,6 +42,7 @@ export default async function AdminPage() {
         ...org,
         subStatus: sub.status,
         paidUntil: sub.paidUntil,
+        planId: sub.planId,
       };
     }),
   );
@@ -150,6 +151,7 @@ export default async function AdminPage() {
                           <OrgActions
                             orgId={org.id}
                             subStatus={org.subStatus}
+                            planId={org.planId}
                           />
                         </td>
                       </tr>

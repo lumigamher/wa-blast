@@ -272,6 +272,32 @@ export const billingCheckouts = sqliteTable("billing_checkouts", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
+export const flowResponses = sqliteTable(
+  "flow_responses",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    contactId: text("contact_id").references(() => contacts.id, {
+      onDelete: "set null",
+    }),
+    phone: text("phone").notNull(),
+    contactName: text("contact_name"),
+    flowName: text("flow_name"),
+    wamid: text("wamid"),
+    // JSON con los campos del formulario (sin flow_token)
+    fieldsJson: text("fields_json").notNull().default("{}"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({
+    orgIdx: index("flow_responses_org_idx").on(t.orgId, t.createdAt),
+  }),
+);
+
 export const appConfig = sqliteTable("app_config", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),

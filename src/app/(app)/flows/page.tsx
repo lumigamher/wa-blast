@@ -30,11 +30,18 @@ export default async function FlowsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Flows</h1>
-        {configured && (
-          <Link href="/flows/nueva">
-            <Button size="sm">Nueva</Button>
+        <div className="flex items-center gap-2">
+          <Link href="/flows/respuestas">
+            <Button size="sm" variant="outline">
+              Respuestas
+            </Button>
           </Link>
-        )}
+          {configured && (
+            <Link href="/flows/nueva">
+              <Button size="sm">Nueva</Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       {!configured ? (

@@ -3,6 +3,7 @@ import { and, desc, eq, gt, like, or, type SQL, sql } from "drizzle-orm";
 import { getCallsForConversation } from "@/lib/calls/store";
 import type { DB } from "@/lib/db/client";
 import { contacts, conversations, messages } from "@/lib/db/schema";
+import { recordFlowResponse } from "@/lib/flows/responses";
 import { listNotes } from "@/lib/inbox/notes";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
 import { getReactionsForMessages } from "@/lib/inbox/reactions";
@@ -144,6 +145,21 @@ export async function recordInboundMessage(
       unreadCount: sql`${conversations.unreadCount} + 1`,
     })
     .where(eq(conversations.id, conv.id));
+
+  // Respuesta de formulario (WhatsApp Flow): además del mensaje, persiste una
+  // fila estructurada para gestión/exportación.
+  if (input.parsed.type === "flow") {
+    await recordFlowResponse(db, {
+      orgId: input.orgId,
+      conversationId: conv.id,
+      contactId: conv.contactId ?? null,
+      phone: input.phone,
+      contactName: input.profileName ?? null,
+      wamid: input.wamid ?? null,
+      payloadJson: input.parsed.payloadJson,
+      ts: input.ts,
+    });
+  }
 }
 
 export async function recordOutboundMessage(
