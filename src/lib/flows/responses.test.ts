@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { flowResponsesToCsv, parseFlowPayload } from "./responses";
+import {
+  flowResponsesToCsv,
+  mapFlowFieldsToContact,
+  parseFlowPayload,
+} from "./responses";
 
 const makePayload = (responseJson: string, name = "flow") =>
   JSON.stringify({
@@ -34,6 +38,30 @@ describe("parseFlowPayload", () => {
       interactive: { nfm_reply: { name: "flow", response_json: "{oops" } },
     });
     expect(parseFlowPayload(p)?.fields).toEqual({});
+  });
+});
+
+describe("mapFlowFieldsToContact", () => {
+  it("mapea sinónimos ES/EN a campos del contacto", () => {
+    expect(
+      mapFlowFieldsToContact({
+        Nombre: "Ana",
+        Empresa: "Acme",
+        ciudad: "Cali",
+      }),
+    ).toEqual({ name: "Ana", company: "Acme", city: "Cali" });
+  });
+
+  it("ignora acentos y mayúsculas en la clave", () => {
+    expect(mapFlowFieldsToContact({ "Correo electrónico": "a@x.com" })).toEqual({
+      email: "a@x.com",
+    });
+  });
+
+  it("ignora campos desconocidos y valores vacíos", () => {
+    expect(
+      mapFlowFieldsToContact({ comentario: "hola", ciudad: "  " }),
+    ).toEqual({});
   });
 });
 

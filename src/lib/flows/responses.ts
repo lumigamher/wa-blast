@@ -1,9 +1,91 @@
 import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { flowResponses } from "@/lib/db/schema";
+import { contacts, flowResponses } from "@/lib/db/schema";
 
 export type FlowResponseRow = typeof flowResponses.$inferSelect;
+
+type ContactField = "name" | "email" | "city" | "company" | "birthday";
+
+// Sinónimos comunes (ES/EN) → campo del contacto. Se normalizan igual que las
+// claves entrantes (minúsculas, sin acentos, no-alfanumérico → "_").
+const FIELD_SYNONYMS: Record<ContactField, string[]> = {
+  name: ["nombre", "nombres", "name", "nombre_completo", "full_name", "fullname"],
+  email: ["email", "correo", "correo_electronico", "e_mail", "mail"],
+  city: ["ciudad", "city", "municipio"],
+  company: [
+    "empresa",
+    "company",
+    "negocio",
+    "compania",
+    "organizacion",
+    "organization",
+  ],
+  birthday: ["cumpleanos", "fecha_nacimiento", "fecha_de_nacimiento", "birthday"],
+};
+
+function normalizeKey(k: string): string {
+  return k
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+const FIELD_BY_SYNONYM = new Map<string, ContactField>();
+for (const [field, syns] of Object.entries(FIELD_SYNONYMS) as [
+  ContactField,
+  string[],
+][]) {
+  for (const s of syns) FIELD_BY_SYNONYM.set(normalizeKey(s), field);
+}
+
+/** Mapea los campos de un formulario a campos del contacto por nombres comunes. */
+export function mapFlowFieldsToContact(
+  fields: Record<string, unknown>,
+): Partial<Record<ContactField, string>> {
+  const out: Partial<Record<ContactField, string>> = {};
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === null || v === undefined) continue;
+    const value = String(v).trim();
+    if (!value) continue;
+    const target = FIELD_BY_SYNONYM.get(normalizeKey(k));
+    if (target && out[target] === undefined) out[target] = value;
+  }
+  return out;
+}
+
+const isEmpty = (v: string | null | undefined) => v == null || v.trim() === "";
+
+/**
+ * Enriquece la ficha del contacto con los campos del formulario, SOLO en los
+ * campos que estén vacíos (no pisa datos existentes).
+ */
+export async function enrichContactFromFlow(
+  db: DB,
+  contactId: string,
+  fields: Record<string, unknown>,
+  ts: Date,
+): Promise<void> {
+  const mapped = mapFlowFieldsToContact(fields);
+  if (Object.keys(mapped).length === 0) return;
+  const c = (
+    await db.select().from(contacts).where(eq(contacts.id, contactId))
+  )[0];
+  if (!c) return;
+
+  const set: Partial<typeof contacts.$inferInsert> = {};
+  if (mapped.name && isEmpty(c.name)) set.name = mapped.name;
+  if (mapped.email && isEmpty(c.email)) set.email = mapped.email;
+  if (mapped.city && isEmpty(c.city)) set.city = mapped.city;
+  if (mapped.company && isEmpty(c.company)) set.company = mapped.company;
+  if (mapped.birthday && isEmpty(c.birthday)) set.birthday = mapped.birthday;
+
+  if (Object.keys(set).length === 0) return;
+  set.updatedAt = ts;
+  await db.update(contacts).set(set).where(eq(contacts.id, contactId));
+}
 
 /**
  * Extrae los campos del formulario desde el payload crudo de un mensaje
@@ -80,6 +162,11 @@ export async function recordFlowResponse(
     fieldsJson: JSON.stringify(parsed.fields),
     createdAt: input.ts,
   });
+
+  // Enriquece la ficha del contacto con los campos del formulario (campos vacíos).
+  if (input.contactId) {
+    await enrichContactFromFlow(db, input.contactId, parsed.fields, input.ts);
+  }
 }
 
 export async function listFlowResponses(
