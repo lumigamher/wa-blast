@@ -7,11 +7,14 @@ import { AlertCircleIcon } from "lucide-react";
 export function CheckoutForm({
   buttonLabel,
   action,
+  planId,
 }: {
   buttonLabel: string;
-  action: () => Promise<{ error: string } | never>;
+  action: (planId?: string) => Promise<{ error: string } | never>;
+  planId?: string;
 }) {
-  const [state, formAction, isPending] = useActionState(action, null);
+  const boundAction = () => action(planId);
+  const [state, formAction, isPending] = useActionState(boundAction, null);
 
   return (
     <form action={formAction} className="space-y-3">

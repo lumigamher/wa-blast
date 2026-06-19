@@ -1,21 +1,31 @@
+import { desc, eq } from "drizzle-orm";
+import {
+  CalendarClockIcon,
+  Check,
+  Eye,
+  MessageCircle,
+  PlusIcon,
+  Send,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { LocalDateTime } from "@/components/local-datetime";
-import { desc, eq } from "drizzle-orm";
-import { CalendarClockIcon, PlusIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
 import { campaigns } from "@/lib/db/schema";
 import { CampaignActions } from "./campaign-actions";
+import { requireModuleAccess } from "@/lib/billing/require-module";
 
 export const dynamic = "force-dynamic";
 
 type Campaign = typeof campaigns.$inferSelect;
 
 export default async function CampanasPage() {
+  await requireModuleAccess("campanas");
   const { orgId } = await requireOrg();
   const all = await db
     .select()
@@ -25,15 +35,22 @@ export default async function CampanasPage() {
     .limit(200);
 
   const scheduled = all.filter((c) => c.status === "draft");
-  const running = all.filter((c) => c.status === "queued" || c.status === "sending");
-  const done = all.filter((c) => c.status === "done" || c.status === "failed" || c.status === "cancelled");
+  const running = all.filter(
+    (c) => c.status === "queued" || c.status === "sending",
+  );
+  const done = all.filter(
+    (c) =>
+      c.status === "done" || c.status === "failed" || c.status === "cancelled",
+  );
 
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
           <h1 className="text-2xl font-semibold tracking-tight">Campañas</h1>
-          <p className="text-sm text-muted-foreground">Histórico y en curso de tus envíos masivos.</p>
+          <p className="text-sm text-muted-foreground">
+            Histórico y en curso de tus envíos masivos.
+          </p>
         </div>
         <Link href="/campanas/nueva" className={buttonVariants({ size: "sm" })}>
           <PlusIcon className="size-4" /> Nuevo envío
@@ -41,7 +58,11 @@ export default async function CampanasPage() {
       </header>
 
       {scheduled.length > 0 && (
-        <Section title="Programadas" icon={<CalendarClockIcon className="size-4" />} subtitle={`${scheduled.length}`}>
+        <Section
+          title="Programadas"
+          icon={<CalendarClockIcon className="size-4" />}
+          subtitle={`${scheduled.length}`}
+        >
           <ul className="space-y-2">
             {scheduled.map((c) => (
               <ScheduledRow key={c.id} c={c} />
@@ -94,7 +115,11 @@ function Section({
         <CardTitle className="flex items-center gap-2 text-base">
           {icon}
           {title}
-          {subtitle && <span className="text-xs font-normal text-muted-foreground">· {subtitle}</span>}
+          {subtitle && (
+            <span className="text-xs font-normal text-muted-foreground">
+              · {subtitle}
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>{children}</CardContent>
@@ -106,16 +131,25 @@ function CampaignRow({ c, accent }: { c: Campaign; accent?: boolean }) {
   const done = c.sent + c.failed;
   const pct = c.total > 0 ? (done / c.total) * 100 : 0;
   return (
-    <li className={`rounded-md border p-3 ${accent ? "border-blue-300 bg-blue-50/40" : ""}`}>
+    <li
+      className={`rounded-md border p-3 ${accent ? "border-blue-300 bg-blue-50/40" : ""}`}
+    >
       <div className="flex items-center justify-between gap-3">
-        <Link href={`/campanas/${c.id}`} className="flex-1 min-w-0 text-sm font-medium hover:underline">
+        <Link
+          href={`/campanas/${c.id}`}
+          className="flex-1 min-w-0 text-sm font-medium hover:underline"
+        >
           {c.name}
         </Link>
         <Badge variant="outline" className="font-mono text-xs">
           {c.templateName}
         </Badge>
         <StatusBadge status={c.status} />
-        <CampaignActions id={c.id} status={c.status} scheduledAt={c.scheduledAt ? c.scheduledAt.getTime() : null} />
+        <CampaignActions
+          id={c.id}
+          status={c.status}
+          scheduledAt={c.scheduledAt ? c.scheduledAt.getTime() : null}
+        />
       </div>
       <div className="mt-2 flex items-center gap-3">
         <Progress value={pct} className="flex-1" />
@@ -124,11 +158,21 @@ function CampaignRow({ c, accent }: { c: Campaign; accent?: boolean }) {
         </span>
       </div>
       <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
-        <span>✓ {c.sent} enviados</span>
-        <span>✗ {c.failed} fallidos</span>
-        <span>📨 {c.delivered} entregados</span>
-        <span>👁 {c.read} leídos</span>
-        <span>💬 {c.replied} respondieron</span>
+        <span className="flex items-center gap-1">
+          <Check className="size-3.5" /> {c.sent} enviados
+        </span>
+        <span className="flex items-center gap-1">
+          <X className="size-3.5" /> {c.failed} fallidos
+        </span>
+        <span className="flex items-center gap-1">
+          <Send className="size-3.5" /> {c.delivered} entregados
+        </span>
+        <span className="flex items-center gap-1">
+          <Eye className="size-3.5" /> {c.read} leídos
+        </span>
+        <span className="flex items-center gap-1">
+          <MessageCircle className="size-3.5" /> {c.replied} respondieron
+        </span>
       </div>
     </li>
   );
@@ -140,19 +184,29 @@ function ScheduledRow({ c }: { c: Campaign }) {
     <li className="flex items-center gap-3 rounded-md border border-amber-300 bg-amber-50/40 p-3">
       <CalendarClockIcon className="size-4 text-amber-600" />
       <div className="flex-1 min-w-0">
-        <Link href={`/campanas/${c.id}`} className="text-sm font-medium hover:underline">
+        <Link
+          href={`/campanas/${c.id}`}
+          className="text-sm font-medium hover:underline"
+        >
           {c.name}
         </Link>
         <div className="text-xs text-muted-foreground">
           Se enviará{" "}
-          <LocalDateTime iso={when ? when.toISOString() : null} fallback="sin programar" /> · {c.total}{" "}
-          destinatarios
+          <LocalDateTime
+            iso={when ? when.toISOString() : null}
+            fallback="sin programar"
+          />{" "}
+          · {c.total} destinatarios
         </div>
       </div>
       <Badge variant="outline" className="font-mono text-xs">
         {c.templateName}
       </Badge>
-      <CampaignActions id={c.id} status={c.status} scheduledAt={c.scheduledAt ? c.scheduledAt.getTime() : null} />
+      <CampaignActions
+        id={c.id}
+        status={c.status}
+        scheduledAt={c.scheduledAt ? c.scheduledAt.getTime() : null}
+      />
     </li>
   );
 }

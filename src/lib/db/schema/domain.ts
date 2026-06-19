@@ -1,4 +1,11 @@
-import { sqliteTable, text, integer, uniqueIndex, index, primaryKey } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { organization, user } from "./auth";
 
 export const organizationSettings = sqliteTable("organization_settings", {
@@ -12,7 +19,9 @@ export const organizationSettings = sqliteTable("organization_settings", {
   metaAppSecretEnc: text("meta_app_secret_enc"),
   metaVerifyToken: text("meta_verify_token"),
   forwardUrl: text("forward_url"),
-  optoutKeywords: text("optout_keywords").notNull().default('["STOP","BAJA","UNSUBSCRIBE","CANCELAR"]'),
+  optoutKeywords: text("optout_keywords")
+    .notNull()
+    .default('["STOP","BAJA","UNSUBSCRIBE","CANCELAR"]'),
   rateLimitMps: integer("rate_limit_mps").notNull().default(20),
   defaultCountry: text("default_country").notNull().default("CO"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
@@ -22,7 +31,9 @@ export const contacts = sqliteTable(
   "contacts",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     phone: text("phone").notNull(),
     name: text("name"),
     email: text("email"),
@@ -30,15 +41,22 @@ export const contacts = sqliteTable(
     notes: text("notes"),
     birthday: text("birthday"),
     city: text("city"),
-    callPermissionStatus: text("call_permission_status", { enum: ["temporary", "permanent"] }),
-    callPermissionExpiresAt: integer("call_permission_expires_at", { mode: "timestamp" }),
+    callPermissionStatus: text("call_permission_status", {
+      enum: ["temporary", "permanent"],
+    }),
+    callPermissionExpiresAt: integer("call_permission_expires_at", {
+      mode: "timestamp",
+    }),
     customFields: text("custom_fields").notNull().default("{}"),
     optOutAt: integer("opt_out_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
-    orgPhoneUnique: uniqueIndex("contacts_org_phone_unique").on(t.orgId, t.phone),
+    orgPhoneUnique: uniqueIndex("contacts_org_phone_unique").on(
+      t.orgId,
+      t.phone,
+    ),
     orgIdx: index("contacts_org_idx").on(t.orgId),
   }),
 );
@@ -47,7 +65,9 @@ export const tags = sqliteTable(
   "tags",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     color: text("color").notNull().default("#888888"),
   },
@@ -59,8 +79,12 @@ export const tags = sqliteTable(
 export const contactTags = sqliteTable(
   "contact_tags",
   {
-    contactId: text("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
-    tagId: text("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    tagId: text("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.contactId, t.tagId] }),
@@ -70,7 +94,9 @@ export const contactTags = sqliteTable(
 
 export const segments = sqliteTable("segments", {
   id: text("id").primaryKey(),
-  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   ruleJson: text("rule_json").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
@@ -80,7 +106,9 @@ export const campaigns = sqliteTable(
   "campaigns",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     templateName: text("template_name").notNull(),
     templateLanguage: text("template_language").notNull(),
@@ -89,7 +117,9 @@ export const campaigns = sqliteTable(
     templateType: text("template_type").notNull().default("standard"),
     componentPlanJson: text("component_plan_json"),
     source: text("source").notNull(),
-    segmentId: text("segment_id").references(() => segments.id, { onDelete: "set null" }),
+    segmentId: text("segment_id").references(() => segments.id, {
+      onDelete: "set null",
+    }),
     scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
     status: text("status").notNull().default("draft"),
     total: integer("total").notNull().default(0),
@@ -98,7 +128,9 @@ export const campaigns = sqliteTable(
     read: integer("read_count").notNull().default(0),
     failed: integer("failed").notNull().default(0),
     replied: integer("replied").notNull().default(0),
-    createdBy: text("created_by").notNull().references(() => user.id),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
@@ -110,8 +142,12 @@ export const campaignRecipients = sqliteTable(
   "campaign_recipients",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
-    contactId: text("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    contactId: text("contact_id").references(() => contacts.id, {
+      onDelete: "set null",
+    }),
     phone: text("phone").notNull(),
     name: text("name"),
     params: text("params").notNull().default("{}"),
@@ -143,14 +179,20 @@ export const messageEvents = sqliteTable(
 export const templateFavorites = sqliteTable(
   "template_favorites",
   {
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     templateName: text("template_name").notNull(),
     templateLanguage: text("template_language").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.orgId, t.userId, t.templateName, t.templateLanguage] }),
+    pk: primaryKey({
+      columns: [t.orgId, t.userId, t.templateName, t.templateLanguage],
+    }),
   }),
 );
 
@@ -158,7 +200,9 @@ export const mediaAssets = sqliteTable(
   "media_assets",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(), // "image" | "video"
     mime: text("mime").notNull(),
     path: text("path").notNull(),
@@ -171,20 +215,33 @@ export const mediaAssets = sqliteTable(
 export const templateCardMedia = sqliteTable(
   "template_card_media",
   {
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     templateName: text("template_name").notNull(),
     templateLanguage: text("template_language").notNull(),
     cardIndex: integer("card_index").notNull(),
-    assetId: text("asset_id").notNull().references(() => mediaAssets.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "cascade" }),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.orgId, t.templateName, t.templateLanguage, t.cardIndex] }),
+    pk: primaryKey({
+      columns: [t.orgId, t.templateName, t.templateLanguage, t.cardIndex],
+    }),
   }),
 );
 
 export const subscriptions = sqliteTable("subscriptions", {
-  orgId: text("org_id").primaryKey().references(() => organization.id, { onDelete: "cascade" }),
-  status: text("status", { enum: ["none", "active", "suspended"] }).notNull().default("none"),
+  orgId: text("org_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  status: text("status", { enum: ["none", "active", "suspended"] })
+    .notNull()
+    .default("none"),
+  planId: text("plan_id", { enum: ["esencial", "pro", "premium"] })
+    .notNull()
+    .default("esencial"),
   paidUntil: integer("paid_until", { mode: "timestamp" }),
   efipaySubscriptionId: text("efipay_subscription_id"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
@@ -192,7 +249,9 @@ export const subscriptions = sqliteTable("subscriptions", {
 
 export const subscriptionCharges = sqliteTable("subscription_charges", {
   id: text("id").primaryKey(),
-  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
   amountCop: integer("amount_cop"),
   source: text("source", { enum: ["efipay", "manual"] }).notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
@@ -200,7 +259,16 @@ export const subscriptionCharges = sqliteTable("subscription_charges", {
 
 export const billingCheckouts = sqliteTable("billing_checkouts", {
   id: text("id").primaryKey(),
-  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  planId: text("plan_id", { enum: ["esencial", "pro", "premium"] })
+    .notNull()
+    .default("esencial"),
+  kind: text("kind", { enum: ["subscription", "upgrade"] })
+    .notNull()
+    .default("subscription"),
+  amountCop: integer("amount_cop"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
@@ -213,13 +281,19 @@ export const conversations = sqliteTable(
   "conversations",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     phone: text("phone").notNull(),
-    contactId: text("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    contactId: text("contact_id").references(() => contacts.id, {
+      onDelete: "set null",
+    }),
     lastMessageAt: integer("last_message_at", { mode: "timestamp" }).notNull(),
     lastIncomingAt: integer("last_incoming_at", { mode: "timestamp" }),
     unreadCount: integer("unread_count").notNull().default(0),
-    status: text("status", { enum: ["open", "resolved"] }).notNull().default("open"),
+    status: text("status", { enum: ["open", "resolved"] })
+      .notNull()
+      .default("open"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
@@ -231,28 +305,39 @@ export const messages = sqliteTable(
   "messages",
   {
     id: text("id").primaryKey(),
-    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     direction: text("direction", { enum: ["in", "out"] }).notNull(),
     wamid: text("wamid"),
     type: text("type").notNull(),
     body: text("body"),
     mediaId: text("media_id"),
-    status: text("status", { enum: ["pending", "sent", "delivered", "read", "failed"] }),
+    status: text("status", {
+      enum: ["pending", "sent", "delivered", "read", "failed"],
+    }),
     errorMessage: text("error_message"),
     payloadJson: text("payload_json"),
     replyToWamid: text("reply_to_wamid"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
-    convCreatedIdx: index("messages_conv_created").on(t.conversationId, t.createdAt),
+    convCreatedIdx: index("messages_conv_created").on(
+      t.conversationId,
+      t.createdAt,
+    ),
     orgWamidIdx: index("messages_org_wamid").on(t.orgId, t.wamid),
   }),
 );
 
 export const inboxMediaCache = sqliteTable("inbox_media_cache", {
   metaMediaId: text("meta_media_id").primaryKey(),
-  orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
   assetId: text("asset_id").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
@@ -261,7 +346,9 @@ export const quickReplies = sqliteTable(
   "quick_replies",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     shortcut: text("shortcut").notNull(),
     body: text("body").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
@@ -273,15 +360,23 @@ export const messageReactions = sqliteTable(
   "message_reactions",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
     targetWamid: text("target_wamid").notNull(),
     direction: text("direction", { enum: ["in", "out"] }).notNull(),
     emoji: text("emoji").notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
-    uniqueTarget: uniqueIndex("message_reactions_target").on(t.orgId, t.targetWamid, t.direction),
+    uniqueTarget: uniqueIndex("message_reactions_target").on(
+      t.orgId,
+      t.targetWamid,
+      t.direction,
+    ),
     convIdx: index("message_reactions_conv").on(t.conversationId),
   }),
 );
@@ -290,8 +385,12 @@ export const stickers = sqliteTable(
   "stickers",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    assetId: text("asset_id").notNull().references(() => mediaAssets.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => mediaAssets.id, { onDelete: "cascade" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({ orgIdx: index("stickers_org").on(t.orgId) }),
@@ -301,25 +400,46 @@ export const conversationNotes = sqliteTable(
   "conversation_notes",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
-    authorUserId: text("author_user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
     authorName: text("author_name").notNull(),
     body: text("body").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
-  (t) => ({ convIdx: index("conversation_notes_conv").on(t.conversationId, t.createdAt) }),
+  (t) => ({
+    convIdx: index("conversation_notes_conv").on(t.conversationId, t.createdAt),
+  }),
 );
 
 export const calls = sqliteTable(
   "calls",
   {
     id: text("id").primaryKey(),
-    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    conversationId: text("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
     phone: text("phone").notNull(),
     direction: text("direction", { enum: ["in", "out"] }).notNull(),
-    status: text("status", { enum: ["ringing", "connected", "missed", "completed", "rejected", "failed"] }).notNull(),
+    status: text("status", {
+      enum: [
+        "ringing",
+        "connected",
+        "missed",
+        "completed",
+        "rejected",
+        "failed",
+      ],
+    }).notNull(),
     wacid: text("wacid").notNull(),
     durationSec: integer("duration_sec"),
     startedAt: integer("started_at", { mode: "timestamp" }),

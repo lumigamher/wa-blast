@@ -12,8 +12,14 @@ export async function adminExtendAction(
   days: number,
 ): Promise<{ ok: true; error?: never } | { ok?: never; error: string }> {
   await requireAdmin();
-  if (!Number.isFinite(days) || days <= 0 || days > 365) return { error: "Días inválidos" };
-  await applyCharge(db, { orgId, chargeId: `manual_${randomUUID()}`, source: "manual", days });
+  if (!Number.isFinite(days) || days <= 0 || days > 365)
+    return { error: "Días inválidos" };
+  await applyCharge(db, {
+    orgId,
+    chargeId: `manual_${randomUUID()}`,
+    source: "manual",
+    days,
+  });
   revalidatePath("/admin");
   return { ok: true };
 }
@@ -29,11 +35,20 @@ export async function adminSetSuspendedAction(
 }
 
 export async function adminSetPriceAction(
+  planId: string,
   priceCop: number,
 ): Promise<{ ok: true; error?: never } | { ok?: never; error: string }> {
   await requireAdmin();
   try {
-    await setPlanPriceCop(db, priceCop);
+    // Validate planId is one of the allowed values
+    if (!["esencial", "pro", "premium"].includes(planId)) {
+      return { error: "Plan inválido" };
+    }
+    await setPlanPriceCop(
+      db,
+      planId as "esencial" | "pro" | "premium",
+      priceCop,
+    );
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };
   }

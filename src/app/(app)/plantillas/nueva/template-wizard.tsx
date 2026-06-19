@@ -1,25 +1,42 @@
 "use client";
 
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  validateAuth,
+  validateBotones,
+  validateContenido,
+  validateDatos,
+  validateTarjetas,
+} from "@/lib/template-validation";
 import { listBodyVariableIndices } from "@/lib/template-vars";
-import { validateDatos, validateContenido, validateBotones, validateTarjetas, validateAuth } from "@/lib/template-validation";
-import { createTemplateAction, createCarouselTemplateAction, createAuthTemplateAction } from "./actions";
-import { CarouselValue, emptyCard } from "./carousel-builder";
+import {
+  createAuthTemplateAction,
+  createCarouselTemplateAction,
+  createTemplateAction,
+} from "./actions";
+import { type CarouselValue, emptyCard } from "./carousel-builder";
 import { LivePreview } from "./live-preview";
-import { StepType } from "./steps/step-type";
-import { StepDatos } from "./steps/step-datos";
-import { StepContenido } from "./steps/step-contenido";
-import { StepBotones } from "./steps/step-botones";
-import { StepTarjetas } from "./steps/step-tarjetas";
 import { StepAuth } from "./steps/step-auth";
+import { StepBotones } from "./steps/step-botones";
+import { StepContenido } from "./steps/step-contenido";
+import { StepDatos } from "./steps/step-datos";
 import { StepFlowBtn } from "./steps/step-flowbtn";
 import { StepRevisar } from "./steps/step-revisar";
+import { StepTarjetas } from "./steps/step-tarjetas";
+import { StepType } from "./steps/step-type";
 
-export type ButtonState = { id: string; kind: "QUICK_REPLY" | "URL" | "FLOW"; text: string; url: string; flowId?: string };
+export type ButtonState = {
+  id: string;
+  kind: "QUICK_REPLY" | "URL" | "FLOW";
+  text: string;
+  url: string;
+  flowId?: string;
+};
 export type FlowOption = { id: string; name: string };
 export type TemplateDraft = {
   type: "standard" | "carousel" | "auth" | "flow";
@@ -67,7 +84,15 @@ const INITIAL: TemplateDraft = {
   flowButtonText: "Abrir formulario",
 };
 
-type StepId = "type" | "datos" | "contenido" | "botones" | "tarjetas" | "auth" | "flowbtn" | "revisar";
+type StepId =
+  | "type"
+  | "datos"
+  | "contenido"
+  | "botones"
+  | "tarjetas"
+  | "auth"
+  | "flowbtn"
+  | "revisar";
 const STEP_LABEL: Record<StepId, string> = {
   type: "Tipo",
   datos: "Datos",
@@ -97,15 +122,14 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
     setDraft((d) => ({ ...d, ...patch }));
   };
 
-  const steps: StepId[] = useMemo(
-    () => {
-      if (draft.type === "carousel") return ["type", "datos", "tarjetas", "revisar"];
-      if (draft.type === "auth") return ["type", "datos", "auth", "revisar"];
-      if (draft.type === "flow") return ["type", "datos", "contenido", "flowbtn", "revisar"];
-      return ["type", "datos", "contenido", "botones", "revisar"];
-    },
-    [draft.type],
-  );
+  const steps: StepId[] = useMemo(() => {
+    if (draft.type === "carousel")
+      return ["type", "datos", "tarjetas", "revisar"];
+    if (draft.type === "auth") return ["type", "datos", "auth", "revisar"];
+    if (draft.type === "flow")
+      return ["type", "datos", "contenido", "flowbtn", "revisar"];
+    return ["type", "datos", "contenido", "botones", "revisar"];
+  }, [draft.type]);
   const current = steps[Math.min(stepIdx, steps.length - 1)];
 
   const stepErrors = (id: StepId): string[] => {
@@ -116,8 +140,10 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
     if (id === "auth") return validateAuth(draft);
     if (id === "flowbtn") {
       const errors: string[] = [];
-      if (!draft.flowButtonFlowId.trim()) errors.push("Elige un Flow publicado");
-      if (!draft.flowButtonText.trim()) errors.push("El texto del botón es obligatorio");
+      if (!draft.flowButtonFlowId.trim())
+        errors.push("Elige un Flow publicado");
+      if (!draft.flowButtonText.trim())
+        errors.push("El texto del botón es obligatorio");
       return errors;
     }
     return [];
@@ -141,14 +167,20 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
           name: draft.name,
           language: draft.language,
           buttonText: draft.otpButtonText,
-          codeExpirationMinutes: draft.codeExpirationMinutes && draft.codeExpirationMinutes >= 1 ? draft.codeExpirationMinutes : null,
+          codeExpirationMinutes:
+            draft.codeExpirationMinutes && draft.codeExpirationMinutes >= 1
+              ? draft.codeExpirationMinutes
+              : null,
           addSecurityRecommendation: draft.addSecurityRecommendation,
         });
         if (!res.ok) {
           toast.error(res.error);
           return;
         }
-        toast.success(`Plantilla "${res.name}" enviada a Meta (${res.status}).`, { duration: 8000 });
+        toast.success(
+          `Plantilla "${res.name}" enviada a Meta (${res.status}).`,
+          { duration: 8000 },
+        );
         reset();
       });
       return;
@@ -158,7 +190,10 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
         const res = await createCarouselTemplateAction({
           name: draft.name,
           language: draft.language,
-          category: draft.category as "MARKETING" | "UTILITY" | "AUTHENTICATION",
+          category: draft.category as
+            | "MARKETING"
+            | "UTILITY"
+            | "AUTHENTICATION",
           body: draft.bodyText,
           bodyExample: "",
           cards: draft.carousel.cards.map((c) => ({
@@ -173,7 +208,10 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
         if (!res.ok) {
           toast.error(res.error);
         } else {
-          toast.success(`Plantilla carrusel "${res.name}" enviada a Meta (${res.status}).`, { duration: 8000 });
+          toast.success(
+            `Plantilla carrusel "${res.name}" enviada a Meta (${res.status}).`,
+            { duration: 8000 },
+          );
           reset();
         }
       });
@@ -186,17 +224,27 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
           language: draft.language,
           category: draft.category,
           headerType: draft.headerKind,
-          headerText: draft.headerKind === "TEXT" ? draft.headerText.trim() : null,
+          headerText:
+            draft.headerKind === "TEXT" ? draft.headerText.trim() : null,
           headerHandle: draft.headerHandle ?? null,
           bodyText: draft.bodyText,
           bodyExample: listExamples(draft),
           footerText: draft.hasFooter ? draft.footerText.trim() : null,
-          buttons: [{ type: "FLOW" as const, text: draft.flowButtonText, flow_id: draft.flowButtonFlowId }],
+          buttons: [
+            {
+              type: "FLOW" as const,
+              text: draft.flowButtonText,
+              flow_id: draft.flowButtonFlowId,
+            },
+          ],
         });
         if (!res.ok) {
           toast.error(res.error);
         } else {
-          toast.success(`Plantilla "${res.name}" enviada a Meta (${res.status}).`, { duration: 8000 });
+          toast.success(
+            `Plantilla "${res.name}" enviada a Meta (${res.status}).`,
+            { duration: 8000 },
+          );
           reset();
         }
       });
@@ -208,21 +256,27 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
         language: draft.language,
         category: draft.category,
         headerType: draft.headerKind,
-        headerText: draft.headerKind === "TEXT" ? draft.headerText.trim() : null,
+        headerText:
+          draft.headerKind === "TEXT" ? draft.headerText.trim() : null,
         headerHandle: draft.headerHandle ?? null,
         bodyText: draft.bodyText,
         bodyExample: listExamples(draft),
         footerText: draft.hasFooter ? draft.footerText.trim() : null,
         buttons: draft.buttons.map((b) =>
-          b.kind === "URL" ? { type: "URL" as const, text: b.text, url: b.url } :
-          b.kind === "FLOW" ? { type: "FLOW" as const, text: b.text, flow_id: b.flowId ?? "" } :
-          { type: "QUICK_REPLY" as const, text: b.text }
+          b.kind === "URL"
+            ? { type: "URL" as const, text: b.text, url: b.url }
+            : b.kind === "FLOW"
+              ? { type: "FLOW" as const, text: b.text, flow_id: b.flowId ?? "" }
+              : { type: "QUICK_REPLY" as const, text: b.text },
         ),
       });
       if (!res.ok) {
         toast.error(res.error);
       } else {
-        toast.success(`Plantilla "${res.name}" enviada a Meta (${res.status}).`, { duration: 8000 });
+        toast.success(
+          `Plantilla "${res.name}" enviada a Meta (${res.status}).`,
+          { duration: 8000 },
+        );
         reset();
       }
     });
@@ -236,7 +290,11 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
             <li
               key={s}
               className={`rounded-full px-3 py-1 ${
-                i === stepIdx ? "bg-primary text-primary-foreground" : i < stepIdx ? "bg-muted text-foreground" : "bg-muted/40 text-muted-foreground"
+                i === stepIdx
+                  ? "bg-primary text-primary-foreground"
+                  : i < stepIdx
+                    ? "bg-muted text-foreground"
+                    : "bg-muted/40 text-muted-foreground"
               }`}
             >
               {i + 1}. {STEP_LABEL[s]}
@@ -248,11 +306,24 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
           <CardContent className="space-y-4 pt-6">
             {current === "type" && <StepType draft={draft} update={update} />}
             {current === "datos" && <StepDatos draft={draft} update={update} />}
-            {current === "contenido" && <StepContenido draft={draft} update={update} uploading={uploading} setUploading={setUploading} />}
-            {current === "botones" && <StepBotones draft={draft} update={update} flows={flows} />}
-            {current === "tarjetas" && <StepTarjetas draft={draft} update={update} />}
+            {current === "contenido" && (
+              <StepContenido
+                draft={draft}
+                update={update}
+                uploading={uploading}
+                setUploading={setUploading}
+              />
+            )}
+            {current === "botones" && (
+              <StepBotones draft={draft} update={update} flows={flows} />
+            )}
+            {current === "tarjetas" && (
+              <StepTarjetas draft={draft} update={update} />
+            )}
             {current === "auth" && <StepAuth draft={draft} update={update} />}
-            {current === "flowbtn" && <StepFlowBtn draft={draft} update={update} flows={flows} />}
+            {current === "flowbtn" && (
+              <StepFlowBtn draft={draft} update={update} flows={flows} />
+            )}
             {current === "revisar" && <StepRevisar draft={draft} />}
 
             {stepErrors(current).length > 0 && current !== "type" && (
@@ -266,20 +337,39 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
         </Card>
 
         <div className="flex items-center justify-between gap-3">
-          <Link href="/plantillas" className="text-sm text-muted-foreground hover:underline">
+          <Link
+            href="/plantillas"
+            className="text-sm text-muted-foreground hover:underline"
+          >
             Cancelar
           </Link>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" disabled={stepIdx === 0} onClick={() => setStepIdx((i) => i - 1)}>
-              ← Atrás
+            <Button
+              type="button"
+              variant="outline"
+              disabled={stepIdx === 0}
+              onClick={() => setStepIdx((i) => i - 1)}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="size-3.5" /> Atrás
             </Button>
             {current === "revisar" ? (
-              <Button type="button" size="lg" disabled={pending} onClick={submit}>
+              <Button
+                type="button"
+                size="lg"
+                disabled={pending}
+                onClick={submit}
+              >
                 {pending ? "Enviando a Meta…" : "Enviar a aprobación"}
               </Button>
             ) : (
-              <Button type="button" disabled={!canAdvance} onClick={() => setStepIdx((i) => i + 1)}>
-                Siguiente →
+              <Button
+                type="button"
+                disabled={!canAdvance}
+                onClick={() => setStepIdx((i) => i + 1)}
+                className="flex items-center gap-2"
+              >
+                Siguiente <ArrowRight className="size-3.5" />
               </Button>
             )}
           </div>
@@ -301,5 +391,7 @@ export function TemplateWizard({ flows = [] }: TemplateWizardProps) {
 }
 
 function listExamples(draft: TemplateDraft): string[] {
-  return listBodyVariableIndices(draft.bodyText).map((i: number) => draft.bodyExample[i] ?? "");
+  return listBodyVariableIndices(draft.bodyText).map(
+    (i: number) => draft.bodyExample[i] ?? "",
+  );
 }

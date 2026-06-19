@@ -1,6 +1,8 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useMemo } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
 import { listBodyVariableIndices } from "@/lib/template-vars";
 import type { TemplateDraft } from "../template-wizard";
 
@@ -46,7 +47,7 @@ export function StepContenido({
 }) {
   const bodyVars = useMemo(
     () => listBodyVariableIndices(draft.bodyText),
-    [draft.bodyText]
+    [draft.bodyText],
   );
 
   async function onHeaderFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -76,7 +77,7 @@ export function StepContenido({
         return;
       }
       update({ headerHandle: json.handle });
-      toast.success("Archivo subido ✓");
+      toast.success("Archivo subido");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
@@ -177,8 +178,9 @@ export function StepContenido({
               )}
               {draft.headerHandle && draft.headerFileName && (
                 <div className="flex items-center justify-between rounded-md border bg-emerald-50 p-2 text-xs">
-                  <span className="truncate text-emerald-900">
-                    ✓ {draft.headerFileName}
+                  <span className="truncate text-emerald-900 flex items-center gap-2">
+                    <Check className="size-4 flex-shrink-0" />{" "}
+                    {draft.headerFileName}
                   </span>
                   <Button
                     type="button"
@@ -207,8 +209,8 @@ export function StepContenido({
         <CardContent className="space-y-4">
           <div>
             <Label htmlFor="body-text">
-              Texto principal (máx 1024). Usa{" "}
-              <code>{"{{1}}"}</code>, <code>{"{{2}}"}</code>… para variables.
+              Texto principal (máx 1024). Usa <code>{"{{1}}"}</code>,{" "}
+              <code>{"{{2}}"}</code>… para variables.
             </Label>
             <textarea
               id="body-text"
@@ -225,8 +227,8 @@ export function StepContenido({
                 : `${bodyVars.length} variable(s)`}
             </p>
             <p className="mt-2 text-[11px] text-muted-foreground">
-              Usa {"{"}1{"}"}, {"{"}2{"}"}… para personalizar. Meta pide un ejemplo real de
-              cada variable.
+              Usa {"{"}1{"}"}, {"{"}2{"}"}… para personalizar. Meta pide un
+              ejemplo real de cada variable.
             </p>
           </div>
           {bodyVars.length > 0 && (

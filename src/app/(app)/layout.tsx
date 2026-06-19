@@ -1,51 +1,58 @@
 import {
+  CreditCardIcon,
   FileTextIcon,
   HeartPulseIcon,
   HomeIcon,
+  LayersIcon,
   LogOutIcon,
+  MessageSquareIcon,
+  PhoneIcon,
   SendIcon,
   SettingsIcon,
   ShieldIcon,
   TagIcon,
   UsersIcon,
-  LayersIcon,
   WorkflowIcon,
-  CreditCardIcon,
-  MessageSquareIcon,
-  PhoneIcon,
 } from "lucide-react";
-import { requireSession } from "@/lib/auth/session";
-import { isAdminEmail } from "@/lib/auth/admin";
-import { logoutAction } from "@/lib/auth/actions";
-import { Toaster } from "@/components/ui/sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { NavGroup, NavLink, NavSection } from "./_components/nav-link";
+import { Toaster } from "@/components/ui/sonner";
+import { logoutAction } from "@/lib/auth/actions";
+import { isAdminEmail } from "@/lib/auth/admin";
+import { requireSession, requireOrg } from "@/lib/auth/session";
+import { getOrgAccess } from "@/lib/billing/access";
+import { db } from "@/lib/db/client";
 import { CallPanel } from "./_components/call-panel";
+import { NavGroup, NavLink, NavSection } from "./_components/nav-link";
 
-type NavItem = { href: string; icon: typeof HomeIcon; label: string };
+type NavItem = {
+  href: string;
+  icon: typeof HomeIcon;
+  label: string;
+  module?: "campanas" | "inbox" | "plantillas" | "contactos" | "flows" | "llamadas";
+};
 type NavSection = { label: string; items: NavItem[] };
 
 const STANDALONE_ITEMS: NavItem[] = [
   { href: "/panel", icon: HomeIcon, label: "Inicio" },
-  { href: "/inbox", icon: MessageSquareIcon, label: "Inbox" },
-  { href: "/llamadas", icon: PhoneIcon, label: "Llamadas" },
+  { href: "/inbox", icon: MessageSquareIcon, label: "Inbox", module: "inbox" },
+  { href: "/llamadas", icon: PhoneIcon, label: "Llamadas", module: "llamadas" },
 ];
 
 const NAV_SECTIONS: NavSection[] = [
   {
     label: "Mensajería masiva",
     items: [
-      { href: "/campanas/nueva", icon: SendIcon, label: "Nuevo envío" },
-      { href: "/campanas", icon: LayersIcon, label: "Campañas" },
-      { href: "/plantillas", icon: FileTextIcon, label: "Plantillas" },
-      { href: "/flows", icon: WorkflowIcon, label: "Flows" },
+      { href: "/campanas/nueva", icon: SendIcon, label: "Nuevo envío", module: "campanas" },
+      { href: "/campanas", icon: LayersIcon, label: "Campañas", module: "campanas" },
+      { href: "/plantillas", icon: FileTextIcon, label: "Plantillas", module: "plantillas" },
+      { href: "/flows", icon: WorkflowIcon, label: "Flows", module: "flows" },
     ],
   },
   {
     label: "Contactos",
     items: [
-      { href: "/contactos", icon: UsersIcon, label: "Contactos" },
-      { href: "/contactos/tags", icon: TagIcon, label: "Tags" },
+      { href: "/contactos", icon: UsersIcon, label: "Contactos", module: "contactos" },
+      { href: "/contactos/tags", icon: TagIcon, label: "Tags", module: "contactos" },
     ],
   },
   {
@@ -58,15 +65,31 @@ const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const session = await requireSession();
-  const initial = (session.user.name ?? session.user.email).trim().charAt(0).toUpperCase();
+  const { orgId } = await requireOrg();
+  const access = await getOrgAccess(db, orgId);
+
+  const initial = (session.user.name ?? session.user.email)
+    .trim()
+    .charAt(0)
+    .toUpperCase();
 
   // Añade "Admin" a la sección Cuenta solo si el usuario es admin (sin duplicar).
   const isAdmin = isAdminEmail(session.user.email);
   const navSections = NAV_SECTIONS.map((s) =>
     s.label === "Cuenta" && isAdmin
-      ? { ...s, items: [...s.items, { href: "/admin", icon: ShieldIcon, label: "Admin" }] }
+      ? {
+          ...s,
+          items: [
+            ...s.items,
+            { href: "/admin", icon: ShieldIcon, label: "Admin" },
+          ],
+        }
       : s,
   );
 
@@ -84,7 +107,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <div>
             <div className="text-sm font-semibold leading-tight">Lula</div>
-            <div className="text-[11px] text-muted-foreground">Envíos masivos</div>
+            <div className="text-[11px] text-muted-foreground">
+              Envíos masivos
+            </div>
           </div>
         </div>
 
@@ -93,7 +118,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {/* Standalone items */}
             {STANDALONE_ITEMS.map((item) => {
               const Icon = item.icon;
-              return <NavLink key={item.href} href={item.href} icon={<Icon className="size-4" />} label={item.label} />;
+              const isLocked = item.module && !access.modules.has(item.module);
+              return (
+                <NavLink
+                  key={item.href}
+                  href={item.href}
+                  icon={<Icon className="size-4" />}
+                  label={item.label}
+                  locked={isLocked}
+                />
+              );
             })}
 
             {/* Grouped sections */}
@@ -101,7 +135,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <NavSection key={section.label} label={section.label}>
                 {section.items.map((item) => {
                   const Icon = item.icon;
-                  return <NavLink key={item.href} href={item.href} icon={<Icon className="size-4" />} label={item.label} />;
+                  const isLocked = item.module && !access.modules.has(item.module);
+                  return (
+                    <NavLink
+                      key={item.href}
+                      href={item.href}
+                      icon={<Icon className="size-4" />}
+                      label={item.label}
+                      locked={isLocked}
+                    />
+                  );
                 })}
               </NavSection>
             ))}
@@ -114,8 +157,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               {initial}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium">{session.user.name ?? session.user.email}</div>
-              <div className="truncate text-[10px] text-muted-foreground">{session.user.email}</div>
+              <div className="truncate text-xs font-medium">
+                {session.user.name ?? session.user.email}
+              </div>
+              <div className="truncate text-[10px] text-muted-foreground">
+                {session.user.email}
+              </div>
             </div>
             <ThemeToggle />
             <form action={logoutAction}>

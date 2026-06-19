@@ -1,17 +1,19 @@
+import { requireModuleAccess } from "@/lib/billing/require-module";
 import Link from "next/link";
-import { db } from "@/lib/db/client";
-import { requireOrg } from "@/lib/auth/session";
-import { getOrgSettings } from "@/lib/org/settings";
-import { credsFromSettings } from "@/lib/meta/graph";
-import { listFlows, type Flow } from "@/lib/meta/flows";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { requireOrg } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { type Flow, listFlows } from "@/lib/meta/flows";
+import { credsFromSettings } from "@/lib/meta/graph";
+import { getOrgSettings } from "@/lib/org/settings";
 import { SendFlowForm } from "./send-flow-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function FlowsPage() {
+  await requireModuleAccess("flows");
   const { orgId } = await requireOrg();
   const settings = await getOrgSettings(db, orgId);
   const configured = Boolean(settings.metaWabaId && settings.metaAccessToken);
@@ -45,7 +47,9 @@ export default async function FlowsPage() {
         </div>
       ) : flows.length === 0 ? (
         <Card className="p-8 text-center">
-          <p className="text-sm text-muted-foreground">Aún no tienes Flows. Crea el primero.</p>
+          <p className="text-sm text-muted-foreground">
+            Aún no tienes Flows. Crea el primero.
+          </p>
           <Link href="/flows/nueva" className="mt-4 inline-block">
             <Button>Crear Flow</Button>
           </Link>
@@ -64,9 +68,16 @@ export default async function FlowsPage() {
                       </Badge>
                     ))}
                   </div>
-                  {flow.status === "PUBLISHED" && <SendFlowForm flowId={flow.id} flowName={flow.name} />}
+                  {flow.status === "PUBLISHED" && (
+                    <SendFlowForm flowId={flow.id} flowName={flow.name} />
+                  )}
                 </div>
-                <Badge variant={flow.status === "PUBLISHED" ? "default" : "secondary"} className="text-xs">
+                <Badge
+                  variant={
+                    flow.status === "PUBLISHED" ? "default" : "secondary"
+                  }
+                  className="text-xs"
+                >
                   {flow.status}
                 </Badge>
               </div>

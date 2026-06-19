@@ -1,17 +1,20 @@
+import { Check } from "lucide-react";
+import Link from "next/link";
+import { TextHoverEffect } from "@/components/ui/text-hover-effect";
 import { getSession } from "@/lib/auth/session";
+import { getPlanCatalog } from "@/lib/billing/config";
+import { MODULE_LABELS } from "@/lib/billing/plans";
+import { db } from "@/lib/db/client";
+import { FAQ } from "./_components/faq";
 import { Nav } from "./_components/nav";
 import { Reveal } from "./_components/reveal";
-import { CampaignDemo } from "./_components/campaign-demo";
-import { UsecaseTabs } from "./_components/usecase-tabs";
-import { FAQ } from "./_components/faq";
 import { Shot } from "./_components/shot";
-import { TextHoverEffect } from "@/components/ui/text-hover-effect";
-import Link from "next/link";
-import { Check } from "lucide-react";
+import { UsecaseTabs } from "./_components/usecase-tabs";
 
 export default async function MarketingPage() {
   const session = await getSession();
   const loggedIn = !!session;
+  const plans = await getPlanCatalog(db);
 
   return (
     <>
@@ -125,33 +128,15 @@ export default async function MarketingPage() {
                 "Opt-out automático",
                 "Métricas en vivo",
               ].map((chip, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-sm text-neutral-700">
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 text-sm text-neutral-700"
+                >
                   <Check className="h-4 w-4 text-neutral-600" />
                   <span>{chip}</span>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* Interactive Campaign Demo */}
-        <section id="funciones" className="py-20 md:py-28 border-b border-neutral-200">
-          <div className="mx-auto max-w-6xl px-6 md:px-10">
-            <Reveal>
-              <div className="mb-16 space-y-4 text-center">
-                <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
-                  La campaña perfecta en segundos
-                </h2>
-                <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
-                  Personaliza tu mensaje, vista previa instantánea, envía a
-                  miles de contactos.
-                </p>
-              </div>
-            </Reveal>
-
-            <Reveal delay={0.1}>
-              <CampaignDemo />
-            </Reveal>
           </div>
         </section>
 
@@ -190,8 +175,8 @@ export default async function MarketingPage() {
                       Masivo. Segmentado. Inteligente.
                     </h2>
                     <p className="text-lg text-neutral-600 max-w-2xl">
-                      Envía campañas a miles de contactos con carrusel, botones y
-                      formularios. Respeta ventanas de 24h. Reintentos
+                      Envía campañas a miles de contactos con carrusel, botones
+                      y formularios. Respeta ventanas de 24h. Reintentos
                       automáticos. Anti-doble envío.
                     </p>
                   </div>
@@ -216,7 +201,10 @@ export default async function MarketingPage() {
 
               <Reveal delay={0.1}>
                 <div className="lg:scale-105">
-                  <Shot src="/shots/campanas.png" alt="Tabla de campañas con estadísticas" />
+                  <Shot
+                    src="/shots/campanas.png"
+                    alt="Tabla de campañas con estadísticas"
+                  />
                 </div>
               </Reveal>
             </div>
@@ -229,7 +217,10 @@ export default async function MarketingPage() {
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <Reveal delay={0.1}>
                 <div className="lg:scale-105 lg:order-2">
-                  <Shot src="/shots/inbox-hilo.png" alt="Conversación WhatsApp con cliente en tiempo real" />
+                  <Shot
+                    src="/shots/inbox-hilo.png"
+                    alt="Conversación WhatsApp con cliente en tiempo real"
+                  />
                 </div>
               </Reveal>
 
@@ -243,8 +234,8 @@ export default async function MarketingPage() {
                       Responde en tiempo real
                     </h2>
                     <p className="text-lg text-neutral-600 max-w-2xl">
-                      Bandeja unificada para todos los mensajes. Respuesta rápida.
-                      Formularios generados con IA que se adaptan a tus
+                      Bandeja unificada para todos los mensajes. Respuesta
+                      rápida. Formularios generados con IA que se adaptan a tus
                       necesidades.
                     </p>
                   </div>
@@ -301,17 +292,23 @@ export default async function MarketingPage() {
                       </p>
                       <p className="ml-4">
                         <span className="text-blue-400">&#123; name:</span>
-                        <span className="text-green-400">&quot;nombre&quot;</span>
+                        <span className="text-green-400">
+                          &quot;nombre&quot;
+                        </span>
                         <span className="text-blue-400"> &#125;</span>
                       </p>
                       <p className="ml-4">
                         <span className="text-blue-400">&#123; address:</span>
-                        <span className="text-green-400">&quot;dirección&quot;</span>
+                        <span className="text-green-400">
+                          &quot;dirección&quot;
+                        </span>
                         <span className="text-blue-400"> &#125;</span>
                       </p>
                       <p className="ml-4">
                         <span className="text-blue-400">&#123; phone:</span>
-                        <span className="text-green-400">&quot;teléfono&quot;</span>
+                        <span className="text-green-400">
+                          &quot;teléfono&quot;
+                        </span>
                         <span className="text-blue-400"> &#125;</span>
                       </p>
                       <p className="ml-4">
@@ -347,22 +344,28 @@ export default async function MarketingPage() {
                     Campañas, métricas y equipo en un solo lugar
                   </p>
                 </div>
-                <Shot src="/shots/panel.png" alt="Panel principal de Lula con dashboard y campañas" />
+                <Shot
+                  src="/shots/panel.png"
+                  alt="Panel principal de Lula con dashboard y campañas"
+                />
               </div>
             </Reveal>
           </div>
         </section>
 
         {/* Pricing Section */}
-        <section id="precio" className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50">
+        <section
+          id="precio"
+          className="py-20 md:py-28 border-b border-neutral-200 bg-neutral-50"
+        >
           <div className="mx-auto max-w-6xl px-6 md:px-10 flex flex-col items-center">
             <Reveal>
               <div className="mb-16 text-center space-y-4 max-w-2xl">
                 <h3 className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-                  Precio simple
+                  Planes
                 </h3>
                 <h2 className="text-4xl md:text-5xl font-medium tracking-tight text-neutral-950">
-                  Un plan, todo incluido
+                  Elige tu plan
                 </h2>
                 <p className="text-lg text-neutral-600">
                   Sin sorpresas. Sin permanencia. Cancela cuando quieras.
@@ -371,69 +374,94 @@ export default async function MarketingPage() {
             </Reveal>
 
             <Reveal delay={0.1}>
-              <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 md:p-10 space-y-8">
-                <div className="space-y-2">
-                  <div className="text-5xl font-medium text-neutral-950">
-                    $250.000
-                  </div>
-                  <p className="text-neutral-600">
-                    COP / mes{" "}
-                    <span className="text-sm">
-                      (+ IVA)
-                    </span>
-                  </p>
-                </div>
-
-                <div className="space-y-3 border-t border-neutral-200 border-b pt-8 pb-8">
-                  {[
-                    "Campañas masivas ilimitadas",
-                    "Inbox en tiempo real",
-                    "Formularios con IA",
-                    "Plantillas con preview",
-                    "Contactos, tags y segmentación",
-                    "Métricas en vivo",
-                    "API oficial de Meta",
-                    "Soporte por email",
-                  ].map((feature) => (
+              <div className="w-full grid md:grid-cols-3 gap-6">
+                {plans.map((plan) => {
+                  const isRecommended = plan.id === "pro";
+                  const formattedPrice = new Intl.NumberFormat("es-CO").format(
+                    plan.priceCop,
+                  );
+                  return (
                     <div
-                      key={feature}
-                      className="flex items-start gap-3 text-sm text-neutral-700"
+                      key={plan.id}
+                      className={`rounded-2xl p-8 md:p-10 space-y-8 transition-all ${
+                        isRecommended
+                          ? "border-2 border-emerald-500 bg-white ring-1 ring-emerald-500/20"
+                          : "border border-neutral-200 bg-white"
+                      }`}
                     >
-                      <Check className="h-5 w-5 text-neutral-600 shrink-0 mt-0.5" />
-                      <span>{feature}</span>
+                      {isRecommended && (
+                        <div className="flex justify-center">
+                          <div className="inline-block bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-medium uppercase tracking-[0.1em]">
+                            Recomendado
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-3 text-center">
+                        <h3 className="text-2xl font-medium text-neutral-950">
+                          {plan.name}
+                        </h3>
+                        <p className="text-sm text-neutral-600">
+                          {plan.tagline}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1 text-center border-t border-b border-neutral-200 py-6">
+                        <div className="text-4xl font-medium text-neutral-950">
+                          ${formattedPrice}
+                        </div>
+                        <p className="text-sm text-neutral-600">
+                          COP / mes <span className="text-xs">(+ IVA)</span>
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        {plan.modules.map((moduleId) => (
+                          <div
+                            key={moduleId}
+                            className="flex items-start gap-3 text-sm text-neutral-700"
+                          >
+                            <Check className="h-5 w-5 text-neutral-600 shrink-0 mt-0.5" />
+                            <span>{MODULE_LABELS[moduleId]}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-3 pt-2">
+                        {!loggedIn && (
+                          <Link
+                            href="/signup"
+                            className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          >
+                            Empezar ahora
+                          </Link>
+                        )}
+                        {loggedIn && (
+                          <Link
+                            href="/panel"
+                            className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                          >
+                            Ir al panel
+                          </Link>
+                        )}
+
+                        <p className="text-center text-xs text-neutral-500">
+                          Sin contrato. Cancela cuando quieras.
+                        </p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-
-                <div className="space-y-3">
-                  {!loggedIn && (
-                    <Link
-                      href="/signup"
-                      className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      Empezar ahora
-                    </Link>
-                  )}
-                  {loggedIn && (
-                    <Link
-                      href="/panel"
-                      className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      Ir al panel
-                    </Link>
-                  )}
-
-                  <p className="text-center text-xs text-neutral-500">
-                    Sin contrato. Cancela cuando quieras.
-                  </p>
-                </div>
+                  );
+                })}
               </div>
             </Reveal>
           </div>
         </section>
 
         {/* FAQ Section */}
-        <section id="faq" className="py-20 md:py-28 border-b border-neutral-200">
+        <section
+          id="faq"
+          className="py-20 md:py-28 border-b border-neutral-200"
+        >
           <div className="mx-auto max-w-6xl px-6 md:px-10">
             <Reveal>
               <div className="mb-16 space-y-4">
@@ -498,7 +526,6 @@ export default async function MarketingPage() {
             </Reveal>
           </div>
         </section>
-
 
         {/* Footer */}
         <footer className="border-t border-neutral-200 bg-white py-12">
@@ -609,10 +636,18 @@ export default async function MarketingPage() {
             url: "https://luladev.com",
             applicationCategory: "BusinessApplication",
             offers: {
-              "@type": "Offer",
+              "@type": "AggregateOffer",
               priceCurrency: "COP",
-              price: "250000",
-              pricingPattern: "https://schema.org/RecurringPricing",
+              lowPrice: String(plans[0].priceCop),
+              highPrice: String(plans[plans.length - 1].priceCop),
+              offerCount: plans.length,
+              offers: plans.map((plan) => ({
+                "@type": "Offer",
+                name: plan.name,
+                price: String(plan.priceCop),
+                priceCurrency: "COP",
+                pricingPattern: "https://schema.org/RecurringPricing",
+              })),
             },
             operatingSystem: "Web",
             inLanguage: "es-CO",

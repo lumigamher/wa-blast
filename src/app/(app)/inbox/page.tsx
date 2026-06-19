@@ -1,9 +1,10 @@
+import { requireModuleAccess } from "@/lib/billing/require-module";
+import { Check, MessageSquareIcon, SearchIcon } from "lucide-react";
 import Link from "next/link";
-import { SearchIcon, MessageSquareIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { db } from "@/lib/db/client";
+import { Input } from "@/components/ui/input";
 import { requireOrg } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
 import { listConversations } from "@/lib/inbox/store";
 import { Poller } from "./_components/poller";
 import { ContactAvatar } from "./[id]/_components/contact-avatar";
@@ -26,7 +27,12 @@ function formatRelativeTime(date: Date): string {
     const interval = Math.floor(seconds / secondsInUnit);
     if (interval >= 1) {
       if (interval === 1) return `Hace 1 ${key}`;
-      if (key === "year" || key === "month" || key === "week" || key === "day") {
+      if (
+        key === "year" ||
+        key === "month" ||
+        key === "week" ||
+        key === "day"
+      ) {
         return `Hace ${interval} ${key}s`;
       }
       return `Hace ${interval} ${key}s`;
@@ -40,6 +46,7 @@ export default async function InboxPage({
 }: {
   searchParams: Promise<{ q?: string; unreadOnly?: string; status?: string }>;
 }) {
+  await requireModuleAccess("inbox");
   const { q, unreadOnly, status } = await searchParams;
   const { orgId } = await requireOrg();
 
@@ -140,8 +147,8 @@ export default async function InboxPage({
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {conv.status === "resolved" && (
-                          <div className="text-[10px] text-muted-foreground" title="Resuelta">
-                            ✓
+                          <div title="Resuelta">
+                            <Check className="size-3 text-muted-foreground" />
                           </div>
                         )}
                         {conv.unreadCount > 0 && (
@@ -164,7 +171,9 @@ export default async function InboxPage({
         {/* Right Panel: Empty State */}
         <div className="flex min-h-0 flex-col items-center justify-center h-full rounded-lg border border-dashed">
           <MessageSquareIcon className="size-12 text-muted-foreground/30 mb-2" />
-          <p className="text-sm text-muted-foreground">Selecciona una conversación</p>
+          <p className="text-sm text-muted-foreground">
+            Selecciona una conversación
+          </p>
         </div>
       </div>
 

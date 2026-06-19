@@ -1,21 +1,27 @@
 "use client";
 
-import { useState, useTransition, ChangeEvent } from "react";
-import { ChevronDownIcon } from "lucide-react";
+import { AlertTriangle, ChevronDownIcon } from "lucide-react";
+import { type ChangeEvent, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { read, utils } from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
 import { sendFlowAction, sendFlowBatchAction } from "./nueva/actions";
 
-export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: string }) {
+export function SendFlowForm({
+  flowId,
+  flowName,
+}: {
+  flowId: string;
+  flowName: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState<"single" | "bulk">("single");
   const [phone, setPhone] = useState("");
   const [phones, setPhones] = useState("");
   const [cta, setCta] = useState("Abrir formulario");
-  const [bodyText, setBodyText] = useState("Completa este breve formulario 🙌");
+  const [bodyText, setBodyText] = useState("Completa este breve formulario");
   const [isPending, startTransition] = useTransition();
 
   const handleSendSingle = () => {
@@ -32,7 +38,7 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
         toast.success(`Flow enviado (wamid: ${result.wamid})`);
         setPhone("");
         setCta("Abrir formulario");
-        setBodyText("Completa este breve formulario 🙌");
+        setBodyText("Completa este breve formulario");
         setIsOpen(false);
       } else {
         toast.error(result.error);
@@ -49,13 +55,28 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
       try {
         const wb = read(ev.target?.result, { type: "array" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows = utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as unknown[][];
+        const rows = utils.sheet_to_json(sheet, {
+          header: 1,
+          blankrows: false,
+        }) as unknown[][];
         if (!rows.length) {
           toast.error("El Excel está vacío");
           return;
         }
-        const header = (rows[0] ?? []).map((h) => String(h ?? "").toLowerCase());
-        const KEYS = ["tel", "phone", "cel", "whats", "numero", "número", "movil", "móvil", "contacto"];
+        const header = (rows[0] ?? []).map((h) =>
+          String(h ?? "").toLowerCase(),
+        );
+        const KEYS = [
+          "tel",
+          "phone",
+          "cel",
+          "whats",
+          "numero",
+          "número",
+          "movil",
+          "móvil",
+          "contacto",
+        ];
         let col = header.findIndex((h) => KEYS.some((k) => h.includes(k)));
         let start = 1;
         if (col === -1) {
@@ -64,7 +85,10 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
         } // sin encabezado reconocible → primera columna
         const nums: string[] = [];
         for (let i = start; i < rows.length; i++) {
-          const raw = String((rows[i] ?? [])[col] ?? "").replace(/[^0-9+]/g, "");
+          const raw = String((rows[i] ?? [])[col] ?? "").replace(
+            /[^0-9+]/g,
+            "",
+          );
           if (raw.replace(/\D/g, "").length >= 7) nums.push(raw);
         }
         if (!nums.length) {
@@ -102,7 +126,7 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
         toast.success(`Enviando Flow a ${result.total} números…`);
         setPhones("");
         setCta("Abrir formulario");
-        setBodyText("Completa este breve formulario 🙌");
+        setBodyText("Completa este breve formulario");
         setIsOpen(false);
         // Redirect to campaigns after a short delay
         setTimeout(() => {
@@ -120,7 +144,9 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        <ChevronDownIcon className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDownIcon
+          className={`size-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
         Enviar Flow
       </button>
 
@@ -131,7 +157,9 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
             <button
               onClick={() => setMode("single")}
               className={`px-3 py-2 text-xs font-medium ${
-                mode === "single" ? "text-foreground border-b-2 border-foreground" : "text-muted-foreground"
+                mode === "single"
+                  ? "text-foreground border-b-2 border-foreground"
+                  : "text-muted-foreground"
               }`}
             >
               Un número
@@ -139,7 +167,9 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
             <button
               onClick={() => setMode("bulk")}
               className={`px-3 py-2 text-xs font-medium ${
-                mode === "bulk" ? "text-foreground border-b-2 border-foreground" : "text-muted-foreground"
+                mode === "bulk"
+                  ? "text-foreground border-b-2 border-foreground"
+                  : "text-muted-foreground"
               }`}
             >
               Varios números
@@ -155,7 +185,9 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
               id={`cta-${flowId}`}
               maxLength={25}
               value={cta}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setCta(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                setCta(e.target.value)
+              }
               disabled={isPending}
               className="mt-1"
             />
@@ -169,7 +201,9 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
             <textarea
               id={`body-${flowId}`}
               value={bodyText}
-              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setBodyText(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                setBodyText(e.target.value)
+              }
               disabled={isPending}
               rows={2}
               className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -187,12 +221,19 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
                   id={`phone-${flowId}`}
                   placeholder="+57..."
                   value={phone}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setPhone(e.target.value)
+                  }
                   disabled={isPending}
                   className="mt-1"
                 />
               </div>
-              <Button onClick={handleSendSingle} disabled={isPending || !phone.trim()} size="sm" className="w-full">
+              <Button
+                onClick={handleSendSingle}
+                disabled={isPending || !phone.trim()}
+                size="sm"
+                className="w-full"
+              >
                 {isPending ? "Enviando..." : "Enviar"}
               </Button>
             </>
@@ -201,9 +242,12 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
           {/* Bulk mode */}
           {mode === "bulk" && (
             <>
-              <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded p-2 text-xs text-yellow-800 dark:text-yellow-200">
-                ⚠️ El mensaje interactivo solo llega a contactos que te escribieron en las últimas 24 h (regla de
-                Meta).
+              <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded p-2 text-xs text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
+                <AlertTriangle className="size-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  El mensaje interactivo solo llega a contactos que te
+                  escribieron en las últimas 24 h (regla de Meta).
+                </span>
               </div>
               <div>
                 <Label htmlFor={`xls-${flowId}`} className="text-xs">
@@ -225,7 +269,9 @@ export function SendFlowForm({ flowId, flowName }: { flowId: string; flowName: s
                 <textarea
                   id={`phones-${flowId}`}
                   value={phones}
-                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPhones(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                    setPhones(e.target.value)
+                  }
                   disabled={isPending}
                   rows={6}
                   placeholder="+573001234567&#10;+573009876543&#10;57301234567"

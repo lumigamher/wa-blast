@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { CheckIcon } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -30,7 +30,7 @@ export function CopyField({ label, value }: { label: string; value: string }) {
         >
           {copied ? (
             <>
-              <CheckIcon className="mr-1 size-4" /> ✓ Copiado
+              <CheckIcon className="mr-1 size-4" /> Copiado
             </>
           ) : (
             "Copiar"

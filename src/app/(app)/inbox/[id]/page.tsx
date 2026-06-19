@@ -1,26 +1,31 @@
-import { SearchIcon } from "lucide-react";
-import { notFound } from "next/navigation";
+import { requireModuleAccess } from "@/lib/billing/require-module";
+import { Check, SearchIcon } from "lucide-react";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
+import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { db } from "@/lib/db/client";
+import { Input } from "@/components/ui/input";
 import { requireOrg } from "@/lib/auth/session";
-import { getThread, listConversations, markConversationRead } from "@/lib/inbox/store";
-import { isWindowOpen } from "@/lib/inbox/window";
-import { getOrgSettings } from "@/lib/org/settings";
-import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
-import { extractVariables } from "@/lib/templates";
+import { db } from "@/lib/db/client";
+import { listNotes } from "@/lib/inbox/notes";
 import { listQuickReplies } from "@/lib/inbox/quick-replies";
 import { listStickers } from "@/lib/inbox/stickers";
-import { listNotes } from "@/lib/inbox/notes";
+import {
+  getThread,
+  listConversations,
+  markConversationRead,
+} from "@/lib/inbox/store";
+import { isWindowOpen } from "@/lib/inbox/window";
+import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
-import { ThreadAndComposer } from "./_components/thread-and-composer";
-import { MarkReadOnOpen } from "./_components/mark-read-on-open";
+import { getOrgSettings } from "@/lib/org/settings";
+import { extractVariables } from "@/lib/templates";
 import { Poller } from "../_components/poller";
+import { ContactAvatar } from "./_components/contact-avatar";
 import { ContactInfoToggle } from "./_components/contact-panel";
 import { ConversationSearch } from "./_components/conversation-search";
+import { MarkReadOnOpen } from "./_components/mark-read-on-open";
 import { ResolveButton } from "./_components/resolve-button";
-import { ContactAvatar } from "./_components/contact-avatar";
+import { ThreadAndComposer } from "./_components/thread-and-composer";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +45,12 @@ function formatRelativeTime(date: Date): string {
     const interval = Math.floor(seconds / secondsInUnit);
     if (interval >= 1) {
       if (interval === 1) return `Hace 1 ${key}`;
-      if (key === "year" || key === "month" || key === "week" || key === "day") {
+      if (
+        key === "year" ||
+        key === "month" ||
+        key === "week" ||
+        key === "day"
+      ) {
         return `Hace ${interval} ${key}s`;
       }
       return `Hace ${interval} ${key}s`;
@@ -56,6 +66,7 @@ export default async function InboxThreadPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ q?: string; unreadOnly?: string; status?: string }>;
 }) {
+  await requireModuleAccess("inbox");
   const { id: conversationId } = await params;
   const { q, unreadOnly, status } = await searchParams;
   const { orgId } = await requireOrg();
@@ -77,15 +88,15 @@ export default async function InboxThreadPage({
   // Get approved templates
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
-  const allTemplates = creds
-    ? await listTemplates(creds).catch(() => [])
-    : [];
+  const allTemplates = creds ? await listTemplates(creds).catch(() => []) : [];
   const approvedTemplates = allTemplates
     .filter((t: WhatsAppTemplate) => t.status === "APPROVED")
     .map((t: WhatsAppTemplate) => ({
       name: t.name,
       language: t.language,
-      bodyText: (t.components.find((c) => c.type === "BODY")?.text ?? "").substring(0, 100),
+      bodyText: (
+        t.components.find((c) => c.type === "BODY")?.text ?? ""
+      ).substring(0, 100),
       varCount: extractVariables(t).length,
     }));
 
@@ -195,8 +206,8 @@ export default async function InboxThreadPage({
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {conv.status === "resolved" && (
-                          <div className="text-[10px] text-muted-foreground" title="Resuelta">
-                            ✓
+                          <div title="Resuelta">
+                            <Check className="size-3 text-muted-foreground" />
                           </div>
                         )}
                         {conv.unreadCount > 0 && (
@@ -245,7 +256,13 @@ export default async function InboxThreadPage({
                     }`}
                     aria-hidden
                   />
-                  <span className={windowOpen ? "text-emerald-700 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}>
+                  <span
+                    className={
+                      windowOpen
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-amber-700 dark:text-amber-400"
+                    }
+                  >
                     {windowOpen ? "Ventana abierta" : "Ventana cerrada"}
                   </span>
                 </div>

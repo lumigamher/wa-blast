@@ -1,19 +1,26 @@
-import Link from "next/link";
-import { ExternalLinkIcon, PlusIcon, SearchIcon } from "lucide-react";
+import { requireModuleAccess } from "@/lib/billing/require-module";
 import { and, eq } from "drizzle-orm";
+import { ExternalLinkIcon, PlusIcon, SearchIcon } from "lucide-react";
+import Link from "next/link";
+import { FavoriteButton } from "@/components/favorite-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { FavoriteButton } from "@/components/favorite-button";
 import { WhatsAppBubble } from "@/components/whatsapp-bubble";
-import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
 import { templateFavorites } from "@/lib/db/schema";
-import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
-import { extractVariables } from "@/lib/templates";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
+import { getOrgSettings } from "@/lib/org/settings";
+import { extractVariables } from "@/lib/templates";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +39,7 @@ export default async function PlantillasPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string }>;
 }) {
+  await requireModuleAccess("plantillas");
   const { q, status } = await searchParams;
   const { orgId, session } = await requireOrg();
   const settings = await getOrgSettings(db, orgId);
@@ -47,8 +55,15 @@ export default async function PlantillasPage({
   const favs = await db
     .select()
     .from(templateFavorites)
-    .where(and(eq(templateFavorites.orgId, orgId), eq(templateFavorites.userId, session.user.id)));
-  const favKeys = new Set(favs.map((f) => `${f.templateName}|${f.templateLanguage}`));
+    .where(
+      and(
+        eq(templateFavorites.orgId, orgId),
+        eq(templateFavorites.userId, session.user.id),
+      ),
+    );
+  const favKeys = new Set(
+    favs.map((f) => `${f.templateName}|${f.templateLanguage}`),
+  );
 
   const counts: Record<string, number> = { all: templates.length };
   for (const t of templates) counts[t.status] = (counts[t.status] ?? 0) + 1;
@@ -60,8 +75,17 @@ export default async function PlantillasPage({
     .sort((a, b) => {
       const fa = a.favorited ? 0 : 1;
       const fb = b.favorited ? 0 : 1;
-      const order = { APPROVED: 0, PENDING: 1, PAUSED: 2, REJECTED: 3 } as const;
-      return fa - fb || (order[a.status] ?? 9) - (order[b.status] ?? 9) || a.name.localeCompare(b.name);
+      const order = {
+        APPROVED: 0,
+        PENDING: 1,
+        PAUSED: 2,
+        REJECTED: 3,
+      } as const;
+      return (
+        fa - fb ||
+        (order[a.status] ?? 9) - (order[b.status] ?? 9) ||
+        a.name.localeCompare(b.name)
+      );
     });
 
   const metaManagerUrl = settings.metaWabaId
@@ -73,7 +97,9 @@ export default async function PlantillasPage({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
           <h1 className="text-2xl font-semibold tracking-tight">Plantillas</h1>
-          <p className="text-sm text-muted-foreground">Plantillas de WhatsApp · Meta es la fuente de verdad.</p>
+          <p className="text-sm text-muted-foreground">
+            Plantillas de WhatsApp · Meta es la fuente de verdad.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {metaManagerUrl && (
@@ -87,7 +113,10 @@ export default async function PlantillasPage({
               Ver en Meta
             </a>
           )}
-          <Link href="/plantillas/nueva" className={buttonVariants({ size: "sm" })}>
+          <Link
+            href="/plantillas/nueva"
+            className={buttonVariants({ size: "sm" })}
+          >
             <PlusIcon className="size-4" />
             Nueva plantilla
           </Link>
@@ -97,8 +126,13 @@ export default async function PlantillasPage({
       {!creds && (
         <Card>
           <CardContent className="flex items-center justify-center gap-3 py-6 text-sm">
-            <span className="text-amber-700">Configura tus credenciales de Meta para ver tus plantillas.</span>
-            <Link href="/configuracion/meta" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <span className="text-amber-700">
+              Configura tus credenciales de Meta para ver tus plantillas.
+            </span>
+            <Link
+              href="/configuracion/meta"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
               Ir a Configuración
             </Link>
           </CardContent>
@@ -111,8 +145,15 @@ export default async function PlantillasPage({
             <CardContent className="flex flex-wrap items-center gap-3 py-3">
               <form className="relative max-w-sm flex-1">
                 <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input name="q" defaultValue={q ?? ""} placeholder="Buscar plantilla…" className="pl-8" />
-                {status && status !== "all" && <input type="hidden" name="status" value={status} />}
+                <Input
+                  name="q"
+                  defaultValue={q ?? ""}
+                  placeholder="Buscar plantilla…"
+                  className="pl-8"
+                />
+                {status && status !== "all" && (
+                  <input type="hidden" name="status" value={status} />
+                )}
               </form>
               <div className="flex flex-wrap gap-1">
                 {STATUS_FILTERS.map((f) => {
@@ -126,11 +167,15 @@ export default async function PlantillasPage({
                       key={f.key}
                       href={`/plantillas${qs.toString() ? `?${qs}` : ""}`}
                       className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                        isActive ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                        isActive
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
                       }`}
                     >
                       {f.label}
-                      {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+                      {count > 0 && (
+                        <span className="ml-1 opacity-70">({count})</span>
+                      )}
                     </Link>
                   );
                 })}
@@ -149,13 +194,21 @@ export default async function PlantillasPage({
               {filtered.map((t) => {
                 const vars = extractVariables(t);
                 return (
-                  <Card key={`${t.name}-${t.language}`} className="flex flex-col overflow-hidden hover:shadow-md">
+                  <Card
+                    key={`${t.name}-${t.language}`}
+                    className="flex flex-col overflow-hidden hover:shadow-md"
+                  >
                     <CardHeader className="relative gap-2 pb-3">
                       <div className="absolute right-4 top-4 z-10">
                         <StatusBadge status={t.status} />
                       </div>
                       <div className="flex min-w-0 items-center gap-1 pr-24">
-                        <FavoriteButton name={t.name} language={t.language} favorited={t.favorited} size="sm" />
+                        <FavoriteButton
+                          name={t.name}
+                          language={t.language}
+                          favorited={t.favorited}
+                          size="sm"
+                        />
                         <CardTitle
                           className="relative block min-w-0 overflow-hidden whitespace-nowrap font-mono text-sm [mask-image:linear-gradient(to_right,black_85%,transparent_100%)]"
                           title={t.name}
@@ -184,7 +237,9 @@ export default async function PlantillasPage({
                           ))}
                         </div>
                       ) : (
-                        <div className="text-[11px] text-muted-foreground">Sin variables</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          Sin variables
+                        </div>
                       )}
                     </CardContent>
                   </Card>
@@ -199,7 +254,12 @@ export default async function PlantillasPage({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const variant = status === "APPROVED" ? "default" : status === "PENDING" ? "secondary" : "destructive";
+  const variant =
+    status === "APPROVED"
+      ? "default"
+      : status === "PENDING"
+        ? "secondary"
+        : "destructive";
   return (
     <Badge variant={variant} className="shrink-0 whitespace-nowrap">
       {status}

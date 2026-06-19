@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { PhoneIcon } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { getCallPermissionAction, requestCallPermissionAction } from "../llamadas/actions";
+import {
+  getCallPermissionAction,
+  requestCallPermissionAction,
+} from "../llamadas/actions";
 
 export function CallButton({
   contactId,
@@ -24,7 +27,9 @@ export function CallButton({
       const perm = await getCallPermissionAction(contactId);
       if (perm.valid) {
         window.dispatchEvent(
-          new CustomEvent("lula:place-call", { detail: { contactId, name, phone } }),
+          new CustomEvent("lula:place-call", {
+            detail: { contactId, name, phone },
+          }),
         );
         return;
       }
@@ -32,8 +37,9 @@ export function CallButton({
       if ("error" in res) {
         toast.error(`No se pudo pedir permiso: ${res.error}`);
       } else {
-        toast("📞 Permiso de llamada solicitado", {
-          description: "Te avisamos cuando el contacto acepte; entonces podrás llamar.",
+        toast("Permiso de llamada solicitado", {
+          description:
+            "Te avisamos cuando el contacto acepte; entonces podrás llamar.",
         });
       }
     } finally {

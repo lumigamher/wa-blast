@@ -1,19 +1,38 @@
+import { requireModuleAccess } from "@/lib/billing/require-module";
 import { eq, sql } from "drizzle-orm";
 import { Trash2Icon, UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
 import { contactTags, tags } from "@/lib/db/schema";
 import { createTagAction, deleteTagAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-const PRESET_COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#64748b"];
+const PRESET_COLORS = [
+  "#6366f1",
+  "#8b5cf6",
+  "#ec4899",
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#06b6d4",
+  "#3b82f6",
+  "#64748b",
+];
 
 export default async function TagsPage() {
+  await requireModuleAccess("contactos");
   const { orgId } = await requireOrg();
   const rows = await db
     .select({
@@ -33,7 +52,8 @@ export default async function TagsPage() {
       <header className="space-y-1.5">
         <h1 className="text-2xl font-semibold tracking-tight">Tags</h1>
         <p className="text-sm text-muted-foreground">
-          Agrupa contactos con etiquetas para seleccionarlos fácil al crear campañas.
+          Agrupa contactos con etiquetas para seleccionarlos fácil al crear
+          campañas.
         </p>
       </header>
 
@@ -45,7 +65,12 @@ export default async function TagsPage() {
           <form action={createTagAction} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="tag-name">Nombre</Label>
-              <Input id="tag-name" name="name" required placeholder="Ej. VIP, leads-abril, clientes" />
+              <Input
+                id="tag-name"
+                name="name"
+                required
+                placeholder="Ej. VIP, leads-abril, clientes"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Color</Label>
@@ -62,14 +87,17 @@ export default async function TagsPage() {
         <CardHeader>
           <CardTitle className="text-base">Tus tags</CardTitle>
           <CardDescription className="text-xs">
-            {rows.length} en total · {rows.reduce((s, r) => s + Number(r.count), 0)} asignaciones
+            {rows.length} en total ·{" "}
+            {rows.reduce((s, r) => s + Number(r.count), 0)} asignaciones
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {rows.length === 0 ? (
             <div className="border-t p-10 text-center">
               <UsersIcon className="mx-auto mb-2 size-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Aún no tienes tags. Crea la primera arriba.</p>
+              <p className="text-sm text-muted-foreground">
+                Aún no tienes tags. Crea la primera arriba.
+              </p>
             </div>
           ) : (
             <ul className="divide-y border-t">

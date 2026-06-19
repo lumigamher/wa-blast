@@ -114,7 +114,7 @@ describe("reply quote", () => {
 
     const thread = await getThread(db, "o1", "c1");
     const quoteB = thread!.quotes["msg.B"];
-    expect(quoteB.label).toBe("📷 Imagen");
+    expect(quoteB.label).toBe("Imagen");
   });
 
   it("trunca textos largos en la cita", async () => {

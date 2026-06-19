@@ -1,33 +1,33 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import type { InferSelectModel } from "drizzle-orm";
 import {
   AlertCircleIcon,
-  CheckIcon,
   CheckCheckIcon,
-  FileIcon,
-  DownloadIcon,
-  SmilePlusIcon,
-  ReplyIcon,
-  StickyNoteIcon,
-  LinkIcon,
-  PhoneIcon,
-  MessageSquareIcon,
-  Zap,
-  MousePointerClickIcon,
+  CheckIcon,
   ClipboardListIcon,
+  DownloadIcon,
+  FileIcon,
+  LinkIcon,
+  MessageSquareIcon,
+  MousePointerClickIcon,
+  PhoneIcon,
+  ReplyIcon,
+  SmilePlusIcon,
+  StickyNoteIcon,
+  Zap,
 } from "lucide-react";
-import { messages as messagesSchema } from "@/lib/db/schema";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import type { messages as messagesSchema } from "@/lib/db/schema";
 import { sendReactionAction } from "../../actions";
-import type { InferSelectModel } from "drizzle-orm";
 import { AudioPlayer } from "./audio-player";
+import { CallEntry } from "./call-entry";
 import { EmojiPicker } from "./emoji-picker";
-import { ReactionChips } from "./reaction-chip";
 import { MediaImage } from "./media-image";
 import { MediaVideo } from "./media-video";
-import { CallEntry } from "./call-entry";
+import { ReactionChips } from "./reaction-chip";
 
 type Message = InferSelectModel<typeof messagesSchema>;
 
@@ -71,15 +71,15 @@ function replyLabel(message: Message): string {
     case "text":
       return (message.body || "").slice(0, 80);
     case "image":
-      return "📷 Imagen";
+      return "Imagen";
     case "video":
-      return "🎬 Video";
+      return "Video";
     case "audio":
-      return "🎤 Nota de voz";
+      return "Nota de voz";
     case "sticker":
-      return "🩹 Sticker";
+      return "Sticker";
     case "document":
-      return message.body || "📄 Documento";
+      return message.body || "Documento";
     case "template":
       return "Plantilla";
     case "interactive":
@@ -118,14 +118,26 @@ function dayLabel(d: Date): string {
   });
 }
 
-export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}, calls = [] }: ThreadProps) {
+export function Thread({
+  messages,
+  onReplyTo,
+  reactions,
+  notes = [],
+  quotes = {},
+  calls = [],
+}: ThreadProps) {
   const [query, setQuery] = useState("");
 
   // La búsqueda vive en el header (ConversationSearch) y llega por evento.
   useEffect(() => {
-    const onSearch = (e: Event) => setQuery((e as CustomEvent<{ query: string }>).detail?.query ?? "");
+    const onSearch = (e: Event) =>
+      setQuery((e as CustomEvent<{ query: string }>).detail?.query ?? "");
     window.addEventListener("lula:thread-search", onSearch as EventListener);
-    return () => window.removeEventListener("lula:thread-search", onSearch as EventListener);
+    return () =>
+      window.removeEventListener(
+        "lula:thread-search",
+        onSearch as EventListener,
+      );
   }, []);
 
   // Filter out legacy standalone reaction messages
@@ -133,10 +145,24 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
 
   // Build merged, time-sorted timeline of messages, notes, and calls
   const timeline: TimelineItem[] = [
-    ...visible.map((msg) => ({ kind: "message" as const, at: msg.createdAt, msg })),
-    ...notes.map((note) => ({ kind: "note" as const, at: note.createdAt, note })),
-    ...calls.map((call) => ({ kind: "call" as const, at: call.createdAt, call })),
-  ].filter((item) => item.at != null).sort((a, b) => a.at!.getTime() - b.at!.getTime());
+    ...visible.map((msg) => ({
+      kind: "message" as const,
+      at: msg.createdAt,
+      msg,
+    })),
+    ...notes.map((note) => ({
+      kind: "note" as const,
+      at: note.createdAt,
+      note,
+    })),
+    ...calls.map((call) => ({
+      kind: "call" as const,
+      at: call.createdAt,
+      call,
+    })),
+  ]
+    .filter((item) => item.at != null)
+    .sort((a, b) => a.at!.getTime() - b.at!.getTime());
 
   if (timeline.length === 0) {
     return (
@@ -149,18 +175,25 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
   // Búsqueda dentro de la conversación: filtra a los mensajes cuyo texto coincide
   const q = query.trim().toLowerCase();
   const items = q
-    ? timeline.filter((it) => it.kind === "message" && (it.msg.body ?? "").toLowerCase().includes(q))
+    ? timeline.filter(
+        (it) =>
+          it.kind === "message" &&
+          (it.msg.body ?? "").toLowerCase().includes(q),
+      )
     : timeline;
 
   return (
     <div className="flex flex-col gap-3">
       {q && (
         <div className="py-1 text-center text-[11px] text-muted-foreground">
-          {items.length} resultado{items.length === 1 ? "" : "s"} para “{query.trim()}”
+          {items.length} resultado{items.length === 1 ? "" : "s"} para “
+          {query.trim()}”
         </div>
       )}
       {q && items.length === 0 && (
-        <p className="py-6 text-center text-sm text-muted-foreground">Sin resultados</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Sin resultados
+        </p>
       )}
       {items.map((item, idx) => {
         const prevItem = idx > 0 ? items[idx - 1] : null;
@@ -174,7 +207,9 @@ export function Thread({ messages, onReplyTo, reactions, notes = [], quotes = {}
           currentDay.getDate() !== prevDay.getDate();
 
         return (
-          <div key={`${item.kind}-${item.kind === "message" ? item.msg.id : item.kind === "note" ? item.note.id : item.call.id}`}>
+          <div
+            key={`${item.kind}-${item.kind === "message" ? item.msg.id : item.kind === "note" ? item.note.id : item.call.id}`}
+          >
             {isDifferentDay && (
               <div className="my-3 flex justify-center">
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
@@ -213,7 +248,10 @@ function MessageBubble({
   quote?: { label: string; direction: "in" | "out" };
 }) {
   const [showReactionPopover, setShowReactionPopover] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [reactionsLoading, setReactionsLoading] = useState(false);
   const isOutbound = message.direction === "out";
   const time = message.createdAt.toLocaleTimeString("es-CO", {
@@ -229,7 +267,10 @@ function MessageBubble({
     if (!message.wamid || isOutbound) return;
     setReactionsLoading(true);
     try {
-      const res = await sendReactionAction(message.conversationId, { wamid: message.wamid, emoji });
+      const res = await sendReactionAction(message.conversationId, {
+        wamid: message.wamid,
+        emoji,
+      });
       if (res.ok) {
         router.refresh();
       } else {
@@ -253,7 +294,10 @@ function MessageBubble({
     if (!contextMenu) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+      if (
+        contextMenuRef.current &&
+        !contextMenuRef.current.contains(e.target as Node)
+      ) {
         setContextMenu(null);
       }
     };
@@ -290,9 +334,13 @@ function MessageBubble({
 
             {/* Hover action toolbar - anchored to bubble, inner side */}
             {!isOutbound && message.wamid && (
-              <div className={`absolute top-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity ${
-                isOutbound ? "left-0 -translate-x-full pr-1" : "right-0 translate-x-full pl-1"
-              }`}>
+              <div
+                className={`absolute top-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity ${
+                  isOutbound
+                    ? "left-0 -translate-x-full pr-1"
+                    : "right-0 translate-x-full pl-1"
+                }`}
+              >
                 <div className="flex items-center gap-0.5 rounded-full border bg-background px-1 py-0.5 shadow-sm">
                   <button
                     onClick={() => {
@@ -348,7 +396,9 @@ function MessageBubble({
             )}
             {/* Reacciones: chip absoluto sobre el borde inferior (no empuja el flujo) */}
             {reactions.length > 0 && (
-              <div className={`absolute -bottom-1.5 z-10 ${isOutbound ? "right-2" : "left-2"}`}>
+              <div
+                className={`absolute -bottom-1.5 z-10 ${isOutbound ? "right-2" : "left-2"}`}
+              >
                 <ReactionChips reactions={reactions} />
               </div>
             )}
@@ -422,7 +472,9 @@ function MessageBubble({
                 </p>
               </div>
             )}
-            <div className={`text-sm ${message.type !== "audio" ? "whitespace-pre-wrap break-words" : ""}`}>
+            <div
+              className={`text-sm ${message.type !== "audio" ? "whitespace-pre-wrap break-words" : ""}`}
+            >
               {bubbleContent}
             </div>
 
@@ -431,16 +483,23 @@ function MessageBubble({
                 {time}
               </span>
               {isOutbound && (
-                <StatusIcon status={message.status} errorMessage={message.errorMessage} />
+                <StatusIcon
+                  status={message.status}
+                  errorMessage={message.errorMessage}
+                />
               )}
             </div>
           </div>
 
           {/* Hover action toolbar - anchored to bubble, inner side */}
           {!isOutbound && message.wamid && (
-            <div className={`absolute top-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity ${
-              isOutbound ? "left-0 -translate-x-full pr-1" : "right-0 translate-x-full pl-1"
-            }`}>
+            <div
+              className={`absolute top-0 z-20 opacity-0 group-hover:opacity-100 transition-opacity ${
+                isOutbound
+                  ? "left-0 -translate-x-full pr-1"
+                  : "right-0 translate-x-full pl-1"
+              }`}
+            >
               <div className="flex items-center gap-0.5 rounded-full border bg-background px-1 py-0.5 shadow-sm">
                 <button
                   onClick={() => {
@@ -496,7 +555,9 @@ function MessageBubble({
           )}
           {/* Reacciones: chip absoluto sobre el borde inferior de la burbuja (no empuja el flujo) */}
           {reactions.length > 0 && (
-            <div className={`absolute -bottom-1.5 z-10 ${isOutbound ? "right-2" : "left-2"}`}>
+            <div
+              className={`absolute -bottom-1.5 z-10 ${isOutbound ? "right-2" : "left-2"}`}
+            >
               <ReactionChips reactions={reactions} />
             </div>
           )}
@@ -566,7 +627,9 @@ function StatusIcon({
     );
   }
   if (status === "read") {
-    return <CheckCheckIcon className="size-3.5 text-blue-600 dark:text-blue-400" />;
+    return (
+      <CheckCheckIcon className="size-3.5 text-blue-600 dark:text-blue-400" />
+    );
   }
   if (status === "delivered") {
     return <CheckCheckIcon className="size-3.5 text-muted-foreground" />;
@@ -609,10 +672,7 @@ function renderMessageContent(message: Message): React.ReactNode {
     case "image":
       return message.mediaId ? (
         <div className="space-y-2">
-          <MediaImage
-            src={`/api/inbox/media/${message.mediaId}`}
-            alt="Image"
-          />
+          <MediaImage src={`/api/inbox/media/${message.mediaId}`} alt="Image" />
           {message.body && <div className="text-xs">{message.body}</div>}
         </div>
       ) : (
@@ -647,7 +707,9 @@ function renderMessageContent(message: Message): React.ReactNode {
             <FileIcon className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{message.body || "Documento"}</div>
+            <div className="truncate text-sm font-medium">
+              {message.body || "Documento"}
+            </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <DownloadIcon className="size-3" /> Descargar
             </div>
@@ -728,7 +790,9 @@ function renderMessageContent(message: Message): React.ReactNode {
           if (payload.kind === "carousel" && payload.cards) {
             return (
               <div className="flex flex-col gap-3">
-                {payload.bodyText && <div className="text-sm font-medium">{payload.bodyText}</div>}
+                {payload.bodyText && (
+                  <div className="text-sm font-medium">{payload.bodyText}</div>
+                )}
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
                   {payload.cards.map((card, idx) => (
                     <div
@@ -737,10 +801,7 @@ function renderMessageContent(message: Message): React.ReactNode {
                     >
                       {card.mediaUrl && (
                         <div className="h-32 w-full bg-gray-100 dark:bg-gray-800 overflow-hidden rounded-t-lg">
-                          <MediaImage
-                            src={card.mediaUrl}
-                            alt="Card"
-                          />
+                          <MediaImage src={card.mediaUrl} alt="Card" />
                         </div>
                       )}
                       <div className="p-3 flex flex-col gap-2">
@@ -766,7 +827,9 @@ function renderMessageContent(message: Message): React.ReactNode {
                                   className="flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900 px-2 py-1 text-xs font-medium text-green-900 dark:text-green-100"
                                 >
                                   {icon}
-                                  <span className="truncate text-xs">{btn.text}</span>
+                                  <span className="truncate text-xs">
+                                    {btn.text}
+                                  </span>
                                 </div>
                               );
                             })}
@@ -821,9 +884,7 @@ function renderMessageContent(message: Message): React.ReactNode {
         }
       }
       return (
-        <div className="text-sm italic">
-          {message.body || "[plantilla]"}
-        </div>
+        <div className="text-sm italic">{message.body || "[plantilla]"}</div>
       );
     }
 
@@ -850,10 +911,7 @@ function renderMessageContent(message: Message): React.ReactNode {
               // Filter out flow_token and convert values to strings
               const entries = Object.entries(formData)
                 .filter(([key]) => key !== "flow_token")
-                .map(([key, value]) => [
-                  key,
-                  String(value || "").slice(0, 50),
-                ]);
+                .map(([key, value]) => [key, String(value || "").slice(0, 50)]);
 
               if (entries.length > 0) {
                 return (
@@ -925,9 +983,7 @@ function renderMessageContent(message: Message): React.ReactNode {
         }
       }
       return (
-        <div className="text-sm italic">
-          {message.body || "[formulario]"}
-        </div>
+        <div className="text-sm italic">{message.body || "[formulario]"}</div>
       );
     }
 

@@ -1,8 +1,11 @@
 import { inArray } from "drizzle-orm";
-import { applyCharge } from "@/lib/billing/subscription";
-import { parseWebhookEvent, verifyWebhookSignature } from "@/lib/billing/efipay";
-import { billingCheckouts } from "@/lib/db/schema";
+import {
+  parseWebhookEvent,
+  verifyWebhookSignature,
+} from "@/lib/billing/efipay";
+import { applyCharge, setPlan } from "@/lib/billing/subscription";
 import type { DB } from "@/lib/db/client";
+import { billingCheckouts } from "@/lib/db/schema";
 
 export async function handleEfipayWebhook(
   db: DB,
@@ -10,7 +13,8 @@ export async function handleEfipayWebhook(
   signature: string | null,
   webhookToken: string,
 ): Promise<{ status: number }> {
-  if (!verifyWebhookSignature(rawBody, signature, webhookToken)) return { status: 401 };
+  if (!verifyWebhookSignature(rawBody, signature, webhookToken))
+    return { status: 401 };
   let payload: unknown;
   try {
     payload = JSON.parse(rawBody);
@@ -21,7 +25,7 @@ export async function handleEfipayWebhook(
   if (!event || !event.approved) return { status: 200 };
 
   // Try to find checkout by any of the candidate IDs
-  let checkout;
+  let checkout: typeof billingCheckouts.$inferSelect | undefined;
   if (event.candidateIds.length > 0) {
     const results = await db
       .select()
@@ -43,11 +47,24 @@ export async function handleEfipayWebhook(
   }
 
   const chargeId = `efipay_${event.chargeId}`;
-  await applyCharge(db, {
-    orgId: checkout.orgId,
-    chargeId,
-    source: "efipay",
-    amountCop: amount,
-  });
+
+  if (checkout.kind === "upgrade") {
+    await setPlan(db, {
+      orgId: checkout.orgId,
+      planId: checkout.planId,
+      chargeId,
+      source: "efipay",
+      amountCop: amount,
+    });
+  } else {
+    await applyCharge(db, {
+      orgId: checkout.orgId,
+      chargeId,
+      source: "efipay",
+      amountCop: amount,
+      planId: checkout.planId,
+    });
+  }
+
   return { status: 200 };
 }

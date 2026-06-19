@@ -1,13 +1,19 @@
 "use client";
 
-import { useState, useRef, useMemo, useEffect } from "react";
-import { SendIcon, ChevronDownIcon, PaperclipIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, PaperclipIcon, SendIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { sendMessageAction, sendMediaAction, sendVoiceAction, addNoteAction, type SendResult } from "../../actions";
-import { StickerPicker } from "./sticker-picker";
-import { VoiceRecorder } from "./voice-recorder";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  addNoteAction,
+  type SendResult,
+  sendMediaAction,
+  sendMessageAction,
+  sendVoiceAction,
+} from "../../actions";
 import { EmojiPicker } from "./emoji-picker";
+import { StickerPicker } from "./sticker-picker";
 import type { ReplyTarget } from "./thread";
+import { VoiceRecorder } from "./voice-recorder";
 
 type Template = {
   name: string;
@@ -48,7 +54,9 @@ export function Composer({
 }: ComposerProps) {
   const router = useRouter();
   const [composerTab, setComposerTab] = useState<"reply" | "note">("reply");
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null,
+  );
   const [templateVars, setTemplateVars] = useState<string[]>([]);
   const [isPending, setIsPending] = useState(false);
   const [state, setState] = useState<SendResult | null>(null);
@@ -58,7 +66,12 @@ export function Composer({
   // interno con useState, que solo leía el valor inicial → el preview no aparecía
   // al dar "Responder" después de montar).
   const replyTo = initialReplyTo;
-  const [selectedFile, setSelectedFile] = useState<{ name: string; mime: string; base64: string; caption: string } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{
+    name: string;
+    mime: string;
+    base64: string;
+    caption: string;
+  } | null>(null);
   const [hasText, setHasText] = useState(false);
   const [noteBody, setNoteBody] = useState("");
   const [notePending, setNotePending] = useState(false);
@@ -82,7 +95,7 @@ export function Composer({
     return quickReplies.filter(
       (qr) =>
         qr.shortcut.toLowerCase().includes(quickReplySearch.toLowerCase()) ||
-        qr.body.toLowerCase().includes(quickReplySearch.toLowerCase())
+        qr.body.toLowerCase().includes(quickReplySearch.toLowerCase()),
     );
   }, [quickReplySearch, quickReplies]);
 
@@ -93,12 +106,16 @@ export function Composer({
       return;
     }
     setIsPending(true);
-    const result = await sendMessageAction(conversationId, body, replyTo ? { replyTo: replyTo.wamid } : undefined);
+    const result = await sendMessageAction(
+      conversationId,
+      body,
+      replyTo ? { replyTo: replyTo.wamid } : undefined,
+    );
     setState(result);
     setIsPending(false);
     if (result.ok) {
       const form = document.querySelector(
-        'form[data-composer="text"]'
+        'form[data-composer="text"]',
       ) as HTMLFormElement;
       if (form) form.reset();
       setHasText(false);
@@ -188,14 +205,17 @@ export function Composer({
       const end = textarea.selectionEnd;
       const currentValue = textarea.value;
 
-      const beforeSlash = currentValue.substring(0, start - quickReplySearch.length - 1);
+      const beforeSlash = currentValue.substring(
+        0,
+        start - quickReplySearch.length - 1,
+      );
       const afterSlash = currentValue.substring(end);
 
       textarea.value = beforeSlash + qr.body + afterSlash;
       textarea.focus();
       textarea.setSelectionRange(
         beforeSlash.length + qr.body.length,
-        beforeSlash.length + qr.body.length
+        beforeSlash.length + qr.body.length,
       );
     }
 
@@ -223,17 +243,19 @@ export function Composer({
     }
   };
 
-  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleTextareaKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
     if (showQuickReplyDropdown && filteredQuickReplies.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedQuickReplyIndex((prev) =>
-          prev < filteredQuickReplies.length - 1 ? prev + 1 : 0
+          prev < filteredQuickReplies.length - 1 ? prev + 1 : 0,
         );
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setSelectedQuickReplyIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredQuickReplies.length - 1
+          prev > 0 ? prev - 1 : filteredQuickReplies.length - 1,
         );
       } else if (e.key === "Enter") {
         e.preventDefault();
@@ -369,8 +391,8 @@ export function Composer({
             {selectedFile && (
               <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 p-2.5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                    📎 {selectedFile.name}
+                  <div className="text-xs text-amber-700 dark:text-amber-400 font-medium flex items-center gap-1">
+                    <PaperclipIcon className="size-3.5" /> {selectedFile.name}
                   </div>
                   <button
                     onClick={() => setSelectedFile(null)}
@@ -395,15 +417,23 @@ export function Composer({
                   />
                 )}
                 {selectedFile.mime.startsWith("audio/") && (
-                  <audio src={`data:${selectedFile.mime};base64,${selectedFile.base64}`} controls className="w-full" />
+                  <audio
+                    src={`data:${selectedFile.mime};base64,${selectedFile.base64}`}
+                    controls
+                    className="w-full"
+                  />
                 )}
-                {(selectedFile.mime.startsWith("image/") || selectedFile.mime.startsWith("video/")) && (
+                {(selectedFile.mime.startsWith("image/") ||
+                  selectedFile.mime.startsWith("video/")) && (
                   <input
                     type="text"
                     placeholder="Añadir texto (opcional)"
                     value={selectedFile.caption}
                     onChange={(e) =>
-                      setSelectedFile({ ...selectedFile, caption: e.target.value })
+                      setSelectedFile({
+                        ...selectedFile,
+                        caption: e.target.value,
+                      })
                     }
                     className="w-full px-2 py-1.5 text-xs rounded border bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                   />
@@ -421,7 +451,14 @@ export function Composer({
                 {!isPending && <SendIcon className="size-3.5" />}
               </button>
             ) : (
-              <form className="space-y-3" data-composer="text" onSubmit={(e) => { e.preventDefault(); if (hasText) handleSendText(new FormData(e.currentTarget)); }}>
+              <form
+                className="space-y-3"
+                data-composer="text"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (hasText) handleSendText(new FormData(e.currentTarget));
+                }}
+              >
                 <div className="relative">
                   {/* Unified composer bar */}
                   <div className="flex items-end gap-1 rounded-2xl border bg-background px-2 py-1.5">
@@ -485,7 +522,11 @@ export function Composer({
                         disabled={isPending || !windowOpen}
                         onSend={async (dataBase64, mime) => {
                           setIsPending(true);
-                          const result = await sendVoiceAction(conversationId, { dataBase64, mime, replyTo: replyTo?.wamid });
+                          const result = await sendVoiceAction(conversationId, {
+                            dataBase64,
+                            mime,
+                            replyTo: replyTo?.wamid,
+                          });
                           setState(result);
                           setIsPending(false);
                           if (result.ok) {
@@ -498,29 +539,34 @@ export function Composer({
                   </div>
 
                   {/* Quick reply dropdown */}
-                  {showQuickReplyDropdown && filteredQuickReplies.length > 0 && (
-                    <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md border bg-background shadow-lg z-10 max-h-48 overflow-y-auto">
-                      {filteredQuickReplies.map((qr, idx) => (
-                        <button
-                          key={qr.id}
-                          type="button"
-                          onClick={() => handleQuickReplySelect(qr)}
-                          className={`w-full text-left px-3 py-2 text-xs border-b last:border-b-0 transition-colors ${
-                            idx === selectedQuickReplyIndex
-                              ? "bg-primary/10 text-primary"
-                              : "hover:bg-muted"
-                          }`}
-                        >
-                          <div className="font-medium">/{qr.shortcut}</div>
-                          <div className="text-muted-foreground line-clamp-1">{qr.body}</div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {showQuickReplyDropdown &&
+                    filteredQuickReplies.length > 0 && (
+                      <div className="absolute bottom-full left-0 right-0 mb-1 rounded-md border bg-background shadow-lg z-10 max-h-48 overflow-y-auto">
+                        {filteredQuickReplies.map((qr, idx) => (
+                          <button
+                            key={qr.id}
+                            type="button"
+                            onClick={() => handleQuickReplySelect(qr)}
+                            className={`w-full text-left px-3 py-2 text-xs border-b last:border-b-0 transition-colors ${
+                              idx === selectedQuickReplyIndex
+                                ? "bg-primary/10 text-primary"
+                                : "hover:bg-muted"
+                            }`}
+                          >
+                            <div className="font-medium">/{qr.shortcut}</div>
+                            <div className="text-muted-foreground line-clamp-1">
+                              {qr.body}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                 </div>
 
                 {resultError && (
-                  <div className="mt-1.5 text-xs text-red-600 dark:text-red-400">{resultError}</div>
+                  <div className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                    {resultError}
+                  </div>
                 )}
               </form>
             )}
@@ -583,7 +629,8 @@ function TemplateComposer({
     <div className="border-t p-4 bg-card space-y-3">
       {!windowOpen && (
         <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 px-2.5 py-2 rounded-md border border-amber-200 dark:border-amber-900/30">
-          La ventana de 24h está cerrada. Solo puedes enviar plantillas aprobadas.
+          La ventana de 24h está cerrada. Solo puedes enviar plantillas
+          aprobadas.
         </div>
       )}
 
@@ -633,7 +680,9 @@ function TemplateComposer({
       )}
 
       {resultError && (
-        <div className="text-xs text-red-600 dark:text-red-400">{resultError}</div>
+        <div className="text-xs text-red-600 dark:text-red-400">
+          {resultError}
+        </div>
       )}
 
       <button

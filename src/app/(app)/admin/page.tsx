@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
-import { ShieldIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/admin";
-import { getSubscription } from "@/lib/billing/subscription";
-import { getPlanPriceCop } from "@/lib/billing/config";
-import { db } from "@/lib/db/client";
-import { organization, member, subscriptions } from "@/lib/db/schema";
+import { Ban, CheckCircle2, Circle, ShieldIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireAdmin } from "@/lib/auth/admin";
+import { getPlanCatalog } from "@/lib/billing/config";
+import { getSubscription } from "@/lib/billing/subscription";
+import { db } from "@/lib/db/client";
+import { member, organization, subscriptions } from "@/lib/db/schema";
 import { OrgActions } from "./_components/org-actions";
 import { PriceEditor } from "./_components/price-editor";
 
@@ -31,8 +31,8 @@ export default async function AdminPage() {
     .groupBy(organization.id)
     .orderBy(sql`${organization.createdAt} DESC`);
 
-  // Get current plan price
-  const planPrice = await getPlanPriceCop(db);
+  // Get plan catalog with prices
+  const catalog = await getPlanCatalog(db);
 
   // Transform subscription data to include full status
   const orgsWithStatus = await Promise.all(
@@ -52,22 +52,26 @@ export default async function AdminPage() {
   ) => {
     switch (status) {
       case "suspended":
-        return { icon: "⛔", label: "Suspendida", color: "text-red-600" };
+        return { Icon: Ban, label: "Suspendida", color: "text-red-600" };
       case "active":
         return {
-          icon: "✅",
+          Icon: CheckCircle2,
           label: `Activa (hasta ${paidUntil?.toLocaleDateString("es-CO")})`,
           color: "text-green-600",
         };
       case "expired":
         return {
-          icon: "🔸",
+          Icon: Circle,
           label: `Vencida ${paidUntil?.toLocaleDateString("es-CO")}`,
           color: "text-yellow-600",
         };
       case "none":
       default:
-        return { icon: "—", label: "Sin suscripción", color: "text-gray-600" };
+        return {
+          Icon: Circle,
+          label: "Sin suscripción",
+          color: "text-gray-600",
+        };
     }
   };
 
@@ -77,12 +81,14 @@ export default async function AdminPage() {
         <ShieldIcon className="size-8 text-primary" />
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Panel Admin</h1>
-          <p className="text-sm text-muted-foreground">{orgsWithStatus.length} organizaciones</p>
+          <p className="text-sm text-muted-foreground">
+            {orgsWithStatus.length} organizaciones
+          </p>
         </div>
       </header>
 
-      {/* Precio del plan */}
-      <PriceEditor currentPrice={planPrice} />
+      {/* Precios de los planes */}
+      <PriceEditor catalog={catalog} />
 
       {/* Tabla de organizaciones */}
       <Card>
@@ -94,17 +100,24 @@ export default async function AdminPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/30">
-                  <th className="px-4 py-3 text-left font-medium">Organización</th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    Organización
+                  </th>
                   <th className="px-4 py-3 text-left font-medium">Fecha</th>
                   <th className="px-4 py-3 text-left font-medium">Miembros</th>
-                  <th className="px-4 py-3 text-left font-medium">Suscripción</th>
+                  <th className="px-4 py-3 text-left font-medium">
+                    Suscripción
+                  </th>
                   <th className="px-4 py-3 text-left font-medium">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {orgsWithStatus.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="border-t py-12 text-center text-muted-foreground">
+                    <td
+                      colSpan={5}
+                      className="border-t py-12 text-center text-muted-foreground"
+                    >
                       No hay organizaciones
                     </td>
                   </tr>
@@ -115,19 +128,29 @@ export default async function AdminPage() {
                       <tr key={org.id} className="border-b">
                         <td className="px-4 py-3">
                           <div className="font-medium">{org.name}</div>
-                          <div className="text-xs text-muted-foreground">{org.slug}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {org.slug}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">
                           {org.createdAt.toLocaleDateString("es-CO")}
                         </td>
-                        <td className="px-4 py-3 text-center">{org.memberCount}</td>
+                        <td className="px-4 py-3 text-center">
+                          {org.memberCount}
+                        </td>
                         <td className="px-4 py-3">
-                          <span className={`${badge.color} font-medium`}>
-                            {badge.icon} {badge.label}
+                          <span
+                            className={`${badge.color} font-medium flex items-center gap-2`}
+                          >
+                            <badge.Icon className="size-4" />
+                            {badge.label}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <OrgActions orgId={org.id} subStatus={org.subStatus} />
+                          <OrgActions
+                            orgId={org.id}
+                            subStatus={org.subStatus}
+                          />
                         </td>
                       </tr>
                     );

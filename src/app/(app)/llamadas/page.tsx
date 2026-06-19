@@ -1,12 +1,18 @@
+import { requireModuleAccess } from "@/lib/billing/require-module";
+import {
+  PhoneIncomingIcon,
+  PhoneMissedIcon,
+  PhoneOutgoingIcon,
+  SearchIcon,
+} from "lucide-react";
 import Link from "next/link";
-import { SearchIcon, PhoneMissedIcon, PhoneIncomingIcon, PhoneOutgoingIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { LocalDateTime } from "@/components/local-datetime";
 import { Card } from "@/components/ui/card";
-import { db } from "@/lib/db/client";
+import { Input } from "@/components/ui/input";
 import { requireOrg } from "@/lib/auth/session";
 import { listCalls } from "@/lib/calls/store";
+import { db } from "@/lib/db/client";
 import { ContactAvatar } from "../inbox/[id]/_components/contact-avatar";
-import { LocalDateTime } from "@/components/local-datetime";
 import { NuevaLlamada } from "./_nueva-llamada";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +22,7 @@ export default async function LlamadasPage({
 }: {
   searchParams: Promise<{ status?: string; direction?: string; q?: string }>;
 }) {
+  await requireModuleAccess("llamadas");
   const { status, direction, q } = await searchParams;
   const { orgId } = await requireOrg();
 
@@ -28,12 +35,18 @@ export default async function LlamadasPage({
   function dayLabel(d: Date): string {
     const now = new Date();
     const sameDay = (a: Date, b: Date) =>
-      a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate();
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     if (sameDay(d, now)) return "Hoy";
     if (sameDay(d, yesterday)) return "Ayer";
-    return d.toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
+    return d.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
   }
 
   const groups: { label: string; items: typeof calls }[] = [];
@@ -44,9 +57,15 @@ export default async function LlamadasPage({
     else groups.push({ label, items: [call] });
   }
 
-  function getStatusIcon(call: typeof calls[0]) {
-    const missed = call.status === "missed" || call.status === "rejected" || call.status === "failed";
-    if (missed) return <PhoneMissedIcon className="size-4 text-red-600 dark:text-red-400" />;
+  function getStatusIcon(call: (typeof calls)[0]) {
+    const missed =
+      call.status === "missed" ||
+      call.status === "rejected" ||
+      call.status === "failed";
+    if (missed)
+      return (
+        <PhoneMissedIcon className="size-4 text-red-600 dark:text-red-400" />
+      );
     return call.direction === "out" ? (
       <PhoneOutgoingIcon className="size-4 text-muted-foreground" />
     ) : (
@@ -54,8 +73,11 @@ export default async function LlamadasPage({
     );
   }
 
-  function getStatusLabel(call: typeof calls[0]) {
-    const missed = call.status === "missed" || call.status === "rejected" || call.status === "failed";
+  function getStatusLabel(call: (typeof calls)[0]) {
+    const missed =
+      call.status === "missed" ||
+      call.status === "rejected" ||
+      call.status === "failed";
     if (missed) return "Perdida";
     return call.direction === "out" ? "Saliente" : "Contestada";
   }
@@ -69,10 +91,26 @@ export default async function LlamadasPage({
 
   const filters = [
     { label: "Todas", href: "/llamadas", isActive: !status && !direction },
-    { label: "Perdidas", href: "?status=missed", isActive: status === "missed" },
-    { label: "Contestadas", href: "?status=completed", isActive: status === "completed" },
-    { label: "Entrantes", href: "?direction=in", isActive: direction === "in" && !status },
-    { label: "Salientes", href: "?direction=out", isActive: direction === "out" && !status },
+    {
+      label: "Perdidas",
+      href: "?status=missed",
+      isActive: status === "missed",
+    },
+    {
+      label: "Contestadas",
+      href: "?status=completed",
+      isActive: status === "completed",
+    },
+    {
+      label: "Entrantes",
+      href: "?direction=in",
+      isActive: direction === "in" && !status,
+    },
+    {
+      label: "Salientes",
+      href: "?direction=out",
+      isActive: direction === "out" && !status,
+    },
   ];
 
   return (
@@ -81,7 +119,9 @@ export default async function LlamadasPage({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Llamadas</h1>
-          <p className="text-sm text-muted-foreground">Registro de todas tus llamadas de WhatsApp</p>
+          <p className="text-sm text-muted-foreground">
+            Registro de todas tus llamadas de WhatsApp
+          </p>
         </div>
         <NuevaLlamada />
       </div>
@@ -114,7 +154,12 @@ export default async function LlamadasPage({
       {/* Search */}
       <form className="relative max-w-xs">
         <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input name="q" defaultValue={q ?? ""} placeholder="Buscar…" className="pl-8" />
+        <Input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Buscar…"
+          className="pl-8"
+        />
       </form>
 
       {/* Calls List */}
@@ -152,10 +197,18 @@ export default async function LlamadasPage({
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <ContactAvatar seed={call.phone} name={call.contactName} size={40} />
+                        <ContactAvatar
+                          seed={call.phone}
+                          name={call.contactName}
+                          size={40}
+                        />
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium">{call.contactName || call.phone}</div>
-                          <div className="text-xs text-muted-foreground">{call.phone}</div>
+                          <div className="text-sm font-medium">
+                            {call.contactName || call.phone}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {call.phone}
+                          </div>
                         </div>
                       </div>
 
@@ -164,7 +217,9 @@ export default async function LlamadasPage({
                           {getStatusIcon(call)}
                           <span>{getStatusLabel(call)}</span>
                         </div>
-                        <div className="text-xs text-muted-foreground">{getDurationLabel(call.durationSec)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {getDurationLabel(call.durationSec)}
+                        </div>
                         {call.recordingMediaId && (
                           <audio
                             controls

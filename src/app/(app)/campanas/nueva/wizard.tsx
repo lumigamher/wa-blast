@@ -1,26 +1,35 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import {
+  CalendarClockIcon,
+  Check,
+  ChevronRightIcon,
+  SearchIcon,
+  SendIcon,
+  StarIcon,
+  UploadIcon,
+  UsersIcon,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { read, utils } from "xlsx";
-import { CalendarClockIcon, ChevronRightIcon, SendIcon, StarIcon, UploadIcon, UsersIcon, SearchIcon } from "lucide-react";
+import { CarouselPreview } from "@/components/carousel-preview";
+import { FavoriteButton } from "@/components/favorite-button";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { WhatsAppBubble } from "@/components/whatsapp-bubble";
-import { FavoriteButton } from "@/components/favorite-button";
+import { buildCarouselPlan } from "@/lib/campaigns/build-carousel-plan";
+import { isCarousel, parseCarousel } from "@/lib/meta/carousel";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
 import { extractVariables, getBodyComponent } from "@/lib/templates";
-import { isCarousel, parseCarousel } from "@/lib/meta/carousel";
-import { CarouselMapping, type CarouselMappingValue } from "./carousel-mapping";
-import { CarouselPreview } from "@/components/carousel-preview";
-import { buildCarouselPlan } from "@/lib/campaigns/build-carousel-plan";
 import { createCampaignAction } from "./actions";
+import { CarouselMapping, type CarouselMappingValue } from "./carousel-mapping";
 
 type Step = 1 | 2 | 3;
 type Source = "tags" | "adhoc" | "contacts";
@@ -42,6 +51,7 @@ export type WizardInitial = {
   templateType: "standard" | "carousel" | "flow";
   componentPlanJson: string | null;
   scheduledAt: string | null;
+  
 };
 
 export function Wizard({
@@ -54,6 +64,7 @@ export function Wizard({
   initialFavorites = [],
   initial,
   replacesDraftId,
+  canCarrusel,
 }: {
   templates: WhatsAppTemplate[];
   flows?: FlowRow[];
@@ -64,13 +75,20 @@ export function Wizard({
   initialFavorites?: string[];
   initial?: WizardInitial;
   replacesDraftId?: string;
+  canCarrusel?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [isPending, startTransition] = useTransition();
 
-  const favorites = useMemo(() => new Set(initialFavorites), [initialFavorites]);
-  const approved = useMemo(() => templates.filter((t) => t.status === "APPROVED"), [templates]);
+  const favorites = useMemo(
+    () => new Set(initialFavorites),
+    [initialFavorites],
+  );
+  const approved = useMemo(
+    () => templates.filter((t) => t.status === "APPROVED"),
+    [templates],
+  );
   const [selectedKey, setSelectedKey] = useState<string>(() => {
     // Prefer initial draft prefill (from ?from param)
     if (initial && initial.templateName && initial.templateLanguage) {
@@ -80,11 +98,16 @@ export function Wizard({
       }
     }
     // Prefer initialTemplateKey if provided and exists
-    if (initialTemplateKey && approved.some((t) => `${t.name}|${t.language}` === initialTemplateKey)) {
+    if (
+      initialTemplateKey &&
+      approved.some((t) => `${t.name}|${t.language}` === initialTemplateKey)
+    ) {
       return initialTemplateKey;
     }
     // Otherwise, prefer a favorite from approved templates
-    const favoriteApproved = approved.find((t) => favorites.has(`${t.name}|${t.language}`));
+    const favoriteApproved = approved.find((t) =>
+      favorites.has(`${t.name}|${t.language}`),
+    );
     if (favoriteApproved) {
       return `${favoriteApproved.name}|${favoriteApproved.language}`;
     }
@@ -95,10 +118,16 @@ export function Wizard({
     () => approved.find((t) => `${t.name}|${t.language}` === selectedKey),
     [approved, selectedKey],
   );
-  const vars = useMemo(() => (selected ? extractVariables(selected) : []), [selected]);
-  const carousel = useMemo(
-    () => (selected && isCarousel(selected) ? parseCarousel(selected) : null),
+  const vars = useMemo(
+    () => (selected ? extractVariables(selected) : []),
     [selected],
+  );
+  const carousel = useMemo(
+    () =>
+      selected && isCarousel(selected) && canCarrusel
+        ? parseCarousel(selected)
+        : null,
+    [selected, canCarrusel],
   );
 
   // Send mode toggle: template or flow
@@ -116,7 +145,9 @@ export function Wizard({
 
   const [source, setSource] = useState<Source>("tags");
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
-  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [adhocRows, setAdhocRows] = useState<AdhocRow[]>([]);
 
   // Favorites UI state
@@ -149,9 +180,16 @@ export function Wizard({
   });
 
   const tagsCount = useMemo(() => {
-    return tags.filter((t) => selectedTagIds.has(t.id)).reduce((s, t) => s + t.count, 0);
+    return tags
+      .filter((t) => selectedTagIds.has(t.id))
+      .reduce((s, t) => s + t.count, 0);
   }, [tags, selectedTagIds]);
-  const total = source === "tags" ? tagsCount : source === "contacts" ? selectedContactIds.size : adhocRows.length;
+  const total =
+    source === "tags"
+      ? tagsCount
+      : source === "contacts"
+        ? selectedContactIds.size
+        : adhocRows.length;
 
   // Compute visible templates for Step 1 (includes non-APPROVED if showAll is true)
   const visibleTemplates = useMemo(() => {
@@ -196,19 +234,23 @@ export function Wizard({
   const visibleContacts = useMemo(() => {
     const needle = contactSearchQuery.trim().toLowerCase();
     if (!needle) return contacts;
-    return contacts.filter((c) =>
-      (c.name?.toLowerCase() ?? "").includes(needle) ||
-      c.phone.includes(needle)
+    return contacts.filter(
+      (c) =>
+        (c.name?.toLowerCase() ?? "").includes(needle) ||
+        c.phone.includes(needle),
     );
   }, [contacts, contactSearchQuery]);
 
   async function handleFile(f: File) {
     const buf = await f.arrayBuffer();
     const wb = read(buf, { type: "array" });
-    const rows = utils.sheet_to_json<Record<string, string>>(wb.Sheets[wb.SheetNames[0]], {
-      raw: false,
-      defval: "",
-    });
+    const rows = utils.sheet_to_json<Record<string, string>>(
+      wb.Sheets[wb.SheetNames[0]],
+      {
+        raw: false,
+        defval: "",
+      },
+    );
     const parsed: AdhocRow[] = rows
       .map((r) => {
         const phone = String(r.phone ?? r.telefono ?? r.teléfono ?? "").trim();
@@ -232,7 +274,10 @@ export function Wizard({
           // Posible doble envío: pedir confirmación explícita antes de repetir.
           toast.warning(res.error, {
             duration: 15000,
-            action: { label: "Enviar igual", onClick: () => launch({ ...payload, force: true }) },
+            action: {
+              label: "Enviar igual",
+              onClick: () => launch({ ...payload, force: true }),
+            },
           });
           return;
         }
@@ -250,7 +295,8 @@ export function Wizard({
     // Flow mode
     if (sendMode === "flow") {
       if (!selectedFlowId) return toast.error("Selecciona un flujo");
-      if (!flowBodyText.trim()) return toast.error("Escribe un mensaje acompañante");
+      if (!flowBodyText.trim())
+        return toast.error("Escribe un mensaje acompañante");
 
       const selectedFlow = flows.find((f) => f.id === selectedFlowId);
       if (!selectedFlow) return toast.error("Flujo no encontrado");
@@ -279,7 +325,10 @@ export function Wizard({
                 params: {},
               }))
             : undefined,
-        scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        scheduledAt:
+          scheduleMode === "later" && scheduledAt
+            ? new Date(scheduledAt).toISOString()
+            : null,
         replacesDraftId,
       };
 
@@ -292,7 +341,8 @@ export function Wizard({
 
     // Carousel flow
     if (carousel) {
-      const prefill = prefillMedia[`${selected.name}|${selected.language}`] ?? {};
+      const prefill =
+        prefillMedia[`${selected.name}|${selected.language}`] ?? {};
       const cardMedia: Record<number, string> = {};
       carousel.cards.forEach((_, i) => {
         cardMedia[i] = carouselMapping.cardMedia[i] ?? prefill[i] ?? "";
@@ -301,7 +351,9 @@ export function Wizard({
       // Validate media
       for (const [idx, url] of Object.entries(cardMedia)) {
         if (!url.trim()) {
-          return toast.error(`Tarjeta ${Number(idx) + 1}: añade una URL de media`);
+          return toast.error(
+            `Tarjeta ${Number(idx) + 1}: añade una URL de media`,
+          );
         }
       }
 
@@ -328,7 +380,10 @@ export function Wizard({
         templateType: "carousel" as const,
         componentPlanJson: JSON.stringify(plan),
         varMapping: carouselMapping.vars,
-        scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        scheduledAt:
+          scheduleMode === "later" && scheduledAt
+            ? new Date(scheduledAt).toISOString()
+            : null,
         replacesDraftId,
       };
 
@@ -338,7 +393,9 @@ export function Wizard({
 
     // Standard template flow
     const paramsByContact: Record<string, Record<string, string>> | undefined =
-      source === "tags" && Object.keys(bulkParams).length > 0 ? undefined : undefined;
+      source === "tags" && Object.keys(bulkParams).length > 0
+        ? undefined
+        : undefined;
 
     const payload = {
       name: name.trim(),
@@ -356,7 +413,10 @@ export function Wizard({
             }))
           : undefined,
       paramsByContact,
-      scheduledAt: scheduleMode === "later" && scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      scheduledAt:
+        scheduleMode === "later" && scheduledAt
+          ? new Date(scheduledAt).toISOString()
+          : null,
       replacesDraftId,
     };
 
@@ -367,12 +427,20 @@ export function Wizard({
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-          <div className="text-sm text-muted-foreground">No tienes plantillas aprobadas ni flujos publicados en Meta.</div>
+          <div className="text-sm text-muted-foreground">
+            No tienes plantillas aprobadas ni flujos publicados en Meta.
+          </div>
           <div className="flex gap-2">
-            <a href="/plantillas/nueva" className={buttonVariants({ size: "sm" })}>
+            <a
+              href="/plantillas/nueva"
+              className={buttonVariants({ size: "sm" })}
+            >
               Crear plantilla
             </a>
-            <a href="/flows/nueva" className={buttonVariants({ size: "sm", variant: "outline" })}>
+            <a
+              href="/flows/nueva"
+              className={buttonVariants({ size: "sm", variant: "outline" })}
+            >
               Crear flujo
             </a>
           </div>
@@ -392,7 +460,8 @@ export function Wizard({
               <CardHeader className="space-y-1">
                 <CardTitle>Escoge la plantilla</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  {approved.length} aprobadas · {favCount} favorita{favCount === 1 ? "" : "s"} · {templates.length} en total
+                  {approved.length} aprobadas · {favCount} favorita
+                  {favCount === 1 ? "" : "s"} · {templates.length} en total
                 </p>
               </CardHeader>
               {/* Mode toggle: Template vs Flow */}
@@ -426,79 +495,82 @@ export function Wizard({
                 {sendMode === "template" && (
                   <>
                     {/* Search and filter controls */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative min-w-64 flex-1">
-                    <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar plantilla por nombre…"
-                      className="pl-9"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setOnlyFavorites((v) => !v)}
-                    disabled={favCount === 0}
-                    className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
-                      onlyFavorites
-                        ? "border-amber-400 bg-amber-50 text-amber-700"
-                        : "bg-background hover:bg-accent"
-                    }`}
-                    title={
-                      favCount === 0
-                        ? "Marca alguna plantilla como favorita primero"
-                        : onlyFavorites
-                          ? "Mostrar todas"
-                          : "Solo favoritas"
-                    }
-                  >
-                    <StarIcon
-                      className="size-3.5"
-                      fill={onlyFavorites ? "currentColor" : "none"}
-                    />
-                    Favoritas
-                  </button>
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-                    <Checkbox
-                      checked={showAll}
-                      onCheckedChange={(v) => setShowAll(Boolean(v))}
-                    />
-                    Mostrar pendientes / rechazadas
-                  </label>
-                </div>
-
-                {/* Template grid */}
-                {visibleTemplates.length === 0 ? (
-                  <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
-                    Ninguna plantilla coincide.
-                  </div>
-                ) : (
-                  <div className="grid max-h-[28rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
-                    {visibleTemplates.map((t) => {
-                      const key = `${t.name}|${t.language}`;
-                      const isSelected = key === selectedKey;
-                      const isFavorited = favorites.has(key);
-                      return (
-                        <TemplateCard
-                          key={key}
-                          template={t}
-                          active={isSelected}
-                          favorited={isFavorited}
-                          onSelect={() => setSelectedKey(key)}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative min-w-64 flex-1">
+                        <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar plantilla por nombre…"
+                          className="pl-9"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
                         />
-                      );
-                    })}
-                  </div>
-                )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOnlyFavorites((v) => !v)}
+                        disabled={favCount === 0}
+                        className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition disabled:opacity-40 ${
+                          onlyFavorites
+                            ? "border-amber-400 bg-amber-50 text-amber-700"
+                            : "bg-background hover:bg-accent"
+                        }`}
+                        title={
+                          favCount === 0
+                            ? "Marca alguna plantilla como favorita primero"
+                            : onlyFavorites
+                              ? "Mostrar todas"
+                              : "Solo favoritas"
+                        }
+                      >
+                        <StarIcon
+                          className="size-3.5"
+                          fill={onlyFavorites ? "currentColor" : "none"}
+                        />
+                        Favoritas
+                      </button>
+                      <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                        <Checkbox
+                          checked={showAll}
+                          onCheckedChange={(v) => setShowAll(Boolean(v))}
+                        />
+                        Mostrar pendientes / rechazadas
+                      </label>
+                    </div>
 
-                {selected && selected.status !== "APPROVED" ? (
-                  <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-                    La plantilla seleccionada está{" "}
-                    <span className="font-semibold">{selected.status}</span> en Meta —
-                    no la podrás disparar hasta que Meta la apruebe.
-                  </p>
-                ) : null}
+                    {/* Template grid */}
+                    {visibleTemplates.length === 0 ? (
+                      <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
+                        Ninguna plantilla coincide.
+                      </div>
+                    ) : (
+                      <div className="grid max-h-[28rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+                        {visibleTemplates.map((t) => {
+                          const key = `${t.name}|${t.language}`;
+                          const isSelected = key === selectedKey;
+                          const isFavorited = favorites.has(key);
+                          return (
+                            <TemplateCard
+                key={key}
+                template={t}
+                active={isSelected}
+                favorited={isFavorited}
+                isCarouselTemplate={isCarousel(t)}
+                canCarrusel={canCarrusel}
+                onSelect={() => setSelectedKey(key)}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {selected && selected.status !== "APPROVED" ? (
+                      <p className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+                        La plantilla seleccionada está{" "}
+                        <span className="font-semibold">{selected.status}</span>{" "}
+                        en Meta — no la podrás disparar hasta que Meta la
+                        apruebe.
+                      </p>
+                    ) : null}
                   </>
                 )}
 
@@ -507,13 +579,22 @@ export function Wizard({
                     {flows.length === 0 ? (
                       <div className="rounded-md border border-dashed py-10 text-center text-sm text-muted-foreground">
                         <p>No tienes flujos publicados.</p>
-                        <a href="/flows/nueva" className={buttonVariants({ size: "sm", className: "mt-2" })}>
+                        <a
+                          href="/flows/nueva"
+                          className={buttonVariants({
+                            size: "sm",
+                            className: "mt-2",
+                          })}
+                        >
                           Crear flujo
                         </a>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <Label htmlFor="flow-select" className="text-sm font-medium">
+                        <Label
+                          htmlFor="flow-select"
+                          className="text-sm font-medium"
+                        >
                           Selecciona un flujo
                         </Label>
                         <select
@@ -535,7 +616,10 @@ export function Wizard({
                     {flows.length > 0 && (
                       <>
                         <div className="space-y-2">
-                          <Label htmlFor="flow-cta" className="text-sm font-medium">
+                          <Label
+                            htmlFor="flow-cta"
+                            className="text-sm font-medium"
+                          >
                             Texto del botón
                           </Label>
                           <Input
@@ -547,7 +631,10 @@ export function Wizard({
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="flow-body" className="text-sm font-medium">
+                          <Label
+                            htmlFor="flow-body"
+                            className="text-sm font-medium"
+                          >
                             Mensaje acompañante
                           </Label>
                           <textarea
@@ -569,7 +656,9 @@ export function Wizard({
           {step === 2 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">2 · Elige destinatarios</CardTitle>
+                <CardTitle className="text-base">
+                  2 · Elige destinatarios
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
@@ -626,10 +715,15 @@ export function Wizard({
                               className="inline-block size-3 shrink-0 rounded-full"
                               style={{ backgroundColor: t.color }}
                             />
-                            <Label htmlFor={`tag-${t.id}`} className="flex-1 cursor-pointer text-sm font-medium">
+                            <Label
+                              htmlFor={`tag-${t.id}`}
+                              className="flex-1 cursor-pointer text-sm font-medium"
+                            >
                               {t.name}
                             </Label>
-                            <span className="text-xs tabular-nums text-muted-foreground">{t.count}</span>
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              {t.count}
+                            </span>
                           </li>
                         ))}
                       </ul>
@@ -655,11 +749,16 @@ export function Wizard({
                             placeholder="Buscar por nombre o teléfono…"
                             className="pl-9"
                             value={contactSearchQuery}
-                            onChange={(e) => setContactSearchQuery(e.target.value)}
+                            onChange={(e) =>
+                              setContactSearchQuery(e.target.value)
+                            }
                           />
                         </div>
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{selectedContactIds.size} seleccionados de {visibleContacts.length}</span>
+                          <span>
+                            {selectedContactIds.size} seleccionados de{" "}
+                            {visibleContacts.length}
+                          </span>
                         </div>
                         <ul className="max-h-[20rem] overflow-y-auto space-y-1 rounded-md border p-2">
                           {visibleContacts.length === 0 ? (
@@ -677,9 +776,16 @@ export function Wizard({
                                   checked={selectedContactIds.has(c.id)}
                                   onCheckedChange={() => toggleContact(c.id)}
                                 />
-                                <Label htmlFor={`contact-${c.id}`} className="flex-1 cursor-pointer text-sm">
-                                  <div className="font-medium">{c.name || "Sin nombre"}</div>
-                                  <div className="text-xs text-muted-foreground">{c.phone}</div>
+                                <Label
+                                  htmlFor={`contact-${c.id}`}
+                                  className="flex-1 cursor-pointer text-sm"
+                                >
+                                  <div className="font-medium">
+                                    {c.name || "Sin nombre"}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {c.phone}
+                                  </div>
                                 </Label>
                               </li>
                             ))
@@ -695,13 +801,18 @@ export function Wizard({
                     <input
                       type="file"
                       accept=".csv,.xlsx"
-                      onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+                      onChange={(e) =>
+                        e.target.files?.[0] && handleFile(e.target.files[0])
+                      }
                     />
                     <p className="text-xs text-muted-foreground">
-                      Columna <code className="rounded bg-muted px-1">phone</code> obligatoria. Opcional{" "}
-                      <code className="rounded bg-muted px-1">name</code>. Para variables usa columnas{" "}
-                      <code className="rounded bg-muted px-1">1</code>, <code className="rounded bg-muted px-1">2</code>,
-                      etc.
+                      Columna{" "}
+                      <code className="rounded bg-muted px-1">phone</code>{" "}
+                      obligatoria. Opcional{" "}
+                      <code className="rounded bg-muted px-1">name</code>. Para
+                      variables usa columnas{" "}
+                      <code className="rounded bg-muted px-1">1</code>,{" "}
+                      <code className="rounded bg-muted px-1">2</code>, etc.
                     </p>
                     {adhocRows.length > 0 && (
                       <div className="rounded-md border p-3 text-sm">
@@ -727,23 +838,35 @@ export function Wizard({
                       {sendMode === "template" ? "Plantilla" : "Flujo"}
                     </div>
                     <div className="font-semibold">
-                      {sendMode === "template" ? selected?.name : flows.find((f) => f.id === selectedFlowId)?.name}
+                      {sendMode === "template"
+                        ? selected?.name
+                        : flows.find((f) => f.id === selectedFlowId)?.name}
                     </div>
                   </div>
                   {sendMode === "template" && (
                     <div className="rounded-md border bg-background p-3">
-                      <div className="text-xs text-muted-foreground">Idioma</div>
-                      <div className="font-semibold">{selected?.language.toUpperCase()}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Idioma
+                      </div>
+                      <div className="font-semibold">
+                        {selected?.language.toUpperCase()}
+                      </div>
                     </div>
                   )}
                   <div className="rounded-md border bg-background p-3">
                     <div className="text-xs text-muted-foreground">Fuente</div>
                     <div className="font-semibold">
-                      {source === "tags" ? "Tags" : source === "contacts" ? "Contactos" : "CSV/Excel"}
+                      {source === "tags"
+                        ? "Tags"
+                        : source === "contacts"
+                          ? "Contactos"
+                          : "CSV/Excel"}
                     </div>
                   </div>
                   <div className="rounded-md border bg-background p-3">
-                    <div className="text-xs text-muted-foreground">Destinatarios</div>
+                    <div className="text-xs text-muted-foreground">
+                      Destinatarios
+                    </div>
                     <div className="font-semibold">{total}</div>
                   </div>
                 </div>
@@ -766,10 +889,16 @@ export function Wizard({
                       <Label>Previsualización (primer destinatario)</Label>
                       {selected ? (
                         <div className="mx-auto max-w-sm">
-                          <WhatsAppBubble template={selected} highlightVars size="md" />
+                          <WhatsAppBubble
+                            template={selected}
+                            highlightVars
+                            size="md"
+                          />
                         </div>
                       ) : (
-                        <div className="text-sm text-muted-foreground">Selecciona una plantilla</div>
+                        <div className="text-sm text-muted-foreground">
+                          Selecciona una plantilla
+                        </div>
                       )}
                     </div>
 
@@ -778,54 +907,73 @@ export function Wizard({
                         <Label>Mapeo de variables y media</Label>
                         <CarouselMapping
                           parsed={carousel}
-                          prefillMedia={prefillMedia[`${selected!.name}|${selected!.language}`] ?? {}}
+                          prefillMedia={
+                            prefillMedia[
+                              `${selected!.name}|${selected!.language}`
+                            ] ?? {}
+                          }
                           value={carouselMapping}
                           onChange={setCarouselMapping}
                         />
-                  </div>
-                ) : (
-                  vars.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Variables</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Valor por defecto para todos (los CSV pueden traer sus propios valores en columnas
-                        numeradas).
-                      </p>
-                      {vars.map((v) => (
-                        <div key={v.index} className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <code className="w-14 shrink-0 font-mono text-xs">{v.placeholder}</code>
-                            <Input
-                              placeholder={v.example || `valor para ${v.placeholder}`}
-                              value={bulkParams[String(v.index)] ?? ""}
-                              onChange={(e) =>
-                                setBulkParams({ ...bulkParams, [String(v.index)]: e.target.value })
-                              }
-                            />
-                          </div>
-                          {v.context && (
-                            <p className="text-[11px] text-muted-foreground leading-snug pl-14">
-                              En el mensaje: <span className="font-mono">{v.context}</span>
-                            </p>
-                          )}
+                      </div>
+                    ) : (
+                      vars.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Variables</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Valor por defecto para todos (los CSV pueden traer
+                            sus propios valores en columnas numeradas).
+                          </p>
+                          {vars.map((v) => (
+                            <div key={v.index} className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <code className="w-14 shrink-0 font-mono text-xs">
+                                  {v.placeholder}
+                                </code>
+                                <Input
+                                  placeholder={
+                                    v.example || `valor para ${v.placeholder}`
+                                  }
+                                  value={bulkParams[String(v.index)] ?? ""}
+                                  onChange={(e) =>
+                                    setBulkParams({
+                                      ...bulkParams,
+                                      [String(v.index)]: e.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                              {v.context && (
+                                <p className="text-[11px] text-muted-foreground leading-snug pl-14">
+                                  En el mensaje:{" "}
+                                  <span className="font-mono">{v.context}</span>
+                                </p>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  )
-                )}
+                      )
+                    )}
                   </>
                 )}
 
                 {sendMode === "flow" && (
                   <div className="space-y-3 rounded-md border border-blue-200 bg-blue-50 p-4">
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-blue-900">Flujo: {flows.find((f) => f.id === selectedFlowId)?.name}</p>
+                      <p className="text-sm font-medium text-blue-900">
+                        Flujo:{" "}
+                        {flows.find((f) => f.id === selectedFlowId)?.name}
+                      </p>
                       <p className="text-xs text-blue-700">
-                        Botón: <span className="font-semibold">{flowCta || "Abrir formulario"}</span>
+                        Botón:{" "}
+                        <span className="font-semibold">
+                          {flowCta || "Abrir formulario"}
+                        </span>
                       </p>
                       {flowBodyText && (
                         <p className="text-xs text-blue-700 mt-2">
-                          Mensaje: <span className="italic">{flowBodyText}</span>
+                          Mensaje:{" "}
+                          <span className="italic">{flowBodyText}</span>
                         </p>
                       )}
                     </div>
@@ -863,9 +1011,10 @@ export function Wizard({
                 {/* Non-APPROVED warning */}
                 {selected && selected.status !== "APPROVED" ? (
                   <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-                    Plantilla en estado <span className="font-semibold">{selected.status}</span> — Meta aún
-                    no la ha aprobado. El envío se habilitará automáticamente cuando
-                    pase a APPROVED (sin redeploy).
+                    Plantilla en estado{" "}
+                    <span className="font-semibold">{selected.status}</span> —
+                    Meta aún no la ha aprobado. El envío se habilitará
+                    automáticamente cuando pase a APPROVED (sin redeploy).
                   </div>
                 ) : null}
               </CardContent>
@@ -893,8 +1042,15 @@ export function Wizard({
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => setScheduleMode(scheduleMode === "now" ? "later" : "now")}
-                  disabled={isPending || total === 0 || !name.trim() || selected?.status !== "APPROVED"}
+                  onClick={() =>
+                    setScheduleMode(scheduleMode === "now" ? "later" : "now")
+                  }
+                  disabled={
+                    isPending ||
+                    total === 0 ||
+                    !name.trim() ||
+                    selected?.status !== "APPROVED"
+                  }
                   className="gap-2"
                 >
                   <CalendarClockIcon className="size-4" />
@@ -902,7 +1058,12 @@ export function Wizard({
                 </Button>
                 <Button
                   onClick={submit}
-                  disabled={isPending || total === 0 || !name.trim() || selected?.status !== "APPROVED"}
+                  disabled={
+                    isPending ||
+                    total === 0 ||
+                    !name.trim() ||
+                    selected?.status !== "APPROVED"
+                  }
                   className="gap-2"
                 >
                   <SendIcon className="size-4" />
@@ -929,16 +1090,22 @@ export function Wizard({
                 carousel ? (
                   <CarouselPreview
                     topBody={
-                      selected.components.find((c) => c.type === "BODY")?.text ??
-                      ""
+                      selected.components.find((c) => c.type === "BODY")
+                        ?.text ?? ""
                     }
                     cards={carousel.cards.map((c, i) => ({
-                      mediaUrl: carouselMapping.cardMedia[i] ?? (prefillMedia[`${selected.name}|${selected.language}`]?.[i] ?? null),
+                      mediaUrl:
+                        carouselMapping.cardMedia[i] ??
+                        prefillMedia[`${selected.name}|${selected.language}`]?.[
+                          i
+                        ] ??
+                        null,
                       body:
                         selected.components
                           .find((comp) => comp.type === "CAROUSEL")
-                          ?.cards?.[i]?.components?.find((cc) => cc.type === "BODY")
-                          ?.text ?? "",
+                          ?.cards?.[i]?.components?.find(
+                            (cc) => cc.type === "BODY",
+                          )?.text ?? "",
                       buttons: [],
                     }))}
                   />
@@ -946,7 +1113,9 @@ export function Wizard({
                   <WhatsAppBubble template={selected} highlightVars size="md" />
                 )
               ) : (
-                <div className="text-sm text-muted-foreground">Elige una plantilla</div>
+                <div className="text-sm text-muted-foreground">
+                  Elige una plantilla
+                </div>
               )}
             </CardContent>
           </Card>
@@ -996,11 +1165,15 @@ function TemplateCard({
   active,
   favorited,
   onSelect,
+  isCarouselTemplate = false,
+  canCarrusel = true,
 }: {
   template: WhatsAppTemplate;
   active: boolean;
   favorited: boolean;
   onSelect: () => void;
+  isCarouselTemplate?: boolean;
+  canCarrusel?: boolean;
 }) {
   const body = getBodyComponent(template);
   const bodyText = body?.text ?? "";
@@ -1050,12 +1223,17 @@ function TemplateCard({
           {template.status}
         </Badge>
       </div>
+      {isCarouselTemplate && !canCarrusel && (
+        <div className="rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700">
+          Disponible en plan Pro
+        </div>
+      )}
       <p className="line-clamp-4 text-[11px] leading-relaxed text-muted-foreground">
         {truncated}
       </p>
       {active && (
-        <div className="mt-auto text-[10px] font-medium uppercase tracking-wide text-primary">
-          ✓ Seleccionada
+        <div className="mt-auto text-[10px] font-medium uppercase tracking-wide text-primary flex items-center gap-1">
+          <Check className="size-3" /> Seleccionada
         </div>
       )}
     </div>
