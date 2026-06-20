@@ -2,8 +2,9 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { agentTools, organization } from "@/lib/db/schema";
-import { setAgentTool, updateAgentConfig } from "./admin";
+import { setAgentTool, updateAgentConfig, saveCalendar } from "./admin";
 import { getAgentConfig } from "./config";
+import { getCalendarConfig } from "./integrations/calendar/config";
 
 async function org(db: ReturnType<typeof makeTestDb>["db"]) {
   await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
@@ -42,5 +43,61 @@ describe("agent admin helpers", () => {
     const { db } = makeTestDb();
     await org(db);
     await expect(setAgentTool(db, "o1", "no_existe", true)).rejects.toThrow();
+  });
+  it("saveCalendar guarda config válida de cal.com", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await saveCalendar(db, "o1", {
+      provider: "calcom",
+      apiKey: "test-key-123",
+      eventTypeId: 456,
+      durationMin: 45,
+      timezone: "America/Bogota",
+    });
+    const cfg = await getCalendarConfig(db, "o1");
+    expect(cfg).not.toBeNull();
+    expect(cfg?.provider).toBe("calcom");
+    expect(cfg?.eventTypeId).toBe(456);
+    expect(cfg?.durationMin).toBe(45);
+    expect(cfg?.timezone).toBe("America/Bogota");
+  });
+  it("saveCalendar rechaza provider no soportado", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(
+      saveCalendar(db, "o1", {
+        provider: "calendly" as never,
+        apiKey: "test-key",
+        eventTypeId: 123,
+        durationMin: 30,
+        timezone: "UTC",
+      })
+    ).rejects.toThrow("Provider de calendario no soportado aún");
+  });
+  it("saveCalendar rechaza apiKey vacía", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(
+      saveCalendar(db, "o1", {
+        provider: "calcom",
+        apiKey: "",
+        eventTypeId: 123,
+        durationMin: 30,
+        timezone: "UTC",
+      })
+    ).rejects.toThrow("API key requerida");
+  });
+  it("saveCalendar rechaza eventTypeId inválido", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(
+      saveCalendar(db, "o1", {
+        provider: "calcom",
+        apiKey: "test-key",
+        eventTypeId: 0,
+        durationMin: 30,
+        timezone: "UTC",
+      })
+    ).rejects.toThrow("eventTypeId inválido");
   });
 });
