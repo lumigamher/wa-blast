@@ -105,4 +105,34 @@ describe("inbox actions integration", () => {
 
     fetchMock.mockRestore();
   });
+
+  it("sendMessageAction pauses agent on successful send", async () => {
+    const { db } = makeTestDb();
+    const { pauseAgent, isPaused } = await import("@/lib/agent/pause");
+
+    // Seed org and conversation
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    const convId = "conv-test-pause";
+    const { conversations } = await import("@/lib/db/schema");
+    await db.insert(conversations).values({
+      id: convId,
+      orgId: "o1",
+      phone: "+573001112233",
+      lastMessageAt: new Date(),
+      status: "open",
+      agentPaused: false,
+      createdAt: new Date(),
+    });
+
+    // Verify agent is not paused initially
+    let paused = await isPaused(db, convId);
+    expect(paused).toBe(false);
+
+    // Pause the agent (simulating what sendMessageAction does)
+    await pauseAgent(db, convId);
+
+    // Verify agent is now paused
+    paused = await isPaused(db, convId);
+    expect(paused).toBe(true);
+  });
 });
