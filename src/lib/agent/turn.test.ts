@@ -60,4 +60,42 @@ describe("runAgentTurn", () => {
     const runs = await db.select().from(agentRuns).where(eq(agentRuns.orgId, "o1"));
     expect(runs[0].status).toBe("escalated");
   });
+
+  it("paso a paso agotado (capped): envía fallback y lo registra", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await db
+      .update(agentConfigs)
+      .set({ maxStepsPerTurn: 2 })
+      .where(eq(agentConfigs.orgId, "o1"));
+    const toolCall = {
+      text: null,
+      toolCalls: [
+        {
+          id: "t1",
+          name: "calcular_total",
+          argsJson: JSON.stringify({
+            items: [{ nombre: "x", cantidad: 1, precioUnitario: 1 }],
+          }),
+        },
+      ],
+      usage: { promptTokens: 1, completionTokens: 1 },
+    };
+    const provider = makeFakeProvider([toolCall, toolCall, toolCall]);
+    const sender = vi.fn(async () => ({ wamid: "fb1" }));
+    await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
+    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden" });
+    const out = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, "c1"));
+    expect(
+      out.some((m) => m.direction === "out" && m.body === "ya te atienden"),
+    ).toBe(true);
+    const runs = await db
+      .select()
+      .from(agentRuns)
+      .where(eq(agentRuns.orgId, "o1"));
+    expect(runs[0].status).toBe("capped");
+  });
 });

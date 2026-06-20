@@ -99,7 +99,7 @@ export async function recordInboundMessage(
     ts: Date;
     profileName?: string | null;
   },
-): Promise<void> {
+): Promise<string> {
   const conv = await getOrCreateConversation(
     db,
     input.orgId,
@@ -118,7 +118,7 @@ export async function recordInboundMessage(
           and(eq(messages.orgId, input.orgId), eq(messages.wamid, input.wamid)),
         )
     )[0];
-    if (dup) return;
+    if (dup) return conv.id;
   }
 
   await db.insert(messages).values({
@@ -160,6 +160,8 @@ export async function recordInboundMessage(
       ts: input.ts,
     });
   }
+
+  return conv.id;
 }
 
 export async function recordOutboundMessage(

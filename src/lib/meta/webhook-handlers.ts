@@ -109,12 +109,18 @@ export async function handleInboundMessage(
   const parsed = parseInboundMessage(msg);
 
   // Persist inbound message to inbox
-  await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed, ts, profileName });
+  const conversationId = await recordInboundMessage(db, {
+    orgId,
+    phone,
+    wamid: msg.id,
+    parsed,
+    ts,
+    profileName,
+  });
 
   // Dispara el agente IA (si la org lo tiene activo y la conversación no está pausada).
   try {
-    const conv = await getOrCreateConversation(db, orgId, phone, ts, profileName);
-    await maybeDispatchAgentTurn(db, orgId, conv.id, phone);
+    await maybeDispatchAgentTurn(db, orgId, conversationId, phone);
   } catch (e) {
     console.error("[agent] dispatch fallo", e);
   }
