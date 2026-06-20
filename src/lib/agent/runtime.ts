@@ -1,5 +1,5 @@
 import type { LlmMessage, LlmProvider } from "./providers/types";
-import type { AgentTool, ToolContext } from "./tools/types";
+import type { AgentTool, ToolContext, ToolResult } from "./tools/types";
 
 export type AgentStep = {
   tool: string;
@@ -53,38 +53,41 @@ export async function runAgentLoop(input: {
     messages.push({ role: "assistant", content: res.text, toolCalls: res.toolCalls });
 
     for (const call of res.toolCalls) {
-      const tool = byName.get(call.name);
-      if (!tool) {
+      const pushErr = (error: string) =>
         messages.push({
           role: "tool",
           toolCallId: call.id,
-          content: JSON.stringify({ ok: false, error: "tool desconocida" }),
+          content: JSON.stringify({ ok: false, error }),
         });
+
+      const tool = byName.get(call.name);
+      if (!tool) {
+        pushErr("tool desconocida");
         continue;
       }
       let raw: unknown;
       try {
         raw = JSON.parse(call.argsJson);
       } catch {
-        messages.push({
-          role: "tool",
-          toolCallId: call.id,
-          content: JSON.stringify({ ok: false, error: "args no son JSON" }),
-        });
+        pushErr("args no son JSON");
         continue;
       }
       const parsed = tool.paramsSchema.safeParse(raw);
       if (!parsed.success) {
-        messages.push({
-          role: "tool",
-          toolCallId: call.id,
-          content: JSON.stringify({ ok: false, error: "args inválidos" }),
-        });
+        pushErr("args inválidos");
         continue;
       }
-      const result = await tool.run(parsed.data, ctx);
+      let result: ToolResult;
+      try {
+        result = await tool.run(parsed.data, ctx);
+      } catch (e) {
+        result = {
+          ok: false,
+          error: e instanceof Error ? e.message : "error en la herramienta",
+        };
+      }
       steps.push({ tool: call.name, args: parsed.data, result });
-      if (call.name === "escalar_a_humano" && result.ok) {
+      if (tool.escalates && result.ok) {
         return { reply: null, status: "escalated", steps, usage };
       }
       messages.push({ role: "tool", toolCallId: call.id, content: JSON.stringify(result) });

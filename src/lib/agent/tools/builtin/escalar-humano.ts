@@ -13,6 +13,7 @@ export const escalarHumano: AgentTool = {
     properties: { motivo: { type: "string" } },
     required: ["motivo"],
   },
+  escalates: true,
   async run(args) {
     const { motivo } = schema.parse(args);
     return { ok: true, data: { escalado: true, motivo } };

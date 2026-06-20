@@ -18,5 +18,7 @@ export type AgentTool = {
   paramsSchema: z.ZodTypeAny;
   /** JSON Schema que SÍ ve el LLM (params). */
   jsonSchema: Record<string, unknown>;
+  /** Si true, tras ejecutarse con éxito el loop se detiene y escala a humano. */
+  escalates?: boolean;
   run(args: unknown, ctx: ToolContext): Promise<ToolResult>;
 };

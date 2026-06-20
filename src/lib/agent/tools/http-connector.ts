@@ -97,7 +97,8 @@ export function makeHttpTool(cfg: HttpConnectorConfig): AgentTool {
         else if (p.in === "query") query.set(p.name, String(v));
         else body[p.name] = v;
       }
-      if ([...query].length) url += `?${query.toString()}`;
+      if (query.size > 0) url += `?${query.toString()}`;
+      const hasBody = cfg.method === "POST" && Object.keys(body).length > 0;
 
       const headers: Record<string, string> = { ...cfg.headers };
       if (cfg.auth.type === "bearer") headers.Authorization = `Bearer ${cfg.auth.token}`;
@@ -110,7 +111,7 @@ export function makeHttpTool(cfg: HttpConnectorConfig): AgentTool {
         const res = await fetch(url, {
           method: cfg.method,
           headers,
-          body: cfg.method === "POST" ? JSON.stringify(body) : undefined,
+          body: hasBody ? JSON.stringify(body) : undefined,
           signal: controller.signal,
         });
         if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };

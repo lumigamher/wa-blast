@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { runAgentLoop } from "./runtime";
 import { makeFakeProvider } from "./testing/fake-provider";
 import { calcularTotal } from "./tools/builtin/calcular-total";
@@ -122,5 +123,42 @@ describe("runAgentLoop", () => {
     });
     expect(res.status).toBe("capped");
     expect(res.reply).toBeNull();
+  });
+
+  it("si una tool lanza, no rompe el loop: devuelve error y continúa", async () => {
+    const throwingTool = {
+      name: "explota",
+      description: "lanza",
+      paramsSchema: z.object({}),
+      jsonSchema: { type: "object", properties: {} },
+      run: async () => {
+        throw new Error("boom");
+      },
+    };
+    const provider = makeFakeProvider([
+      {
+        text: null,
+        toolCalls: [{ id: "t1", name: "explota", argsJson: "{}" }],
+        usage: { promptTokens: 1, completionTokens: 1 },
+      },
+      {
+        text: "Hubo un problema, lo reviso.",
+        toolCalls: [],
+        usage: { promptTokens: 1, completionTokens: 1 },
+      },
+    ]);
+    const res = await runAgentLoop({
+      provider,
+      model: "x",
+      temperature: 0,
+      system: "s",
+      history: [{ role: "user", content: "haz algo" }],
+      tools: [throwingTool],
+      maxSteps: 5,
+      ctx,
+    });
+    expect(res.status).toBe("ok");
+    expect(res.reply).toBe("Hubo un problema, lo reviso.");
+    expect(res.steps[0]?.result).toEqual({ ok: false, error: "boom" });
   });
 });
