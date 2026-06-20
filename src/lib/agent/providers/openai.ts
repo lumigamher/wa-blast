@@ -32,11 +32,17 @@ export function makeOpenAiProvider(client: OpenAI): LlmProvider {
       });
       const msg = res.choices[0]?.message;
       const toolCalls =
-        msg?.tool_calls?.map((c) => ({
-          id: c.id,
-          name: (c as any).function.name,
-          argsJson: (c as any).function.arguments,
-        })) ?? [];
+        msg?.tool_calls?.map((c) => {
+          const fc = c as {
+            id: string;
+            function: { name: string; arguments: string };
+          };
+          return {
+            id: fc.id,
+            name: fc.function.name,
+            argsJson: fc.function.arguments,
+          };
+        }) ?? [];
       return {
         text: msg?.content ?? null,
         toolCalls,
