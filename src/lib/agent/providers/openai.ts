@@ -1,0 +1,50 @@
+import type OpenAI from "openai";
+import type { LlmProvider, LlmResponse } from "./types";
+
+export function makeOpenAiProvider(client: OpenAI): LlmProvider {
+  return {
+    async chat(input): Promise<LlmResponse> {
+      const res = await client.chat.completions.create({
+        model: input.model,
+        temperature: input.temperature,
+        messages: [
+          { role: "system", content: input.system },
+          ...input.messages.map((m) => {
+            if (m.role === "tool")
+              return { role: "tool" as const, tool_call_id: m.toolCallId, content: m.content };
+            if (m.role === "assistant")
+              return {
+                role: "assistant" as const,
+                content: m.content,
+                tool_calls: m.toolCalls?.map((c) => ({
+                  id: c.id,
+                  type: "function" as const,
+                  function: { name: c.name, arguments: c.argsJson },
+                })),
+              };
+            return { role: "user" as const, content: m.content };
+          }),
+        ] as never,
+        tools: input.tools.map((t) => ({
+          type: "function" as const,
+          function: { name: t.name, description: t.description, parameters: t.parameters },
+        })) as never,
+      });
+      const msg = res.choices[0]?.message;
+      const toolCalls =
+        msg?.tool_calls?.map((c) => ({
+          id: c.id,
+          name: (c as any).function.name,
+          argsJson: (c as any).function.arguments,
+        })) ?? [];
+      return {
+        text: msg?.content ?? null,
+        toolCalls,
+        usage: {
+          promptTokens: res.usage?.prompt_tokens ?? 0,
+          completionTokens: res.usage?.completion_tokens ?? 0,
+        },
+      };
+    },
+  };
+}
