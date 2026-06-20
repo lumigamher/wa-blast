@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { agentTools } from "@/lib/db/schema";
 import { saveAgentConfig } from "./config";
+import { saveCalendarConfig } from "./integrations/calendar/config";
 import { BUILTIN_TOOLS } from "./tools/registry";
 
 type ConfigInput = {
@@ -40,4 +41,25 @@ export async function setAgentTool(db: DB, orgId: string, key: string, enabled: 
   } else {
     await db.insert(agentTools).values({ id: randomUUID(), orgId, type: "builtin", key, enabled, configJson: "{}", createdAt: new Date() });
   }
+}
+
+export type CalendarInput = {
+  provider: "calcom" | "calendly" | "google";
+  apiKey: string;
+  eventTypeId: number;
+  durationMin: number;
+  timezone: string;
+};
+
+export async function saveCalendar(db: DB, orgId: string, input: CalendarInput): Promise<void> {
+  if (input.provider !== "calcom") throw new Error("Provider de calendario no soportado aún");
+  if (!input.apiKey.trim()) throw new Error("API key requerida");
+  if (!Number.isFinite(input.eventTypeId) || input.eventTypeId <= 0) throw new Error("eventTypeId inválido");
+  await saveCalendarConfig(db, orgId, {
+    provider: input.provider,
+    apiKey: input.apiKey.trim(),
+    eventTypeId: input.eventTypeId,
+    durationMin: input.durationMin > 0 ? input.durationMin : 30,
+    timezone: input.timezone || "America/Bogota",
+  });
 }

@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { setAgentTool, updateAgentConfig } from "@/lib/agent/admin";
+import { setAgentTool, updateAgentConfig, saveCalendar } from "@/lib/agent/admin";
 import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 
@@ -20,6 +20,23 @@ export async function setAgentToolAction(
   const { orgId } = await requireOrg();
   try {
     await setAgentTool(db, orgId, key, enabled);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function saveCalendarAction(input: {
+  provider: "calcom" | "calendly" | "google";
+  apiKey: string;
+  eventTypeId: number;
+  durationMin: number;
+  timezone: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await saveCalendar(db, orgId, input);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };
   }

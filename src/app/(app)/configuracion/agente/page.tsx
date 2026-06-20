@@ -6,10 +6,12 @@ import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { requireModuleAccess } from "@/lib/billing/require-module";
 import { getAgentConfig } from "@/lib/agent/config";
+import { getCalendarConfig } from "@/lib/agent/integrations/calendar/config";
 import { agentTools, agentRuns } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { AgentForm } from "./_form";
 import { AgentTools } from "./_tools";
+import { AgentCalendar } from "./_calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ export default async function AgentePage() {
   const { orgId } = await requireOrg();
 
   const config = await getAgentConfig(db, orgId);
+  const calendar = await getCalendarConfig(db, orgId);
 
   const toolRows = await db.select().from(agentTools).where(eq(agentTools.orgId, orgId));
   const enabledMap = Object.fromEntries(
@@ -53,6 +56,16 @@ export default async function AgentePage() {
       <AgentForm config={config} />
 
       <AgentTools enabled={enabledMap} />
+
+      <AgentCalendar
+        configured={!!calendar}
+        current={{
+          provider: calendar?.provider ?? "calcom",
+          eventTypeId: calendar?.eventTypeId ?? 0,
+          durationMin: calendar?.durationMin ?? 30,
+          timezone: calendar?.timezone ?? "America/Bogota",
+        }}
+      />
 
       {/* Activity card */}
       <Card>
