@@ -11,7 +11,8 @@ export type ModuleId =
   | "contactos"
   | "flows"
   | "carrusel"
-  | "llamadas";
+  | "llamadas"
+  | "agente";
 
 export const PLAN_IDS: readonly PlanId[] = ["esencial", "pro", "premium"];
 
@@ -39,7 +40,7 @@ const PRO_MODULES: readonly ModuleId[] = [
   "flows",
   "carrusel",
 ];
-const PREMIUM_MODULES: readonly ModuleId[] = [...PRO_MODULES, "llamadas"];
+const PREMIUM_MODULES: readonly ModuleId[] = [...PRO_MODULES, "llamadas", "agente"];
 
 export const PLANS: Record<PlanId, PlanDef> = {
   esencial: {
@@ -76,6 +77,7 @@ export const MODULE_LABELS: Record<ModuleId, string> = {
   flows: "Formularios con IA",
   carrusel: "Campañas carrusel",
   llamadas: "Llamadas",
+  agente: "Agente IA",
 };
 
 /** Prefijos de ruta que cada módulo protege (gating por ruta). */
@@ -87,6 +89,7 @@ export const MODULE_ROUTES: Record<ModuleId, readonly string[]> = {
   flows: ["/flows"],
   carrusel: [], // gateado dentro del wizard, no por ruta
   llamadas: ["/llamadas"],
+  agente: ["/configuracion/agente"],
 };
 
 export function getPlan(id: PlanId): PlanDef {
