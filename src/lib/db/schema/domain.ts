@@ -2,6 +2,7 @@ import {
   index,
   integer,
   primaryKey,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -303,6 +304,70 @@ export const appConfig = sqliteTable("app_config", {
   value: text("value").notNull(),
 });
 
+export const agentConfigs = sqliteTable("agent_configs", {
+  orgId: text("org_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  name: text("name").notNull().default("Asistente"),
+  systemPrompt: text("system_prompt").notNull().default(""),
+  provider: text("provider", { enum: ["openai", "anthropic"] })
+    .notNull()
+    .default("openai"),
+  model: text("model").notNull().default("gpt-5-mini"),
+  temperature: real("temperature").notNull().default(0.2),
+  businessHoursJson: text("business_hours_json"),
+  fallbackMessage: text("fallback_message")
+    .notNull()
+    .default("En un momento te atiende una persona del equipo."),
+  maxStepsPerTurn: integer("max_steps_per_turn").notNull().default(5),
+  monthlyCostCapCop: integer("monthly_cost_cap_cop"),
+  templateId: text("template_id"),
+  advancedMode: integer("advanced_mode", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const agentTools = sqliteTable(
+  "agent_tools",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    type: text("type", { enum: ["builtin", "http"] }).notNull(),
+    key: text("key").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    configJson: text("config_json").notNull().default("{}"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("agent_tools_org_idx").on(t.orgId) }),
+);
+
+export const agentRuns = sqliteTable(
+  "agent_runs",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    stepsJson: text("steps_json").notNull().default("[]"),
+    promptTokens: integer("prompt_tokens").notNull().default(0),
+    completionTokens: integer("completion_tokens").notNull().default(0),
+    costCop: integer("cost_cop").notNull().default(0),
+    status: text("status", {
+      enum: ["ok", "error", "capped", "escalated"],
+    }).notNull(),
+    errorMessage: text("error_message"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("agent_runs_org_idx").on(t.orgId, t.createdAt) }),
+);
+
 export const conversations = sqliteTable(
   "conversations",
   {
@@ -320,6 +385,9 @@ export const conversations = sqliteTable(
     status: text("status", { enum: ["open", "resolved"] })
       .notNull()
       .default("open"),
+    agentPaused: integer("agent_paused", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
