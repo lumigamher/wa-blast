@@ -22,6 +22,29 @@ export type HttpConnectorConfig = {
   responseMapping: string | null;
 };
 
+/** Valida la config de un conector HTTP (proviene de input del usuario). */
+export const httpConnectorConfigSchema = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  method: z.enum(["GET", "POST"]),
+  urlTemplate: z.string().min(1),
+  headers: z.record(z.string(), z.string()),
+  auth: z.union([
+    z.object({ type: z.literal("none") }),
+    z.object({ type: z.literal("bearer"), token: z.string() }),
+    z.object({ type: z.literal("apiKey"), header: z.string(), value: z.string() }),
+  ]),
+  params: z.array(
+    z.object({
+      name: z.string().min(1),
+      type: z.enum(["string", "number"]),
+      required: z.boolean(),
+      in: z.enum(["query", "path", "body"]),
+    }),
+  ),
+  responseMapping: z.string().nullable(),
+});
+
 const TIMEOUT_MS = 8000;
 
 function buildSchema(params: HttpParam[]): z.ZodTypeAny {

@@ -4,7 +4,7 @@ import { agentTools } from "@/lib/db/schema";
 import { calcularTotal } from "./builtin/calcular-total";
 import { escalarHumano } from "./builtin/escalar-humano";
 import { recopilarDatos } from "./builtin/recopilar-datos";
-import { type HttpConnectorConfig, makeHttpTool } from "./http-connector";
+import { httpConnectorConfigSchema, makeHttpTool } from "./http-connector";
 import type { AgentTool } from "./types";
 
 export const BUILTIN_TOOLS: Record<string, AgentTool> = {
@@ -26,10 +26,10 @@ export async function resolveTools(db: DB, orgId: string): Promise<AgentTool[]> 
       if (t) tools.push(t);
     } else if (row.type === "http") {
       try {
-        const cfg = JSON.parse(row.configJson) as HttpConnectorConfig;
+        const cfg = httpConnectorConfigSchema.parse(JSON.parse(row.configJson));
         tools.push(makeHttpTool(cfg));
       } catch {
-        // conector mal configurado: lo omite
+        // conector mal configurado o JSON inválido: lo omite
       }
     }
   }
