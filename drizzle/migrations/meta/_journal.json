@@ -117,13 +117,6 @@
     {
       "idx": 16,
       "version": "6",
-      "when": 1781995845323,
-      "tag": "0016_medical_garia",
-      "breakpoints": true
-    },
-    {
-      "idx": 16,
-      "version": "6",
       "when": 1781995906158,
       "tag": "0016_medical_garia",
       "breakpoints": true
