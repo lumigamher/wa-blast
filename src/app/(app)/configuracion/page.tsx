@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRightIcon, KeyIcon, UsersIcon, MessageSquareIcon, PhoneIcon } from "lucide-react";
+import { BotIcon, ChevronRightIcon, KeyIcon, UsersIcon, MessageSquareIcon, PhoneIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ConfigIndex() {
@@ -21,6 +21,12 @@ export default function ConfigIndex() {
               icon={<KeyIcon className="size-4 text-blue-600" />}
               title="Meta WhatsApp"
               desc="Phone ID, WABA ID, access token, webhook verify token y forward URL"
+            />
+            <ConfigLink
+              href="/configuracion/agente"
+              icon={<BotIcon className="size-4 text-primary" />}
+              title="Agente IA"
+              desc="Activa y configura tu asistente automático de WhatsApp"
             />
             <ConfigLink
               href="/configuracion/llamadas"
