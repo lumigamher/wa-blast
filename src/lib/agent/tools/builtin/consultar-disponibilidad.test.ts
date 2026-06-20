@@ -23,7 +23,7 @@ describe("consultar_disponibilidad", () => {
       new Response(
         JSON.stringify({
           status: "success",
-          data: { "2026-07-01": ["2026-07-01T15:00:00.000Z"] },
+          data: { "2026-07-01": [{ start: "2026-07-01T15:00:00.000Z" }] },
         }),
         { status: 200 },
       ),

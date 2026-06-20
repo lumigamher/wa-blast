@@ -42,21 +42,21 @@ export const consultarDisponibilidad: AgentTool = {
       durationMin: cfg.durationMin,
     });
 
-    // Compute fromISO: start of fecha or today
-    const fromDate = fecha ? new Date(`${fecha}T00:00:00Z`) : new Date();
-    fromDate.setUTCHours(0, 0, 0, 0);
-    const fromISO = fromDate.toISOString();
-
-    // Compute toISO: fromISO + (dias ?? 7) days
+    // Cal.com acepta fechas planas YYYY-MM-DD en start/end (con timeZone aparte),
+    // así evitamos confusión UTC vs zona del org. "Hoy" = fecha local del org.
+    const todayInTz = new Intl.DateTimeFormat("en-CA", {
+      timeZone: cfg.timezone,
+    }).format(new Date());
+    const fromDateStr = fecha ?? todayInTz;
     const daysToAdd = dias ?? 7;
-    const toDate = new Date(fromDate);
+    const toDate = new Date(`${fromDateStr}T00:00:00Z`);
     toDate.setUTCDate(toDate.getUTCDate() + daysToAdd);
-    const toISO = toDate.toISOString();
+    const toDateStr = toDate.toISOString().slice(0, 10);
 
     try {
       const slots = await provider.getSlots({
-        fromISO,
-        toISO,
+        fromISO: fromDateStr,
+        toISO: toDateStr,
         timezone: cfg.timezone,
       });
 

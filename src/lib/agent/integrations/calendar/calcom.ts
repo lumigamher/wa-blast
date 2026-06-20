@@ -7,7 +7,10 @@ export interface CalcomConfig {
 }
 
 const API_BASE = 'https://api.cal.com';
-const API_VERSION = '2024-08-13';
+// Cal.com versiona por endpoint: slots usa 2024-09-04 (params start/end,
+// data = {date: [{start}]}); bookings usa 2024-08-13.
+const SLOTS_API_VERSION = '2024-09-04';
+const BOOKINGS_API_VERSION = '2024-08-13';
 const TIMEOUT_MS = 8000;
 
 /**
@@ -37,15 +40,15 @@ export function makeCalcomProvider(config: CalcomConfig): CalendarProvider {
 
     const url = new URL(`${API_BASE}/v2/slots`);
     url.searchParams.set('eventTypeId', String(eventTypeId));
-    url.searchParams.set('dateFrom', fromISO);
-    url.searchParams.set('dateTo', toISO);
+    url.searchParams.set('start', fromISO);
+    url.searchParams.set('end', toISO);
     url.searchParams.set('timeZone', timezone);
 
     const response = await fetchWithTimeout(url.toString(), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'cal-api-version': API_VERSION,
+        'cal-api-version': SLOTS_API_VERSION,
         'Content-Type': 'application/json',
       },
     });
@@ -56,12 +59,19 @@ export function makeCalcomProvider(config: CalcomConfig): CalendarProvider {
 
     interface SlotsResponse {
       status: string;
-      data: Record<string, string[] | Array<{ start: string; end: string }>>;
+      // 2024-09-04: data = { "<date>": [{ start }] } (default) o [{ start, end }] (format=range).
+      // Toleramos también strings ISO por compatibilidad.
+      data: Record<
+        string,
+        Array<string | { start: string; end?: string }>
+      >;
     }
 
     const json = (await response.json()) as SlotsResponse;
 
     const slots: CalendarSlot[] = [];
+    const computeEnd = (start: string) =>
+      new Date(new Date(start).getTime() + durationMin * 60 * 1000).toISOString();
 
     // Flatten the data object (date -> slots array) into CalendarSlot[]
     for (const dateKey in json.data) {
@@ -69,25 +79,14 @@ export function makeCalcomProvider(config: CalcomConfig): CalendarProvider {
       if (!Array.isArray(daySlots)) continue;
 
       for (const slot of daySlots) {
-        let startISO: string;
-        let endISO: string;
-
         if (typeof slot === 'string') {
-          // Default format: slot is an ISO string
-          startISO = slot;
-          // Compute endISO by adding durationMin to startISO
-          const startDate = new Date(slot);
-          const endDate = new Date(startDate.getTime() + durationMin * 60 * 1000);
-          endISO = endDate.toISOString();
-        } else if (typeof slot === 'object' && 'start' in slot && 'end' in slot) {
-          // Range format: slot has start and end
-          startISO = slot.start;
-          endISO = slot.end;
-        } else {
-          continue;
+          slots.push({ startISO: slot, endISO: computeEnd(slot) });
+        } else if (slot && typeof slot === 'object' && slot.start) {
+          slots.push({
+            startISO: slot.start,
+            endISO: slot.end ?? computeEnd(slot.start),
+          });
         }
-
-        slots.push({ startISO, endISO });
       }
     }
 
@@ -107,6 +106,7 @@ export function makeCalcomProvider(config: CalcomConfig): CalendarProvider {
         name,
         email,
         timeZone: timezone,
+        language: 'es',
       },
     };
 
@@ -114,7 +114,7 @@ export function makeCalcomProvider(config: CalcomConfig): CalendarProvider {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
-        'cal-api-version': API_VERSION,
+        'cal-api-version': BOOKINGS_API_VERSION,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),

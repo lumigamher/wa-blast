@@ -163,8 +163,11 @@ describe('Cal.com provider', () => {
       const call = vi.mocked(globalThis.fetch).mock.calls[0];
       expect(call[1]?.headers).toMatchObject({
         Authorization: 'Bearer test-api-key',
-        'cal-api-version': '2024-08-13',
+        'cal-api-version': '2024-09-04',
       });
+      const calledUrl = String(call[0]);
+      expect(calledUrl).toContain('start=');
+      expect(calledUrl).toContain('end=');
     });
 
     it('should throw on API error', async () => {
@@ -227,6 +230,7 @@ describe('Cal.com provider', () => {
         name: 'John Doe',
         email: 'john@example.com',
         timeZone: 'UTC',
+        language: 'es',
       });
     });
 
