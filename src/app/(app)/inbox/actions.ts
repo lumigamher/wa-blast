@@ -15,6 +15,7 @@ import { toOggOpus, toWebpSticker } from "@/lib/media/transcode";
 import { addNote, deleteNote } from "@/lib/inbox/notes";
 import { addSticker, listStickers } from "@/lib/inbox/stickers";
 import { listTemplates, credsFromSettings } from "@/lib/meta/graph";
+import { pauseAgent } from "@/lib/agent/pause";
 import type { ButtonSpec } from "@/lib/meta/types";
 
 export type SendResult = { ok: true } | { ok: false; error: string; windowClosed?: boolean };
@@ -61,6 +62,9 @@ export async function sendMessageAction(
     status: "sent",
     replyToWamid: opts?.replyTo,
   });
+
+  // Pause AI agent on human handoff
+  await pauseAgent(db, conversationId);
 
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
@@ -162,6 +166,9 @@ export async function sendTemplateToConversationAction(
     payloadJson,
   });
 
+  // Pause AI agent on human handoff
+  await pauseAgent(db, conversationId);
+
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }
@@ -246,6 +253,9 @@ export async function sendMediaAction(
     orgId, conversationId, wamid: sendRes.wamid, type: input.kind,
     body: input.caption ?? null, status: "sent", mediaId: asset.id, replyToWamid: input.replyTo,
   });
+
+  // Pause AI agent on human handoff
+  await pauseAgent(db, conversationId);
 
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
@@ -339,6 +349,10 @@ export async function sendVoiceAction(
     mediaId: asset.id,
     replyToWamid: input.replyTo,
   });
+
+  // Pause AI agent on human handoff
+  await pauseAgent(db, conversationId);
+
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }
@@ -411,6 +425,10 @@ export async function sendStickerAction(conversationId: string, input: { sticker
     mediaId: asset.id,
     replyToWamid: input.replyTo,
   });
+
+  // Pause AI agent on human handoff
+  await pauseAgent(db, conversationId);
+
   revalidatePath(`/inbox/${conversationId}`);
   return { ok: true };
 }

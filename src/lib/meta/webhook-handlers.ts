@@ -8,6 +8,7 @@ import { upsertReaction } from "@/lib/inbox/reactions";
 import { ensureInboundMedia } from "@/lib/media/inbound";
 import { getOrgSettings } from "@/lib/org/settings";
 import { markCallPermission, recordCallEvent, setCallAnswer } from "@/lib/calls/store";
+import { maybeDispatchAgentTurn } from "@/lib/agent/dispatch";
 
 export async function handleStatusEvent(
   db: DB,
@@ -108,7 +109,21 @@ export async function handleInboundMessage(
   const parsed = parseInboundMessage(msg);
 
   // Persist inbound message to inbox
-  await recordInboundMessage(db, { orgId, phone, wamid: msg.id, parsed, ts, profileName });
+  const conversationId = await recordInboundMessage(db, {
+    orgId,
+    phone,
+    wamid: msg.id,
+    parsed,
+    ts,
+    profileName,
+  });
+
+  // Dispara el agente IA (si la org lo tiene activo y la conversación no está pausada).
+  try {
+    await maybeDispatchAgentTurn(db, orgId, conversationId, phone);
+  } catch (e) {
+    console.error("[agent] dispatch fallo", e);
+  }
 
   // Proactively cache inbound media (best-effort, doesn't break webhook if it fails)
   if (parsed.mediaId) {
