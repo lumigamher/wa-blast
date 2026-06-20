@@ -291,8 +291,10 @@ describe('Cal.com provider', () => {
 
       expect(result.ok).toBe(true);
       // Should use first element of array
-      expect((result as any).bookingId).toBe('recurring-booking-1');
-      expect((result as any).startISO).toBe('2026-06-20T09:00:00Z');
+      if (result.ok) {
+        expect(result.bookingId).toBe('recurring-booking-1');
+        expect(result.startISO).toBe('2026-06-20T09:00:00Z');
+      }
     });
 
     it('should return error on API failure', async () => {
