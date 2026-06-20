@@ -1,4 +1,5 @@
 import {
+  BotIcon,
   CreditCardIcon,
   FileTextIcon,
   HeartPulseIcon,
@@ -28,7 +29,7 @@ type NavItem = {
   href: string;
   icon: typeof HomeIcon;
   label: string;
-  module?: "campanas" | "inbox" | "plantillas" | "contactos" | "flows" | "llamadas";
+  module?: "agente" | "campanas" | "inbox" | "plantillas" | "contactos" | "flows" | "llamadas";
 };
 type NavSection = { label: string; items: NavItem[] };
 
@@ -60,6 +61,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/salud", icon: HeartPulseIcon, label: "Salud WhatsApp" },
       { href: "/facturacion", icon: CreditCardIcon, label: "Facturación" },
+      { href: "/configuracion/agente", icon: BotIcon, label: "Agente IA", module: "agente" },
       { href: "/configuracion", icon: SettingsIcon, label: "Configuración" },
     ],
   },
