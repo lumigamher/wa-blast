@@ -368,6 +368,20 @@ export const agentRuns = sqliteTable(
   (t) => ({ orgIdx: index("agent_runs_org_idx").on(t.orgId, t.createdAt) }),
 );
 
+export const agentCalendar = sqliteTable("agent_calendar", {
+  orgId: text("org_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  provider: text("provider", { enum: ["calcom", "calendly", "google"] })
+    .notNull()
+    .default("calcom"),
+  // JSON encriptado con las credenciales (forma depende del provider).
+  credentialsEnc: text("credentials_enc"),
+  // JSON con config no secreta (eventTypeId, timezone, etc.).
+  configJson: text("config_json").notNull().default("{}"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
 export const conversations = sqliteTable(
   "conversations",
   {
