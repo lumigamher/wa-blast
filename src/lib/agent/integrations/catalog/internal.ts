@@ -1,7 +1,37 @@
 import { and, eq, like, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { products } from "@/lib/db/schema";
-import type { CatalogProvider, Product } from "./types";
+import { listVariants } from "@/lib/agent/catalog/variants";
+import { listImages, imageUrl } from "@/lib/agent/catalog/images";
+import type { CatalogProvider, Product, ProductVariant, ProductImage } from "./types";
+
+async function enrichProduct(db: DB, row: { id: string; name: string; priceCop: number; description: string | null; available: boolean }): Promise<Product> {
+  const vRows = await listVariants(db, row.id);
+  const variants: ProductVariant[] = vRows.map((v) => ({
+    id: v.id,
+    label: v.label,
+    priceCop: v.priceCop ?? row.priceCop,
+    sku: v.sku,
+    available: v.available,
+  }));
+
+  const iRows = await listImages(db, row.id);
+  const images: ProductImage[] = iRows.map((r) => ({
+    url: imageUrl(r),
+    label: r.label,
+    variantId: r.variantId,
+  }));
+
+  return {
+    id: row.id,
+    name: row.name,
+    priceCop: row.priceCop,
+    description: row.description ?? undefined,
+    available: row.available,
+    variants,
+    images,
+  };
+}
 
 export function makeInternalCatalog(db: DB, orgId: string): CatalogProvider {
   return {
@@ -18,13 +48,7 @@ export function makeInternalCatalog(db: DB, orgId: string): CatalogProvider {
         )
         .limit(limit);
 
-      return rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        priceCop: row.priceCop,
-        description: row.description ?? undefined,
-        available: row.available,
-      }));
+      return Promise.all(rows.map((row) => enrichProduct(db, row)));
     },
 
     async get(id: string): Promise<Product | null> {
@@ -38,13 +62,7 @@ export function makeInternalCatalog(db: DB, orgId: string): CatalogProvider {
         return null;
       }
 
-      return {
-        id: row.id,
-        name: row.name,
-        priceCop: row.priceCop,
-        description: row.description ?? undefined,
-        available: row.available,
-      };
+      return enrichProduct(db, row);
     },
   };
 }
