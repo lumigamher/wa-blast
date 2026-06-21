@@ -6,6 +6,7 @@ import { buscarProducto } from "./builtin/buscar-producto";
 import { calcularTotal } from "./builtin/calcular-total";
 import { consultarDisponibilidad } from "./builtin/consultar-disponibilidad";
 import { crearPedido } from "./builtin/crear-pedido";
+import { enviarCheckout } from "./builtin/enviar-checkout";
 import { escalarHumano } from "./builtin/escalar-humano";
 import { generarLinkPagoTool } from "./builtin/generar-link-pago";
 import { mediosDePago } from "./builtin/medios-de-pago";
@@ -20,6 +21,7 @@ export const BUILTIN_TOOLS: Record<string, AgentTool> = {
   calcular_total: calcularTotal,
   consultar_disponibilidad: consultarDisponibilidad,
   crear_pedido: crearPedido,
+  enviar_checkout: enviarCheckout,
   escalar_a_humano: escalarHumano,
   generar_link_pago: generarLinkPagoTool,
   medios_de_pago: mediosDePago,
