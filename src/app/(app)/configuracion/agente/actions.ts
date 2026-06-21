@@ -6,6 +6,8 @@ import { db } from "@/lib/db/client";
 import type { CatalogInput } from "@/lib/agent/admin";
 import { addPaymentMethod, setPaymentMethodEnabled, deletePaymentMethod } from "@/lib/agent/payments/methods";
 import type { PaymentType } from "@/lib/agent/payments/methods";
+import { addVariant, deleteVariant, setVariantAvailable } from "@/lib/agent/catalog/variants";
+import { addImageUrl, deleteImage } from "@/lib/agent/catalog/images";
 
 export async function saveAgentConfigAction(
   input: Parameters<typeof updateAgentConfig>[2],
@@ -126,6 +128,70 @@ export async function deletePaymentMethodAction(id: string): Promise<{ ok: true 
   const { orgId } = await requireOrg();
   try {
     await deletePaymentMethod(db, orgId, id);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function addVariantAction(
+  productId: string,
+  input: { label: string; priceCop?: number | null; sku?: string | null },
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await addVariant(db, orgId, productId, input);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function deleteVariantAction(variantId: string): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await deleteVariant(db, orgId, variantId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function setVariantAvailableAction(
+  variantId: string,
+  enabled: boolean,
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await setVariantAvailable(db, orgId, variantId, enabled);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function addImageUrlAction(
+  productId: string,
+  input: { url: string; label?: string | null; variantId?: string | null },
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await addImageUrl(db, orgId, productId, input);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function deleteImageAction(imageId: string): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await deleteImage(db, orgId, imageId);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };
   }

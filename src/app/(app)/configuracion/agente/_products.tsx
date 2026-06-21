@@ -3,20 +3,27 @@
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2Icon } from "lucide-react";
+import { Trash2Icon, ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { addProductAction, deleteProductAction } from "./actions";
+import { ProductDetail } from "./_product-detail";
 import type { products as productsSchema } from "@/lib/db/schema";
 
 type Product = typeof productsSchema.$inferSelect;
 
-export function AgentProducts({ items }: { items: Product[] }) {
+type ProductWithDetails = Product & {
+  variants: Array<{ id: string; label: string; priceCop: number | null; sku: string | null; available: boolean }>;
+  images: Array<{ id: string; url: string; label: string | null; variantId: string | null }>;
+};
+
+export function AgentProducts({ items }: { items: ProductWithDetails[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", priceCop: 0, description: "", sku: "" });
 
   const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
@@ -135,44 +142,67 @@ export function AgentProducts({ items }: { items: Product[] }) {
                 maximumFractionDigits: 0,
               }).format(product.priceCop);
 
+              const variantCount = product.variants.length;
+              const imageCount = product.images.length;
+
               return (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium truncate">{product.name}</h4>
-                    {product.description && (
-                      <p className="text-xs text-muted-foreground truncate">{product.description}</p>
-                    )}
-                    {product.sku && (
-                      <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-mono text-foreground whitespace-nowrap">
-                      {priceFormatted}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        if (deleteId === product.id) {
-                          handleDelete(product.id);
-                        } else {
-                          setDeleteId(product.id);
-                        }
-                      }}
-                      disabled={isPending}
-                      className="h-8 w-8 p-0"
-                    >
-                      {deleteId === product.id ? (
-                        <span className="text-xs">¿Seguro?</span>
-                      ) : (
-                        <Trash2Icon className="size-4" />
+                <div key={product.id}>
+                  <div className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium truncate">{product.name}</h4>
+                      {product.description && (
+                        <p className="text-xs text-muted-foreground truncate">{product.description}</p>
                       )}
-                    </Button>
+                      {product.sku && <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>}
+                      <div className="flex gap-4 mt-1.5">
+                        <span className="text-xs text-muted-foreground">{variantCount} variante{variantCount !== 1 ? "s" : ""}</span>
+                        <span className="text-xs text-muted-foreground">{imageCount} imagen{imageCount !== 1 ? "es" : ""}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-mono text-foreground whitespace-nowrap">{priceFormatted}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDetailOpen(product.id)}
+                        disabled={isPending}
+                        className="h-8 px-2"
+                      >
+                        <ChevronDownIcon className="size-4" />
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          if (deleteId === product.id) {
+                            handleDelete(product.id);
+                          } else {
+                            setDeleteId(product.id);
+                          }
+                        }}
+                        disabled={isPending}
+                        className="h-8 w-8 p-0"
+                      >
+                        {deleteId === product.id ? (
+                          <span className="text-xs">¿Seguro?</span>
+                        ) : (
+                          <Trash2Icon className="size-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
+
+                  {/* Detail sheet */}
+                  {detailOpen === product.id && (
+                    <ProductDetail
+                      product={product}
+                      variants={product.variants}
+                      images={product.images}
+                      open={detailOpen === product.id}
+                      onOpenChange={(open) => setDetailOpen(open ? product.id : null)}
+                    />
+                  )}
                 </div>
               );
             })}
