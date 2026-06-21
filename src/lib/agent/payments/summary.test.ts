@@ -30,6 +30,5 @@ describe("buildOrderSummaryText", () => {
     const result = buildOrderSummaryText(order);
 
     expect(result).toContain("Total: $1.000");
-    expect(result).not.toThrow;
   });
 });
