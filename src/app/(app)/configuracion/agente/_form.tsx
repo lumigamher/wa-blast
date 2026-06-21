@@ -38,6 +38,7 @@ export function AgentForm({ config }: { config: AgentConfig }) {
     fallbackMessage: config.fallbackMessage,
     monthlyCostCapCop: config.monthlyCostCapCop?.toString() ?? "",
     templateId: config.templateId ?? "",
+    checkoutFlowId: config.checkoutFlowId ?? "",
   });
 
   const handleTemplateChange = (template: string | null) => {
@@ -64,6 +65,7 @@ export function AgentForm({ config }: { config: AgentConfig }) {
           monthlyCostCapCop: values.monthlyCostCapCop ? Number(values.monthlyCostCapCop) : null,
           advancedMode: advancedOpen,
           templateId: values.templateId || null,
+          checkoutFlowId: values.checkoutFlowId.trim() || null,
         });
         toast.success("Configuración guardada");
         router.refresh();
@@ -238,6 +240,22 @@ export function AgentForm({ config }: { config: AgentConfig }) {
                   />
                   <p className="text-xs text-muted-foreground">
                     Deja vacío para sin límite.
+                  </p>
+                </div>
+
+                {/* Checkout flow ID */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="checkoutFlowId">Flow de checkout (ID del Flow publicado)</Label>
+                  <Input
+                    id="checkoutFlowId"
+                    value={values.checkoutFlowId}
+                    onChange={(e) =>
+                      setValues({ ...values, checkoutFlowId: e.target.value })
+                    }
+                    placeholder="Opcional"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Publica un Flow con los campos de pago/entrega en Flows y pega su ID aquí. El agente lo envía con el resumen del pedido.
                   </p>
                 </div>
               </div>
