@@ -24,4 +24,15 @@ describe("context", () => {
       { role: "user", content: "quiero 2 cervezas" },
     ]);
   });
+
+  it("inyecta el bloque de conocimiento cuando se provee", () => {
+    const s = buildSystemPrompt({ name: "Lula", systemPrompt: "Vendes cerveza.", knowledge: "El envío cuesta 5000 pesos." });
+    expect(s).toContain("Información de la empresa");
+    expect(s).toContain("El envío cuesta 5000 pesos");
+  });
+
+  it("sin knowledge no añade el bloque de empresa", () => {
+    const s = buildSystemPrompt({ name: "Lula", systemPrompt: "Vendes cerveza." });
+    expect(s).not.toContain("Información de la empresa");
+  });
 });
