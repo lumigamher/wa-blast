@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { organization, products, productVariants } from "@/lib/db/schema";
+import { organization, products } from "@/lib/db/schema";
 import { addVariant, listVariants, setVariantAvailable, deleteVariant } from "./variants";
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"]) {

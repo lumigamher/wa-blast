@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
-import { organization, products, productVariants, productImages } from "@/lib/db/schema";
+import { organization, products, productVariants } from "@/lib/db/schema";
 import { addImageUrl, addImageUpload, listImages, deleteImage, imageUrl } from "./images";
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"]) {
