@@ -18,6 +18,7 @@ const DEFAULTS = {
   monthlyCostCapCop: null,
   templateId: null,
   advancedMode: false,
+  checkoutFlowId: null,
 };
 
 export async function getAgentConfig(db: DB, orgId: string): Promise<AgentConfig> {

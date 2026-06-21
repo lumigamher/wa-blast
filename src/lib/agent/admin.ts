@@ -18,6 +18,7 @@ type ConfigInput = {
   monthlyCostCapCop?: number | null;
   advancedMode?: boolean;
   templateId?: string | null;
+  checkoutFlowId?: string | null;
 };
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
