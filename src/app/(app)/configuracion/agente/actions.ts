@@ -4,6 +4,8 @@ import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct,
 import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import type { CatalogInput } from "@/lib/agent/admin";
+import { addPaymentMethod, setPaymentMethodEnabled, deletePaymentMethod } from "@/lib/agent/payments/methods";
+import type { PaymentType } from "@/lib/agent/payments/methods";
 
 export async function saveAgentConfigAction(
   input: Parameters<typeof updateAgentConfig>[2],
@@ -76,6 +78,54 @@ export async function deleteProductAction(productId: string): Promise<{ ok: true
   const { orgId } = await requireOrg();
   try {
     await deleteProduct(db, orgId, productId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function addPaymentMethodAction(input: {
+  type: string;
+  label: string;
+  details: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    const validTypes: PaymentType[] = ["nequi", "daviplata", "bre_b", "transferencia", "link"];
+    if (!validTypes.includes(input.type as PaymentType)) {
+      return { error: "Tipo de medio de pago inválido" };
+    }
+    await addPaymentMethod(db, orgId, {
+      type: input.type as PaymentType,
+      label: input.label,
+      details: input.details,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function togglePaymentMethodAction(
+  id: string,
+  enabled: boolean,
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await setPaymentMethodEnabled(db, orgId, id, enabled);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function deletePaymentMethodAction(id: string): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await deletePaymentMethod(db, orgId, id);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };
   }

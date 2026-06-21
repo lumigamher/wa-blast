@@ -7,6 +7,8 @@ import { calcularTotal } from "./builtin/calcular-total";
 import { consultarDisponibilidad } from "./builtin/consultar-disponibilidad";
 import { crearPedido } from "./builtin/crear-pedido";
 import { escalarHumano } from "./builtin/escalar-humano";
+import { mediosDePago } from "./builtin/medios-de-pago";
+import { registrarPago } from "./builtin/registrar-pago";
 import { recopilarDatos } from "./builtin/recopilar-datos";
 import { httpConnectorConfigSchema, makeHttpTool } from "./http-connector";
 import type { AgentTool } from "./types";
@@ -18,6 +20,8 @@ export const BUILTIN_TOOLS: Record<string, AgentTool> = {
   consultar_disponibilidad: consultarDisponibilidad,
   crear_pedido: crearPedido,
   escalar_a_humano: escalarHumano,
+  medios_de_pago: mediosDePago,
+  registrar_pago: registrarPago,
   recopilar_datos: recopilarDatos,
 };
 
