@@ -55,7 +55,7 @@ describe("getCatalogProvider", () => {
   it("provider desconocido lanza error", () => {
     const { db } = makeTestDb();
     const input: CatalogResolveInput = {
-      provider: "unknown" as any,
+      provider: "unknown" as never,
       db,
       orgId: "o1",
       credentials: {},

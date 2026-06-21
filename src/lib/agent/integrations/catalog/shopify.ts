@@ -17,10 +17,17 @@ export function makeShopifyCatalog(cfg: ShopifyCatalogConfig): CatalogProvider {
     "Content-Type": "application/json",
   };
 
-  async function mapProductNode(node: any): Promise<Product | null> {
-    if (!node || typeof node !== "object") {
+  async function mapProductNode(raw: unknown): Promise<Product | null> {
+    if (!raw || typeof raw !== "object") {
       return null;
     }
+    const node = raw as {
+      id?: unknown;
+      title?: unknown;
+      description?: unknown;
+      availableForSale?: unknown;
+      variants?: { edges?: Array<{ node?: { price?: { amount?: unknown } } }> };
+    };
 
     const id = node.id ? String(node.id) : "";
     const name = node.title ? String(node.title) : "";

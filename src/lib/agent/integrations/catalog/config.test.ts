@@ -33,7 +33,9 @@ describe("catalog config", () => {
     };
     await saveCatalogConfig(db, "o1", input);
 
-    const row = sqlite.prepare("SELECT credentials_enc FROM agent_catalog WHERE org_id = 'o1'").get() as any;
+    const row = sqlite
+      .prepare("SELECT credentials_enc FROM agent_catalog WHERE org_id = 'o1'")
+      .get() as { credentials_enc: string | null };
     expect(row.credentials_enc).toBeDefined();
     // Verificar que la cadena encriptada NO contiene la clave en texto plano
     expect(row.credentials_enc).not.toContain("secreta-api-key");
