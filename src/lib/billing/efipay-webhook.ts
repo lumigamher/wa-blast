@@ -3,6 +3,7 @@ import {
   parseWebhookEvent,
   verifyWebhookSignature,
 } from "@/lib/billing/efipay";
+import { markOrderPaidByCheckout } from "@/lib/agent/payments/link";
 import { applyCharge, setPlan } from "@/lib/billing/subscription";
 import type { DB } from "@/lib/db/client";
 import { billingCheckouts } from "@/lib/db/schema";
@@ -24,7 +25,13 @@ export async function handleEfipayWebhook(
   const event = parseWebhookEvent(payload);
   if (!event || !event.approved) return { status: 200 };
 
-  // Try to find checkout by any of the candidate IDs
+  // Try to mark order as paid first
+  if (event.candidateIds.length > 0) {
+    const orderMatched = await markOrderPaidByCheckout(db, event.candidateIds);
+    if (orderMatched) return { status: 200 };
+  }
+
+  // Try to find checkout by any of the candidate IDs (subscription path)
   let checkout: typeof billingCheckouts.$inferSelect | undefined;
   if (event.candidateIds.length > 0) {
     const results = await db

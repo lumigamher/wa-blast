@@ -1,7 +1,8 @@
 import { createHmac } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
-import { billingCheckouts, organization } from "@/lib/db/schema";
+import { billingCheckouts, organization, orders, orderPayments } from "@/lib/db/schema";
 import { getSubscription } from "@/lib/billing/subscription";
 import { handleEfipayWebhook } from "@/lib/billing/efipay-webhook";
 import type { DB } from "@/lib/db/client";
@@ -118,5 +119,45 @@ describe("efipay webhook handler", () => {
     const { raw, sig } = signed(payload);
     await handleEfipayWebhook(db, raw, sig, "whtoken");
     expect((await getSubscription(db, "org1")).status).toBe("none");
+  });
+
+  it("webhook aprobado marca un pedido como pagado", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "org-ord", name: "org-ord", slug: "org-ord", createdAt: new Date() });
+
+    // Create an order
+    const now = new Date();
+    await db.insert(orders).values({
+      id: "order-123",
+      orgId: "org-ord",
+      status: "pendiente",
+      totalCop: 250000,
+      itemsJson: JSON.stringify([{ sku: "item1", qty: 1 }]),
+      createdAt: now,
+    });
+
+    // Create a corresponding orderPayment with the payment_id that EfiPay will send back
+    const paymentId = "payment-abc123";
+    await db.insert(orderPayments).values({
+      id: paymentId,
+      orgId: "org-ord",
+      orderId: "order-123",
+      amountCop: 250000,
+      createdAt: now,
+    });
+
+    // Simulate webhook with approved status and the payment_id as checkout.id
+    const payload = {
+      transaction: { transaction_id: 200, amount: 250000, status: "Aprobada" },
+      checkout: { id: paymentId },
+    };
+    const { raw, sig } = signed(payload);
+    const res = await handleEfipayWebhook(db, raw, sig, "whtoken");
+    expect(res.status).toBe(200);
+
+    // Verify the order is now marked as paid
+    const updatedOrder = (await db.select().from(orders).where(eq(orders.id, "order-123")))[0];
+    expect(updatedOrder.status).toBe("pagado");
+    expect(updatedOrder.paymentMethod).toBe("EfiPay");
   });
 });
