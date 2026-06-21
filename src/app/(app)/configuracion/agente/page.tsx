@@ -16,6 +16,8 @@ import { AgentTools } from "./_tools";
 import { AgentCalendar } from "./_calendar";
 import { AgentCatalog } from "./_catalog";
 import { AgentProducts } from "./_products";
+import { AgentPayments } from "./_payments";
+import { listPaymentMethods } from "@/lib/agent/payments/methods";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,7 @@ export default async function AgentePage() {
   const catalogConfig = await getCatalogConfig(db, orgId);
   const productList =
     catalogConfig?.provider === "internal" || !catalogConfig ? await listProducts(db, orgId) : [];
+  const paymentList = await listPaymentMethods(db, orgId);
 
   const toolRows = await db.select().from(agentTools).where(eq(agentTools.orgId, orgId));
   const enabledMap = Object.fromEntries(
@@ -82,6 +85,8 @@ export default async function AgentePage() {
       {(catalogConfig?.provider === "internal" || !catalogConfig) && (
         <AgentProducts items={productList} />
       )}
+
+      <AgentPayments items={paymentList} />
 
       {/* Activity card */}
       <Card>
