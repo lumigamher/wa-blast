@@ -2,8 +2,10 @@ import { and, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { agentTools } from "@/lib/db/schema";
 import { agendarCita } from "./builtin/agendar-cita";
+import { buscarProducto } from "./builtin/buscar-producto";
 import { calcularTotal } from "./builtin/calcular-total";
 import { consultarDisponibilidad } from "./builtin/consultar-disponibilidad";
+import { crearPedido } from "./builtin/crear-pedido";
 import { escalarHumano } from "./builtin/escalar-humano";
 import { recopilarDatos } from "./builtin/recopilar-datos";
 import { httpConnectorConfigSchema, makeHttpTool } from "./http-connector";
@@ -11,8 +13,10 @@ import type { AgentTool } from "./types";
 
 export const BUILTIN_TOOLS: Record<string, AgentTool> = {
   agendar_cita: agendarCita,
+  buscar_producto: buscarProducto,
   calcular_total: calcularTotal,
   consultar_disponibilidad: consultarDisponibilidad,
+  crear_pedido: crearPedido,
   escalar_a_humano: escalarHumano,
   recopilar_datos: recopilarDatos,
 };

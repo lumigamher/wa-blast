@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
+import { makeTestDb } from "@/lib/db/test-db";
+import { conversations, orders, organization, products } from "@/lib/db/schema";
+import { saveCatalogConfig } from "../../integrations/catalog/config";
+import { crearPedido } from "./crear-pedido";
+
+describe("crear_pedido", () => {
+  it("crea el pedido con total correcto (catálogo interno)", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(conversations).values({ id: "c1", orgId: "o1", phone: "+57300", lastMessageAt: new Date(), unreadCount: 0, createdAt: new Date() });
+    await db.insert(products).values({ id: "p1", orgId: "o1", name: "Cerveza", priceCop: 2500, available: true, createdAt: new Date() });
+    await saveCatalogConfig(db, "o1", { provider: "internal", credentials: {}, config: {} });
+    const r = await crearPedido.run({ items: [{ productId: "p1", cantidad: 2 }] }, { db, orgId: "o1", conversationId: "c1" });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const data = r.data as { orderId: string; totalCop: number };
+      expect(data.totalCop).toBe(5000);
+    }
+    const [order] = await db.select().from(orders).where(eq(orders.orgId, "o1"));
+    expect(order.totalCop).toBe(5000);
+  });
+
+  it("producto inexistente → ok:false", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    await db.insert(conversations).values({ id: "c2", orgId: "o2", phone: "+57301", lastMessageAt: new Date(), unreadCount: 0, createdAt: new Date() });
+    await saveCatalogConfig(db, "o2", { provider: "internal", credentials: {}, config: {} });
+    const r = await crearPedido.run({ items: [{ productId: "nope", cantidad: 1 }] }, { db, orgId: "o2", conversationId: "c2" });
+    expect(r.ok).toBe(false);
+  });
+});
