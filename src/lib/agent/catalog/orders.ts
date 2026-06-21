@@ -37,6 +37,9 @@ export async function createOrder(
 
   // Resolver cada producto y validar disponibilidad
   for (const item of input.items) {
+    if (!Number.isInteger(item.cantidad) || item.cantidad <= 0) {
+      throw new Error(`Cantidad inválida: ${item.cantidad}`);
+    }
     const product = await provider.get(item.productId);
     if (!product) {
       throw new Error(`Producto no encontrado: ${item.productId}`);

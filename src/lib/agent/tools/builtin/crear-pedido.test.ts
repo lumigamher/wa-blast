@@ -30,4 +30,15 @@ describe("crear_pedido", () => {
     const r = await crearPedido.run({ items: [{ productId: "nope", cantidad: 1 }] }, { db, orgId: "o2", conversationId: "c2" });
     expect(r.ok).toBe(false);
   });
+
+  it("multi-tenant: org A no puede pedir un producto de org B", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "ob", name: "ob", slug: "ob", createdAt: new Date() });
+    await db.insert(products).values({ id: "prodB", orgId: "ob", name: "Producto B", priceCop: 9999, available: true, createdAt: new Date() });
+    await db.insert(organization).values({ id: "oa", name: "oa", slug: "oa", createdAt: new Date() });
+    await db.insert(conversations).values({ id: "ca", orgId: "oa", phone: "+57302", lastMessageAt: new Date(), unreadCount: 0, createdAt: new Date() });
+    await saveCatalogConfig(db, "oa", { provider: "internal", credentials: {}, config: {} });
+    const r = await crearPedido.run({ items: [{ productId: "prodB", cantidad: 1 }] }, { db, orgId: "oa", conversationId: "ca" });
+    expect(r.ok).toBe(false); // el catálogo interno de A no ve productos de B
+  });
 });

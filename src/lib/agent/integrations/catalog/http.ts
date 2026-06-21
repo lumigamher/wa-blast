@@ -64,15 +64,17 @@ export function makeHttpCatalog(cfg: HttpCatalogConfig): CatalogProvider {
             const obj = item as Record<string, unknown>;
             const id = String(obj[idField] ?? "");
             const name = String(obj[nameField] ?? "");
-            const priceRaw = obj[priceField];
-            const priceCop = Math.round(Number(priceRaw) || 0);
+            // Precio inválido → descarta el producto en vez de mostrarlo a $0
+            // (un $0 silencioso permitiría pedidos "gratis").
+            const priceNum = Number(obj[priceField]);
             const description = obj[descField]
               ? String(obj[descField])
               : undefined;
 
-            if (!id || !name) {
+            if (!id || !name || !Number.isFinite(priceNum) || priceNum < 0) {
               return null;
             }
+            const priceCop = Math.round(priceNum);
 
             return {
               id,
@@ -94,7 +96,7 @@ export function makeHttpCatalog(cfg: HttpCatalogConfig): CatalogProvider {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const fetchUrl = `${url}/${id}`;
+        const fetchUrl = `${url}/${encodeURIComponent(id)}`;
         const headers: Record<string, string> = {};
         if (apiKey) {
           headers["Authorization"] = `Bearer ${apiKey}`;
