@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { asc } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { conversations, organization, paymentMethods } from "@/lib/db/schema";
+import { conversations, organization } from "@/lib/db/schema";
 import { addPaymentMethod, setPaymentMethodEnabled, listPaymentMethods } from "../../payments/methods";
 import { mediosDePago } from "./medios-de-pago";
 
@@ -57,7 +56,7 @@ describe("medios_de_pago", () => {
     // Get all methods to find the IDs
     const allMethods = await listPaymentMethods(db, "o3", false);
     expect(allMethods).toHaveLength(2);
-    const [nequiMethod, transferenciaMethod] = allMethods;
+    const [, transferenciaMethod] = allMethods;
 
     // Disable the second one
     await setPaymentMethodEnabled(db, "o3", transferenciaMethod.id, false);
