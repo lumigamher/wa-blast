@@ -690,3 +690,44 @@ export const orderPayments = sqliteTable(
   },
   (t) => ({ orderIdx: index("order_payments_order_idx").on(t.orderId) }),
 );
+
+export const agentDocuments = sqliteTable(
+  "agent_documents",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    source: text("source", { enum: ["upload", "text"] }).notNull(),
+    mediaAssetId: text("media_asset_id"),
+    status: text("status", { enum: ["indexando", "listo", "error"] })
+      .notNull()
+      .default("indexando"),
+    errorMessage: text("error_message"),
+    chunkCount: integer("chunk_count").notNull().default(0),
+    bytes: integer("bytes").notNull().default(0),
+    embedModel: text("embed_model"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("agent_documents_org_idx").on(t.orgId, t.createdAt) }),
+);
+
+export const documentChunks = sqliteTable(
+  "document_chunks",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => agentDocuments.id, { onDelete: "cascade" }),
+    idx: integer("idx").notNull(),
+    text: text("text").notNull(),
+    // Embedding serializado como JSON array (number[]). v1 simple; blob = optimización futura.
+    embedding: text("embedding").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("document_chunks_org_idx").on(t.orgId) }),
+);

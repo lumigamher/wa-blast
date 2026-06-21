@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2Icon, PlusIcon } from "lucide-react";
@@ -62,6 +62,8 @@ export function ProductDetail({
 
   // Image upload form state
   const [imageUploadForm, setImageUploadForm] = useState({ file: null as File | null, label: "", variantId: "" });
+  const [imgDragging, setImgDragging] = useState(false);
+  const imgInputRef = useRef<HTMLInputElement>(null);
 
   const [deleteVariantId, setDeleteVariantId] = useState<string | null>(null);
   const [deleteImageId, setDeleteImageId] = useState<string | null>(null);
@@ -384,17 +386,44 @@ export function ProductDetail({
               <p className="text-xs text-muted-foreground">O subir archivo</p>
               <form onSubmit={handleUploadImage} className="space-y-3 p-3 bg-muted/30 rounded-lg border border-muted">
                 <div className="space-y-1.5">
-                  <Label htmlFor="image-file" className="text-xs">
-                    Archivo
-                  </Label>
-                  <Input
-                    id="image-file"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageUploadForm({ ...imageUploadForm, file: e.target.files?.[0] ?? null })}
+                  <Label className="text-xs">Archivo</Label>
+                  <button
+                    type="button"
+                    onClick={() => imgInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setImgDragging(true);
+                    }}
+                    onDragLeave={() => setImgDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setImgDragging(false);
+                      const f = e.dataTransfer.files?.[0];
+                      if (f) setImageUploadForm({ ...imageUploadForm, file: f });
+                    }}
                     disabled={isPending}
-                    className="text-sm"
-                  />
+                    className={`flex w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-3 py-6 text-center text-xs transition-colors ${
+                      imgDragging
+                        ? "border-primary bg-primary/5"
+                        : "border-muted-foreground/30 hover:border-primary/50 hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="font-medium">
+                      {imageUploadForm.file
+                        ? imageUploadForm.file.name
+                        : "Arrastra una imagen o haz clic para explorar"}
+                    </span>
+                    <span className="text-muted-foreground">PNG, JPG · imagen</span>
+                    <input
+                      ref={imgInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        setImageUploadForm({ ...imageUploadForm, file: e.target.files?.[0] ?? null })
+                      }
+                    />
+                  </button>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">

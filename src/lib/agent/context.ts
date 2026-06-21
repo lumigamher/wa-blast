@@ -8,8 +8,13 @@ const GLOBAL_RULES = `Reglas:
 export function buildSystemPrompt(config: {
   name: string;
   systemPrompt: string;
+  knowledge?: string;
 }): string {
-  return `Eres ${config.name}, un asistente de WhatsApp.\n\n${config.systemPrompt}\n\n${GLOBAL_RULES}`;
+  const base = `Eres ${config.name}, un asistente de WhatsApp.\n\n${config.systemPrompt}\n\n${GLOBAL_RULES}`;
+  if (config.knowledge && config.knowledge.trim()) {
+    return `${base}\n\nInformación de la empresa (úsala para responder; si la respuesta no está aquí, dilo o escala, no inventes):\n${config.knowledge.trim()}`;
+  }
+  return base;
 }
 
 export function toLlmHistory(

@@ -16,3 +16,11 @@ export function estimateCostCop(
   const cop = (usage.promptTokens / 1000) * rate.in + (usage.completionTokens / 1000) * rate.out;
   return Math.round(cop);
 }
+
+// COP por 1k tokens de embeddings (text-embedding-3-small ≈ $0.02/1M tokens).
+// Muy barato; tarifa conservadora editable.
+const EMBEDDING_RATE_PER_1K = 0.1;
+
+export function estimateEmbeddingCostCop(tokens: number): number {
+  return Math.round((tokens / 1000) * EMBEDDING_RATE_PER_1K);
+}

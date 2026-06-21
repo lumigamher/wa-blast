@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { agentTools } from "@/lib/db/schema";
 import { agendarCita } from "./builtin/agendar-cita";
+import { buscarEnDocs } from "./builtin/buscar-en-docs";
 import { buscarProducto } from "./builtin/buscar-producto";
 import { calcularTotal } from "./builtin/calcular-total";
 import { consultarDisponibilidad } from "./builtin/consultar-disponibilidad";
@@ -18,6 +19,7 @@ import type { AgentTool } from "./types";
 
 export const BUILTIN_TOOLS: Record<string, AgentTool> = {
   agendar_cita: agendarCita,
+  buscar_en_docs: buscarEnDocs,
   buscar_producto: buscarProducto,
   calcular_total: calcularTotal,
   consultar_disponibilidad: consultarDisponibilidad,

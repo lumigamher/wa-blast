@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { agentConfigs, agentRuns, agentTools, conversations, messages, organization } from "@/lib/db/schema";
+import { ingestDocument } from "./rag";
+import { makeFakeEmbeddings } from "./rag/testing/fake-embeddings";
 import { makeFakeProvider } from "./testing/fake-provider";
 import { runAgentTurn } from "./turn";
 
@@ -97,5 +99,22 @@ describe("runAgentTurn", () => {
       .from(agentRuns)
       .where(eq(agentRuns.orgId, "o1"));
     expect(runs[0].status).toBe("capped");
+  });
+
+  it("auto-RAG: inyecta knowledge cuando hay documentos relevantes", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const embeddings = makeFakeEmbeddings();
+    await ingestDocument(db, "o1", { name: "Envíos", text: "El envío cuesta 5000 pesos.", source: "text" }, { embeddings });
+    await db.insert(messages).values({ id: "m2", conversationId: "c1", orgId: "o1", direction: "in", wamid: "w2", type: "text", body: "cuanto cuesta el envio", createdAt: new Date() });
+    let capturedSystem = "";
+    const provider = makeFakeProvider([]);
+    provider.chat = vi.fn(async (opts) => {
+      capturedSystem = opts.system;
+      return { text: "El envío cuesta 5000 pesos", toolCalls: [], usage: { promptTokens: 10, completionTokens: 5 } };
+    });
+    const sender = vi.fn(async () => ({ wamid: "out2" }));
+    await runAgentTurn(db, "o1", "c1", { provider, embeddings, sender, to: "+57300" });
+    expect(capturedSystem.toLowerCase()).toContain("envío");
   });
 });

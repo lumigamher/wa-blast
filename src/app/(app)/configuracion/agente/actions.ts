@@ -8,6 +8,9 @@ import { addPaymentMethod, setPaymentMethodEnabled, deletePaymentMethod } from "
 import type { PaymentType } from "@/lib/agent/payments/methods";
 import { addVariant, deleteVariant, setVariantAvailable } from "@/lib/agent/catalog/variants";
 import { addImageUrl, deleteImage } from "@/lib/agent/catalog/images";
+import { ingestDocument } from "@/lib/agent/rag/ingest";
+import { deleteDocument } from "@/lib/agent/rag/admin";
+import { getEmbeddingProvider } from "@/lib/agent/rag/embeddings";
 
 export async function saveAgentConfigAction(
   input: Parameters<typeof updateAgentConfig>[2],
@@ -192,6 +195,38 @@ export async function deleteImageAction(imageId: string): Promise<{ ok: true } |
   const { orgId } = await requireOrg();
   try {
     await deleteImage(db, orgId, imageId);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function addTextDocumentAction(input: {
+  name: string;
+  text: string;
+}): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await ingestDocument(
+      db,
+      orgId,
+      { name: input.name || "Documento", text: input.text, source: "text" },
+      { embeddings: getEmbeddingProvider() },
+    );
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function deleteDocumentAction(
+  documentId: string,
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await deleteDocument(db, orgId, documentId);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };
   }

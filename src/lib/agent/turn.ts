@@ -12,6 +12,9 @@ import { getProvider } from "./providers";
 import type { LlmProvider } from "./providers/types";
 import { runAgentLoop } from "./runtime";
 import { resolveTools } from "./tools/registry";
+import { getEmbeddingProvider } from "./rag/embeddings";
+import type { EmbeddingProvider } from "./rag/embeddings/types";
+import { retrieveKnowledge } from "./rag";
 
 export type AgentSender = (input: { to: string; body: string }) => Promise<{ wamid: string | null }>;
 
@@ -21,7 +24,7 @@ export async function runAgentTurn(
   db: DB,
   orgId: string,
   conversationId: string,
-  deps: { provider?: LlmProvider; sender: AgentSender; to: string },
+  deps: { provider?: LlmProvider; embeddings?: EmbeddingProvider; sender: AgentSender; to: string },
 ): Promise<void> {
   const config = await getAgentConfig(db, orgId);
   if (!config.enabled) return;
@@ -38,6 +41,19 @@ export async function runAgentTurn(
     .limit(HISTORY_LIMIT);
   const history = toLlmHistory(rows.reverse());
 
+  // Auto-RAG: recupera info de los documentos de la org relevante al último mensaje del cliente.
+  const lastIncoming = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+  let knowledge = "";
+  if (typeof lastIncoming === "string" && lastIncoming.trim()) {
+    try {
+      const embeddings = deps.embeddings ?? getEmbeddingProvider();
+      knowledge = await retrieveKnowledge(db, orgId, lastIncoming, { embeddings });
+    } catch {
+      // Falla de embeddings/RAG no debe romper el turno: seguimos sin conocimiento.
+      knowledge = "";
+    }
+  }
+
   if (await isOverCostCap(db, orgId, config.monthlyCostCapCop)) {
     await db.insert(agentRuns).values({
       id: randomUUID(), orgId, conversationId, stepsJson: "[]",
@@ -51,7 +67,7 @@ export async function runAgentTurn(
       provider,
       model: config.model,
       temperature: config.temperature,
-      system: buildSystemPrompt({ name: config.name, systemPrompt: config.systemPrompt }),
+      system: buildSystemPrompt({ name: config.name, systemPrompt: config.systemPrompt, knowledge }),
       history,
       tools,
       maxSteps: config.maxStepsPerTurn,
