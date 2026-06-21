@@ -1,0 +1,34 @@
+import { describe, expect, it } from "vitest";
+import { makeTestDb } from "@/lib/db/test-db";
+import { eq } from "drizzle-orm";
+import { organization, orders } from "@/lib/db/schema";
+import { createOrder } from "./orders";
+import type { CatalogProvider, Product } from "@/lib/agent/integrations/catalog/types";
+
+const PRODS: Record<string, Product> = {
+  p1: { id: "p1", name: "Cerveza", priceCop: 2500, available: true },
+  p2: { id: "p2", name: "Agua", priceCop: 1500, available: true },
+};
+const fakeProvider: CatalogProvider = {
+  async search() { return []; },
+  async get(id) { return PRODS[id] ?? null; },
+};
+
+describe("createOrder", () => {
+  it("resuelve productos, congela precios y crea el pedido", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    const r = await createOrder(db, { orgId: "o1", items: [{ productId: "p1", cantidad: 2 }, { productId: "p2", cantidad: 1 }] }, fakeProvider);
+    expect(r.totalCop).toBe(6500);
+    const [row] = await db.select().from(orders).where(eq(orders.orgId, "o1"));
+    expect(row.totalCop).toBe(6500);
+    expect(row.status).toBe("pendiente");
+    const items = JSON.parse(row.itemsJson);
+    expect(items[0]).toMatchObject({ productId: "p1", nombre: "Cerveza", precioUnitario: 2500, cantidad: 2, subtotal: 5000 });
+  });
+  it("producto inexistente → throw", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    await expect(createOrder(db, { orgId: "o2", items: [{ productId: "nope", cantidad: 1 }] }, fakeProvider)).rejects.toThrow();
+  });
+});
