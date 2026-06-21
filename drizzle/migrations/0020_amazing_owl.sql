@@ -1,0 +1,1 @@
+ALTER TABLE `agent_configs` ADD `checkout_flow_id` text;

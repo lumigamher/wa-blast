@@ -326,6 +326,7 @@ export const agentConfigs = sqliteTable("agent_configs", {
   advancedMode: integer("advanced_mode", { mode: "boolean" })
     .notNull()
     .default(false),
+  checkoutFlowId: text("checkout_flow_id"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
