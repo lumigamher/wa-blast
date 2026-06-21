@@ -17,9 +17,11 @@ import { AgentCalendar } from "./_calendar";
 import { AgentCatalog } from "./_catalog";
 import { AgentProducts } from "./_products";
 import { AgentPayments } from "./_payments";
+import { AgentDocuments } from "./_documents";
 import { listPaymentMethods } from "@/lib/agent/payments/methods";
 import { listVariants } from "@/lib/agent/catalog/variants";
 import { listImages, imageUrl } from "@/lib/agent/catalog/images";
+import { listDocuments } from "@/lib/agent/rag/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +67,8 @@ export default async function AgentePage() {
   );
 
   const paymentList = await listPaymentMethods(db, orgId);
+
+  const documentList = await listDocuments(db, orgId);
 
   const toolRows = await db.select().from(agentTools).where(eq(agentTools.orgId, orgId));
   const enabledMap = Object.fromEntries(
@@ -114,6 +118,16 @@ export default async function AgentePage() {
       )}
 
       <AgentPayments items={paymentList} />
+
+      <AgentDocuments
+        items={documentList.map((d) => ({
+          id: d.id,
+          name: d.name,
+          status: d.status,
+          chunkCount: d.chunkCount,
+          source: d.source,
+        }))}
+      />
 
       {/* Activity card */}
       <Card>
