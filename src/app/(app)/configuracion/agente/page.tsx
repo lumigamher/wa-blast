@@ -7,11 +7,15 @@ import { requireOrg } from "@/lib/auth/session";
 import { requireModuleAccess } from "@/lib/billing/require-module";
 import { getAgentConfig } from "@/lib/agent/config";
 import { getCalendarConfig } from "@/lib/agent/integrations/calendar/config";
+import { getCatalogConfig } from "@/lib/agent/integrations/catalog/config";
+import { listProducts } from "@/lib/agent/admin";
 import { agentTools, agentRuns } from "@/lib/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { AgentForm } from "./_form";
 import { AgentTools } from "./_tools";
 import { AgentCalendar } from "./_calendar";
+import { AgentCatalog } from "./_catalog";
+import { AgentProducts } from "./_products";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +32,9 @@ export default async function AgentePage() {
 
   const config = await getAgentConfig(db, orgId);
   const calendar = await getCalendarConfig(db, orgId);
+  const catalogConfig = await getCatalogConfig(db, orgId);
+  const productList =
+    catalogConfig?.provider === "internal" || !catalogConfig ? await listProducts(db, orgId) : [];
 
   const toolRows = await db.select().from(agentTools).where(eq(agentTools.orgId, orgId));
   const enabledMap = Object.fromEntries(
@@ -66,6 +73,15 @@ export default async function AgentePage() {
           timezone: calendar?.timezone ?? "America/Bogota",
         }}
       />
+
+      <AgentCatalog
+        provider={catalogConfig?.provider ?? "internal"}
+        config={catalogConfig?.config ?? {}}
+      />
+
+      {(catalogConfig?.provider === "internal" || !catalogConfig) && (
+        <AgentProducts items={productList} />
+      )}
 
       {/* Activity card */}
       <Card>
