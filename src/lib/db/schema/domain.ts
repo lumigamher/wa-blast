@@ -621,3 +621,22 @@ export const agentCatalog = sqliteTable("agent_catalog", {
   configJson: text("config_json").notNull().default("{}"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
+
+export const paymentMethods = sqliteTable(
+  "payment_methods",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    type: text("type", {
+      enum: ["nequi", "daviplata", "bre_b", "transferencia", "link"],
+    }).notNull(),
+    label: text("label").notNull(),
+    details: text("details").notNull().default(""),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("payment_methods_org_idx").on(t.orgId) }),
+);

@@ -127,6 +127,13 @@
       "when": 1782000397550,
       "tag": "0017_adorable_titania",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1782004033022,
+      "tag": "0018_fantastic_skullbuster",
+      "breakpoints": true
     }
   ]
 }
