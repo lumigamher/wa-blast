@@ -611,6 +611,39 @@ export const orders = sqliteTable(
   (t) => ({ orgIdx: index("orders_org_idx").on(t.orgId, t.createdAt) }),
 );
 
+export const productVariants = sqliteTable(
+  "product_variants",
+  {
+    id: text("id").primaryKey(),
+    productId: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    priceCop: integer("price_cop"),
+    sku: text("sku"),
+    available: integer("available", { mode: "boolean" }).notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ prodIdx: index("product_variants_prod_idx").on(t.productId) }),
+);
+
+export const productImages = sqliteTable(
+  "product_images",
+  {
+    id: text("id").primaryKey(),
+    productId: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    orgId: text("org_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    variantId: text("variant_id").references(() => productVariants.id, { onDelete: "set null" }),
+    source: text("source", { enum: ["upload", "url"] }).notNull(),
+    mediaAssetId: text("media_asset_id"),
+    url: text("url"),
+    label: text("label"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ prodIdx: index("product_images_prod_idx").on(t.productId) }),
+);
+
 export const agentCatalog = sqliteTable("agent_catalog", {
   orgId: text("org_id")
     .primaryKey()
