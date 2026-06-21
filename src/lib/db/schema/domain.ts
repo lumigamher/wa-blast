@@ -640,3 +640,19 @@ export const paymentMethods = sqliteTable(
   },
   (t) => ({ orgIdx: index("payment_methods_org_idx").on(t.orgId) }),
 );
+
+export const orderPayments = sqliteTable(
+  "order_payments",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    amountCop: integer("amount_cop").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orderIdx: index("order_payments_order_idx").on(t.orderId) }),
+);
