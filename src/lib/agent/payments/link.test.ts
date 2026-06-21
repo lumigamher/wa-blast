@@ -1,9 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
+import { describe, expect, it, vi } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
-import { organization, conversations, contacts, orders, orderPayments } from "@/lib/db/schema";
+import { conversations, contacts, orderPayments, orders, organization } from "@/lib/db/schema";
 import { generarLinkPago, markOrderPaidByCheckout } from "./link";
-import * as env from "@/lib/env";
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"]) {
   await db.insert(organization).values({

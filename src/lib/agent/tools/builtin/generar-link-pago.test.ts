@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { conversations, organization, orders } from "@/lib/db/schema";
 import { generarLinkPagoTool } from "./generar-link-pago";
