@@ -565,3 +565,59 @@ export const calls = sqliteTable(
     wacidUnique: uniqueIndex("calls_org_wacid").on(t.orgId, t.wacid),
   }),
 );
+
+export const products = sqliteTable(
+  "products",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    priceCop: integer("price_cop").notNull().default(0),
+    description: text("description"),
+    sku: text("sku"),
+    available: integer("available", { mode: "boolean" }).notNull().default(true),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("products_org_idx").on(t.orgId) }),
+);
+
+export const orders = sqliteTable(
+  "orders",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    conversationId: text("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    contactId: text("contact_id").references(() => contacts.id, {
+      onDelete: "set null",
+    }),
+    itemsJson: text("items_json").notNull().default("[]"),
+    totalCop: integer("total_cop").notNull().default(0),
+    status: text("status", {
+      enum: ["pendiente", "confirmado", "pagado", "cancelado"],
+    })
+      .notNull()
+      .default("pendiente"),
+    paymentMethod: text("payment_method"),
+    comprobanteMediaId: text("comprobante_media_id"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ orgIdx: index("orders_org_idx").on(t.orgId, t.createdAt) }),
+);
+
+export const agentCatalog = sqliteTable("agent_catalog", {
+  orgId: text("org_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  provider: text("provider", { enum: ["internal", "http", "shopify"] })
+    .notNull()
+    .default("internal"),
+  credentialsEnc: text("credentials_enc"),
+  configJson: text("config_json").notNull().default("{}"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});

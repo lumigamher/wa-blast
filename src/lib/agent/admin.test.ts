@@ -2,9 +2,10 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { agentTools, organization } from "@/lib/db/schema";
-import { setAgentTool, updateAgentConfig, saveCalendar } from "./admin";
+import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, listProducts } from "./admin";
 import { getAgentConfig } from "./config";
 import { getCalendarConfig } from "./integrations/calendar/config";
+import { getCatalogConfig } from "./integrations/catalog/config";
 
 async function org(db: ReturnType<typeof makeTestDb>["db"]) {
   await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
@@ -99,5 +100,85 @@ describe("agent admin helpers", () => {
         timezone: "UTC",
       })
     ).rejects.toThrow("eventTypeId inválido");
+  });
+  it("saveCatalog guarda config válida", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await saveCatalog(db, "o1", {
+      provider: "internal",
+      credentials: {},
+      config: {},
+    });
+    const cfg = await getCatalogConfig(db, "o1");
+    expect(cfg).not.toBeNull();
+    expect(cfg?.provider).toBe("internal");
+  });
+  it("saveCatalog reutiliza credenciales si están vacías", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await saveCatalog(db, "o1", {
+      provider: "http",
+      credentials: { apiKey: "secret-123" },
+      config: { url: "https://api.example.com" },
+    });
+    await saveCatalog(db, "o1", {
+      provider: "http",
+      credentials: {},
+      config: { url: "https://api2.example.com" },
+    });
+    const cfg = await getCatalogConfig(db, "o1");
+    expect(cfg?.credentials.apiKey).toBe("secret-123");
+    expect(cfg?.config.url).toBe("https://api2.example.com");
+  });
+  it("saveCatalog rechaza provider inválido", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(
+      saveCatalog(db, "o1", {
+        provider: "invalid" as never,
+        credentials: {},
+        config: {},
+      })
+    ).rejects.toThrow("Provider inválido");
+  });
+  it("addProduct crea un producto válido", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await addProduct(db, "o1", { name: "iPhone 15", priceCop: 4500000, description: "Nuevo smartphone", sku: "IP15" });
+    const prods = await listProducts(db, "o1");
+    expect(prods).toHaveLength(1);
+    expect(prods[0].name).toBe("iPhone 15");
+    expect(prods[0].priceCop).toBe(4500000);
+    expect(prods[0].sku).toBe("IP15");
+    expect(prods[0].available).toBe(true);
+  });
+  it("addProduct rechaza nombre vacío", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(addProduct(db, "o1", { name: "  ", priceCop: 1000 })).rejects.toThrow("Nombre requerido");
+  });
+  it("addProduct rechaza precio negativo", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(addProduct(db, "o1", { name: "Producto", priceCop: -100 })).rejects.toThrow("Precio inválido");
+  });
+  it("addProduct rechaza precio inválido", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(addProduct(db, "o1", { name: "Producto", priceCop: NaN })).rejects.toThrow("Precio inválido");
+  });
+  it("deleteProduct elimina producto solo dentro de la org", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    await addProduct(db, "o1", { name: "Prod1", priceCop: 1000 });
+    await addProduct(db, "o2", { name: "Prod2", priceCop: 2000 });
+    const prods1 = await listProducts(db, "o1");
+    const prodId = prods1[0].id;
+    await deleteProduct(db, "o1", prodId);
+    const remaining1 = await listProducts(db, "o1");
+    const remaining2 = await listProducts(db, "o2");
+    expect(remaining1).toHaveLength(0);
+    expect(remaining2).toHaveLength(1);
   });
 });

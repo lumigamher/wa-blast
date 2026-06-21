@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { agentTools } from "@/lib/db/schema";
+import { agentTools, products } from "@/lib/db/schema";
 import { saveAgentConfig } from "./config";
 import { getCalendarConfig, saveCalendarConfig } from "./integrations/calendar/config";
+import { getCatalogConfig, saveCatalogConfig } from "./integrations/catalog/config";
 import { BUILTIN_TOOLS } from "./tools/registry";
 
 type ConfigInput = {
@@ -69,4 +70,48 @@ export async function saveCalendar(db: DB, orgId: string, input: CalendarInput):
     durationMin: input.durationMin > 0 ? input.durationMin : 30,
     timezone: input.timezone || "America/Bogota",
   });
+}
+
+export type CatalogInput = {
+  provider: "internal" | "http" | "shopify";
+  credentials: Record<string, string>;
+  config: Record<string, unknown>;
+};
+
+export async function saveCatalog(db: DB, orgId: string, input: CatalogInput): Promise<void> {
+  if (!["internal", "http", "shopify"].includes(input.provider)) throw new Error("Provider inválido");
+  // Si dejan credenciales vacías, conserva las guardadas (no re-pegar secretos).
+  let credentials = input.credentials;
+  if (Object.keys(credentials).length === 0) {
+    const existing = await getCatalogConfig(db, orgId);
+    if (existing) credentials = existing.credentials;
+  }
+  await saveCatalogConfig(db, orgId, { provider: input.provider, credentials, config: input.config });
+}
+
+export async function listProducts(db: DB, orgId: string) {
+  return db.select().from(products).where(eq(products.orgId, orgId)).orderBy(asc(products.name));
+}
+
+export async function addProduct(
+  db: DB,
+  orgId: string,
+  input: { name: string; priceCop: number; description?: string; sku?: string },
+): Promise<void> {
+  if (!input.name.trim()) throw new Error("Nombre requerido");
+  if (!Number.isFinite(input.priceCop) || input.priceCop < 0) throw new Error("Precio inválido");
+  await db.insert(products).values({
+    id: randomUUID(),
+    orgId,
+    name: input.name.trim(),
+    priceCop: Math.round(input.priceCop),
+    description: input.description ?? null,
+    sku: input.sku ?? null,
+    available: true,
+    createdAt: new Date(),
+  });
+}
+
+export async function deleteProduct(db: DB, orgId: string, productId: string): Promise<void> {
+  await db.delete(products).where(and(eq(products.id, productId), eq(products.orgId, orgId)));
 }
