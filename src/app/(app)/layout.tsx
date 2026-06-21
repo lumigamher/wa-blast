@@ -1,5 +1,7 @@
 import {
+  ActivityIcon,
   BotIcon,
+  CalendarIcon,
   CreditCardIcon,
   FileTextIcon,
   HeartPulseIcon,
@@ -7,6 +9,7 @@ import {
   LayersIcon,
   LogOutIcon,
   MessageSquareIcon,
+  PackageIcon,
   PhoneIcon,
   SendIcon,
   SettingsIcon,
@@ -14,6 +17,7 @@ import {
   TagIcon,
   UsersIcon,
   WorkflowIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
@@ -57,11 +61,22 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: "Agente IA",
+    items: [
+      { href: "/configuracion/agente", icon: BotIcon, label: "Configuración", module: "agente" },
+      { href: "/configuracion/agente/herramientas", icon: WrenchIcon, label: "Herramientas", module: "agente" },
+      { href: "/configuracion/agente/calendario", icon: CalendarIcon, label: "Calendario", module: "agente" },
+      { href: "/configuracion/agente/catalogo", icon: PackageIcon, label: "Catálogo", module: "agente" },
+      { href: "/configuracion/agente/pagos", icon: CreditCardIcon, label: "Medios de pago", module: "agente" },
+      { href: "/configuracion/agente/documentos", icon: FileTextIcon, label: "Base de conocimiento", module: "agente" },
+      { href: "/configuracion/agente/actividad", icon: ActivityIcon, label: "Actividad", module: "agente" },
+    ],
+  },
+  {
     label: "Cuenta",
     items: [
       { href: "/salud", icon: HeartPulseIcon, label: "Salud WhatsApp" },
       { href: "/facturacion", icon: CreditCardIcon, label: "Facturación" },
-      { href: "/configuracion/agente", icon: BotIcon, label: "Agente IA", module: "agente" },
       { href: "/configuracion", icon: SettingsIcon, label: "Configuración" },
     ],
   },
