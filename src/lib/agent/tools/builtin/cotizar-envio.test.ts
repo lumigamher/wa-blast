@@ -84,4 +84,37 @@ describe("cotizar_envio", () => {
     );
     expect(res.ok).toBe(false);
   });
+
+  it("no cotiza con productos de otra org (aislamiento)", async () => {
+    await saveShippingConfig(db, "o1", {
+      provider: "manual",
+      credentials: {},
+      config: { rates: [{ maxWeightKg: 5, priceCop: 12000 }] },
+    });
+    await db
+      .insert(organization)
+      .values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    await db.insert(products).values({
+      id: "p2",
+      orgId: "o2",
+      name: "Ajeno",
+      priceCop: 1,
+      available: true,
+      weightGrams: 100,
+      lengthCm: 5,
+      widthCm: 5,
+      heightCm: 5,
+      createdAt: new Date(),
+    });
+    // El pedido de o1 intenta referenciar el producto de o2.
+    await db
+      .update(orders)
+      .set({ itemsJson: JSON.stringify([{ productId: "p2", cantidad: 1 }]) })
+      .where(eq(orders.id, "ord1"));
+    const res = await cotizarEnvio.run(
+      { ciudadDestino: "Bogotá" },
+      { db, orgId: "o1", conversationId: "c1" }
+    );
+    expect(res.ok).toBe(false); // no debe ver el producto de o2
+  });
 });

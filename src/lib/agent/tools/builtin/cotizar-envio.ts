@@ -1,9 +1,10 @@
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { products } from "@/lib/db/schema";
 import { getShippingConfig } from "@/lib/agent/integrations/shipping/config";
 import { getShippingProvider } from "@/lib/agent/integrations/shipping/index";
-import { computePackage, type PackageItem } from "@/lib/agent/shipping/package";
+import type { CarrierQuote } from "@/lib/agent/integrations/shipping/types";
+import { computePackage, type ComputedPackage, type PackageItem } from "@/lib/agent/shipping/package";
 import { getLatestOrderForConversation } from "@/lib/agent/catalog/orders";
 import type { AgentTool } from "../types";
 
@@ -47,7 +48,10 @@ export const cotizarEnvio: AgentTool = {
     if (parsed.length === 0) return { ok: false, error: "El pedido no tiene productos" };
 
     const ids = parsed.map((i) => i.productId);
-    const rows = await ctx.db.select().from(products).where(inArray(products.id, ids));
+    const rows = await ctx.db
+      .select()
+      .from(products)
+      .where(and(eq(products.orgId, ctx.orgId), inArray(products.id, ids)));
     const byId = new Map(rows.map((r) => [r.id, r]));
 
     const pkgItems: PackageItem[] = [];
@@ -75,7 +79,7 @@ export const cotizarEnvio: AgentTool = {
     }
 
     const factor = Number(cfg.config.volumetricFactor) || 2500;
-    let pkg;
+    let pkg: ComputedPackage;
     try {
       pkg = computePackage(pkgItems, { volumetricFactor: factor });
     } catch (e) {
@@ -90,7 +94,7 @@ export const cotizarEnvio: AgentTool = {
       credentials: cfg.credentials,
       config: cfg.config,
     });
-    let quotes;
+    let quotes: CarrierQuote[];
     try {
       quotes = await provider.quote({
         originCityName: String(cfg.config.originCityName ?? ""),
