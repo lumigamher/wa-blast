@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { agentTools, organization } from "@/lib/db/schema";
-import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, listProducts, countProducts, setProductAvailable, setProductsAvailable } from "./admin";
+import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, listProducts, countProducts, setProductAvailable, setProductsAvailable, upsertProductBySku } from "./admin";
 import { getAgentConfig } from "./config";
 import { getCalendarConfig } from "./integrations/calendar/config";
 import { getCatalogConfig } from "./integrations/catalog/config";
@@ -207,5 +207,27 @@ describe("agent admin helpers", () => {
     expect((await listProducts(db, "o1")).every((p) => p.available)).toBe(true);
     await setProductAvailable(db, "o2", a.id, false);
     expect((await listProducts(db, "o1")).find((p) => p.id === a.id)?.available).toBe(true);
+  });
+  it("crea si el sku no existe, actualiza si existe; sin sku crea siempre", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    const a = await upsertProductBySku(db, "o1", { name: "Camisa", priceCop: 1000, sku: "C1" });
+    expect(a.action).toBe("created");
+    const b = await upsertProductBySku(db, "o1", { name: "Camisa XL", priceCop: 1500, sku: "C1" });
+    expect(b.action).toBe("updated");
+    expect(b.id).toBe(a.id);
+    const list = await listProducts(db, "o1");
+    expect(list.length).toBe(1);
+    expect(list[0].name).toBe("Camisa XL");
+    expect(list[0].priceCop).toBe(1500);
+    await upsertProductBySku(db, "o1", { name: "Sin SKU", priceCop: 1 });
+    await upsertProductBySku(db, "o1", { name: "Sin SKU 2", priceCop: 1 });
+    expect((await listProducts(db, "o1")).length).toBe(3);
+  });
+  it("rechaza nombre vacío o precio inválido", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    await expect(upsertProductBySku(db, "o1", { name: " ", priceCop: 1 })).rejects.toThrow(/nombre/i);
+    await expect(upsertProductBySku(db, "o1", { name: "X", priceCop: -5 })).rejects.toThrow(/precio/i);
   });
 });

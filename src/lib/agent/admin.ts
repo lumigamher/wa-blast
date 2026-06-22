@@ -144,3 +144,42 @@ export async function setProductsAvailable(db: DB, orgId: string, ids: string[],
   if (ids.length === 0) return;
   await db.update(products).set({ available }).where(and(eq(products.orgId, orgId), inArray(products.id, ids)));
 }
+
+export async function upsertProductBySku(
+  db: DB,
+  orgId: string,
+  input: { name: string; priceCop: number; sku?: string | null; description?: string | null; available?: boolean },
+): Promise<{ id: string; action: "created" | "updated" }> {
+  const name = input.name.trim();
+  if (!name) throw new Error("Nombre requerido");
+  if (!Number.isFinite(input.priceCop) || input.priceCop < 0) throw new Error("Precio inválido");
+  const sku = (input.sku ?? "").trim() || null;
+  const priceCop = Math.round(input.priceCop);
+  if (sku) {
+    const [existing] = await db.select().from(products).where(and(eq(products.orgId, orgId), eq(products.sku, sku)));
+    if (existing) {
+      await db
+        .update(products)
+        .set({
+          name,
+          priceCop,
+          description: input.description ?? existing.description,
+          available: input.available ?? existing.available,
+        })
+        .where(eq(products.id, existing.id));
+      return { id: existing.id, action: "updated" };
+    }
+  }
+  const id = randomUUID();
+  await db.insert(products).values({
+    id,
+    orgId,
+    name,
+    priceCop,
+    description: input.description ?? null,
+    sku,
+    available: input.available ?? true,
+    createdAt: new Date(),
+  });
+  return { id, action: "created" };
+}
