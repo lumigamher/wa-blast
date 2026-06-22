@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { eq } from "drizzle-orm";
 import { organization, orders, conversations, contacts } from "@/lib/db/schema";
-import { createOrder, getLatestOrderForConversation, setOrderShipping, listOrders, countOrders } from "./orders";
+import { createOrder, getLatestOrderForConversation, setOrderShipping, listOrders, countOrders, getOrder, updateOrderStatus, setOrderDispatched } from "./orders";
 import type { CatalogProvider, Product } from "@/lib/agent/integrations/catalog/types";
 
 const PRODS: Record<string, Product> = {
@@ -71,5 +71,27 @@ describe("listOrders / countOrders", () => {
     expect(await countOrders(db, "o1", { status: "pagado" })).toBe(1);
     const page = await listOrders(db, "o1", { limit: 1, offset: 0 });
     expect(page.length).toBe(1);
+  });
+});
+
+describe("getOrder / updateOrderStatus / setOrderDispatched", () => {
+  it("lee, cambia estado y marca despachado, scoped por org", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    await db.insert(orders).values({ id: "ord1", orgId: "o1", itemsJson: "[]", totalCop: 1000, status: "pendiente", createdAt: new Date() });
+
+    const got = await getOrder(db, "o1", "ord1");
+    expect(got?.id).toBe("ord1");
+    expect(await getOrder(db, "o2", "ord1")).toBeNull();
+
+    await updateOrderStatus(db, "o1", "ord1", "pagado");
+    expect((await getOrder(db, "o1", "ord1"))?.status).toBe("pagado");
+    await expect(updateOrderStatus(db, "o1", "ord1", "inexistente" as never)).rejects.toThrow();
+
+    await setOrderDispatched(db, "o1", "ord1", true);
+    expect((await getOrder(db, "o1", "ord1"))?.dispatchedAt).toBeTruthy();
+    await setOrderDispatched(db, "o1", "ord1", false);
+    expect((await getOrder(db, "o1", "ord1"))?.dispatchedAt).toBeNull();
   });
 });

@@ -176,3 +176,32 @@ export async function countOrders(
   const [row] = await db.select({ n: count() }).from(orders).where(and(...conds));
   return row?.n ?? 0;
 }
+
+const ORDER_STATUSES: OrderStatus[] = ["pendiente", "confirmado", "pagado", "cancelado"];
+
+export async function getOrder(db: DB, orgId: string, id: string) {
+  const [row] = await db
+    .select({
+      order: orders,
+      phone: conversations.phone,
+      contactName: contacts.name,
+    })
+    .from(orders)
+    .leftJoin(conversations, eq(orders.conversationId, conversations.id))
+    .leftJoin(contacts, eq(orders.contactId, contacts.id))
+    .where(and(eq(orders.id, id), eq(orders.orgId, orgId)));
+  if (!row) return null;
+  return { ...row.order, phone: row.phone, contactName: row.contactName };
+}
+
+export async function updateOrderStatus(db: DB, orgId: string, id: string, status: OrderStatus): Promise<void> {
+  if (!ORDER_STATUSES.includes(status)) throw new Error("Estado inválido");
+  await db.update(orders).set({ status }).where(and(eq(orders.id, id), eq(orders.orgId, orgId)));
+}
+
+export async function setOrderDispatched(db: DB, orgId: string, id: string, dispatched: boolean): Promise<void> {
+  await db
+    .update(orders)
+    .set({ dispatchedAt: dispatched ? new Date() : null })
+    .where(and(eq(orders.id, id), eq(orders.orgId, orgId)));
+}
