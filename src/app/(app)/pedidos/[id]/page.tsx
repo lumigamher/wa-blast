@@ -7,6 +7,17 @@ import { OrderDetail } from "./_detail";
 
 export const dynamic = "force-dynamic";
 
+// Parseo tolerante: un JSON malformado (escrito por el agente/integraciones) NO debe
+// tumbar la página con un 500.
+function safeParse<T>(json: string | null, fallback: T): T {
+  if (!json) return fallback;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export default async function PedidoPage({ params }: { params: Promise<{ id: string }> }) {
   await requireModuleAccess("agente");
   const { orgId } = await requireOrg();
@@ -14,9 +25,9 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
   const order = await getOrder(db, orgId, id);
   if (!order) notFound();
 
-  const items = JSON.parse(order.itemsJson) as Array<{ nombre: string; cantidad: number; subtotal: number; precioUnitario: number }>;
-  const address = order.shippingAddressJson ? JSON.parse(order.shippingAddressJson) : null;
-  const quote = order.shippingQuoteJson ? JSON.parse(order.shippingQuoteJson) : null;
+  const items = safeParse<Array<{ nombre: string; cantidad: number; subtotal: number; precioUnitario: number }>>(order.itemsJson, []);
+  const address = safeParse<{ destinatario?: string; telefono?: string; departamento?: string; ciudad?: string; direccion?: string; barrio?: string; indicaciones?: string } | null>(order.shippingAddressJson, null);
+  const quote = safeParse<{ carrier?: string; priceCop?: number | null; deliveryDays?: number | null } | null>(order.shippingQuoteJson, null);
 
   return (
     <OrderDetail
