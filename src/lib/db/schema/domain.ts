@@ -612,6 +612,7 @@ export const orders = sqliteTable(
     comprobanteMediaId: text("comprobante_media_id"),
     shippingAddressJson: text("shipping_address_json"),
     shippingQuoteJson: text("shipping_quote_json"),
+    dispatchedAt: integer("dispatched_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({ orgIdx: index("orders_org_idx").on(t.orgId, t.createdAt) }),

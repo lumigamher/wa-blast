@@ -14,6 +14,7 @@ import {
   SendIcon,
   SettingsIcon,
   ShieldIcon,
+  ShoppingBagIcon,
   TagIcon,
   TruckIcon,
   UsersIcon,
@@ -40,6 +41,7 @@ type NavSection = { label: string; items: NavItem[] };
 
 const STANDALONE_ITEMS: NavItem[] = [
   { href: "/panel", icon: HomeIcon, label: "Inicio" },
+  { href: "/pedidos", icon: ShoppingBagIcon, label: "Pedidos", module: "agente" },
   { href: "/inbox", icon: MessageSquareIcon, label: "Inbox", module: "inbox" },
   { href: "/llamadas", icon: PhoneIcon, label: "Llamadas", module: "llamadas" },
 ];
