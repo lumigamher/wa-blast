@@ -579,6 +579,10 @@ export const products = sqliteTable(
     description: text("description"),
     sku: text("sku"),
     available: integer("available", { mode: "boolean" }).notNull().default(true),
+    weightGrams: integer("weight_grams"),
+    lengthCm: integer("length_cm"),
+    widthCm: integer("width_cm"),
+    heightCm: integer("height_cm"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({ orgIdx: index("products_org_idx").on(t.orgId) }),
@@ -606,6 +610,8 @@ export const orders = sqliteTable(
       .default("pendiente"),
     paymentMethod: text("payment_method"),
     comprobanteMediaId: text("comprobante_media_id"),
+    shippingAddressJson: text("shipping_address_json"),
+    shippingQuoteJson: text("shipping_quote_json"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({ orgIdx: index("orders_org_idx").on(t.orgId, t.createdAt) }),
@@ -621,6 +627,10 @@ export const productVariants = sqliteTable(
     priceCop: integer("price_cop"),
     sku: text("sku"),
     available: integer("available", { mode: "boolean" }).notNull().default(true),
+    weightGrams: integer("weight_grams"),
+    lengthCm: integer("length_cm"),
+    widthCm: integer("width_cm"),
+    heightCm: integer("height_cm"),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
@@ -651,6 +661,18 @@ export const agentCatalog = sqliteTable("agent_catalog", {
   provider: text("provider", { enum: ["internal", "http", "shopify"] })
     .notNull()
     .default("internal"),
+  credentialsEnc: text("credentials_enc"),
+  configJson: text("config_json").notNull().default("{}"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const agentShipping = sqliteTable("agent_shipping", {
+  orgId: text("org_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  provider: text("provider", { enum: ["mipaquete", "manual"] })
+    .notNull()
+    .default("manual"),
   credentialsEnc: text("credentials_enc"),
   configJson: text("config_json").notNull().default("{}"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),

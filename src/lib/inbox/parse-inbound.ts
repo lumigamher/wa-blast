@@ -38,5 +38,10 @@ export function parseInboundMessage(msg: AnyMsg): ParsedInbound {
   }
   if (msg.type === "button") return { type: "button", body: msg.button?.text ?? "", mediaId: null, payloadJson: raw, replyToWamid };
   if (msg.type === "reaction") return { type: "reaction", body: msg.reaction?.emoji ?? "", mediaId: null, payloadJson: raw, replyToWamid };
+  if (msg.type === "location") {
+    const l = msg.location ?? {};
+    const label = l.name || l.address || `${l.latitude}, ${l.longitude}`;
+    return { type: "location", body: `📍 Ubicación: ${label}`, mediaId: null, payloadJson: raw, replyToWamid };
+  }
   return { type: "unknown", body: null, mediaId: null, payloadJson: raw, replyToWamid };
 }

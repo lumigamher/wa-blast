@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { and, desc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { orders } from "@/lib/db/schema";
 import type { CatalogProvider } from "@/lib/agent/integrations/catalog/types";
@@ -75,4 +76,33 @@ export async function createOrder(
     totalCop,
     items: resolvedItems,
   };
+}
+
+export async function getLatestOrderForConversation(
+  db: DB,
+  orgId: string,
+  conversationId: string
+) {
+  const [row] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.orgId, orgId), eq(orders.conversationId, conversationId)))
+    .orderBy(desc(orders.createdAt))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function setOrderShipping(
+  db: DB,
+  orgId: string,
+  orderId: string,
+  input: { addressJson?: string; quoteJson?: string }
+): Promise<void> {
+  await db
+    .update(orders)
+    .set({
+      ...(input.addressJson !== undefined ? { shippingAddressJson: input.addressJson } : {}),
+      ...(input.quoteJson !== undefined ? { shippingQuoteJson: input.quoteJson } : {}),
+    })
+    .where(and(eq(orders.id, orderId), eq(orders.orgId, orgId)));
 }
