@@ -1,8 +1,21 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { orders } from "@/lib/db/schema";
+import { orders, conversations, contacts } from "@/lib/db/schema";
 import type { CatalogProvider } from "@/lib/agent/integrations/catalog/types";
+
+export type OrderStatus = "pendiente" | "confirmado" | "pagado" | "cancelado";
+
+export type OrderListItem = {
+  id: string;
+  totalCop: number;
+  status: string;
+  dispatchedAt: Date | null;
+  createdAt: Date;
+  phone: string | null;
+  contactName: string | null;
+  shippingCity: string | null;
+};
 
 export type CreateOrderInput = {
   orgId: string;
@@ -105,4 +118,61 @@ export async function setOrderShipping(
       ...(input.quoteJson !== undefined ? { shippingQuoteJson: input.quoteJson } : {}),
     })
     .where(and(eq(orders.id, orderId), eq(orders.orgId, orgId)));
+}
+
+function parseShippingCity(json: string | null): string | null {
+  if (!json) return null;
+  try {
+    const v = JSON.parse(json) as { ciudad?: string };
+    return v.ciudad ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function listOrders(
+  db: DB,
+  orgId: string,
+  opts: { status?: OrderStatus; limit?: number; offset?: number } = {},
+): Promise<OrderListItem[]> {
+  const conds = [eq(orders.orgId, orgId)];
+  if (opts.status) conds.push(eq(orders.status, opts.status));
+  const base = db
+    .select({
+      id: orders.id,
+      totalCop: orders.totalCop,
+      status: orders.status,
+      dispatchedAt: orders.dispatchedAt,
+      createdAt: orders.createdAt,
+      shippingAddressJson: orders.shippingAddressJson,
+      phone: conversations.phone,
+      contactName: contacts.name,
+    })
+    .from(orders)
+    .leftJoin(conversations, eq(orders.conversationId, conversations.id))
+    .leftJoin(contacts, eq(orders.contactId, contacts.id))
+    .where(and(...conds))
+    .orderBy(desc(orders.createdAt));
+  const rows = opts.limit != null ? await base.limit(opts.limit).offset(opts.offset ?? 0) : await base;
+  return rows.map((r) => ({
+    id: r.id,
+    totalCop: r.totalCop,
+    status: r.status,
+    dispatchedAt: r.dispatchedAt,
+    createdAt: r.createdAt,
+    phone: r.phone,
+    contactName: r.contactName,
+    shippingCity: parseShippingCity(r.shippingAddressJson),
+  }));
+}
+
+export async function countOrders(
+  db: DB,
+  orgId: string,
+  opts: { status?: OrderStatus } = {},
+): Promise<number> {
+  const conds = [eq(orders.orgId, orgId)];
+  if (opts.status) conds.push(eq(orders.status, opts.status));
+  const [row] = await db.select({ n: count() }).from(orders).where(and(...conds));
+  return row?.n ?? 0;
 }

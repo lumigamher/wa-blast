@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { eq } from "drizzle-orm";
-import { organization, orders, conversations } from "@/lib/db/schema";
-import { createOrder, getLatestOrderForConversation, setOrderShipping } from "./orders";
+import { organization, orders, conversations, contacts } from "@/lib/db/schema";
+import { createOrder, getLatestOrderForConversation, setOrderShipping, listOrders, countOrders } from "./orders";
 import type { CatalogProvider, Product } from "@/lib/agent/integrations/catalog/types";
 
 const PRODS: Record<string, Product> = {
@@ -45,5 +45,31 @@ describe("orders shipping helpers", () => {
     const after = await getLatestOrderForConversation(db, "o1", "c1");
     expect(after?.shippingAddressJson).toContain("Bogotá");
     expect(after?.shippingQuoteJson).toContain("X");
+  });
+});
+
+describe("listOrders / countOrders", () => {
+  it("lista con cliente, filtra por estado y pagina", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(contacts).values({ id: "ct1", orgId: "o1", phone: "57300", name: "Ana", customFields: "{}", createdAt: new Date(), updatedAt: new Date() });
+    await db.insert(conversations).values({ id: "c1", orgId: "o1", phone: "57300", contactId: "ct1", lastMessageAt: new Date(), createdAt: new Date() });
+    await db.insert(orders).values({ id: "ord1", orgId: "o1", conversationId: "c1", contactId: "ct1", itemsJson: "[]", totalCop: 1000, status: "pagado", shippingAddressJson: '{"ciudad":"Bogotá"}', createdAt: new Date(Date.now() - 1000) });
+    await db.insert(orders).values({ id: "ord2", orgId: "o1", conversationId: "c1", contactId: "ct1", itemsJson: "[]", totalCop: 2000, status: "pendiente", createdAt: new Date() });
+
+    const all = await listOrders(db, "o1");
+    expect(all.length).toBe(2);
+    expect(all[0].id).toBe("ord2");
+    const ana = all.find((o) => o.id === "ord1")!;
+    expect(ana.contactName).toBe("Ana");
+    expect(ana.phone).toBe("57300");
+    expect(ana.shippingCity).toBe("Bogotá");
+
+    const pagados = await listOrders(db, "o1", { status: "pagado" });
+    expect(pagados.map((o) => o.id)).toEqual(["ord1"]);
+    expect(await countOrders(db, "o1")).toBe(2);
+    expect(await countOrders(db, "o1", { status: "pagado" })).toBe(1);
+    const page = await listOrders(db, "o1", { limit: 1, offset: 0 });
+    expect(page.length).toBe(1);
   });
 });
