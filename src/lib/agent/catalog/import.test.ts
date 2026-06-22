@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { validateProductRows } from "./import";
+import { validateProductRows, bulkImportProducts } from "./import";
+import { makeTestDb } from "@/lib/db/test-db";
+import { organization } from "@/lib/db/schema";
+import { listProducts } from "@/lib/agent/admin";
+import { listVariants } from "./variants";
 
 describe("validateProductRows", () => {
   it("valida productos y variantes, reporta inválidas", () => {
@@ -28,5 +32,35 @@ describe("validateProductRows", () => {
       { nombre: "C", precio: "1", sku: "C", disponible: "agotado" },
     ]);
     expect(res.valid.map((v) => v.available)).toEqual([true, false, false]);
+  });
+});
+
+describe("bulkImportProducts", () => {
+  it("upsert de productos y variantes agrupados por sku", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+
+    const { valid } = validateProductRows([
+      { nombre: "Camisa", precio: "20000", sku: "C1" },
+      { nombre: "", precio: "", sku: "C1", variante: "Talla L", precio_variante: "22000" },
+      { nombre: "Pantalón", precio: "30000", sku: "P1" },
+    ]);
+
+    const r1 = await bulkImportProducts(db, "o1", valid);
+    expect(r1.productsCreated).toBe(2);
+    expect(r1.variantsCreated).toBe(1);
+    expect((await listProducts(db, "o1")).length).toBe(2);
+
+    // Second import: update existing product
+    const { valid: valid2 } = validateProductRows([{ nombre: "Camisa Premium", precio: "25000", sku: "C1" }]);
+    const r2 = await bulkImportProducts(db, "o1", valid2);
+    expect(r2.productsUpdated).toBe(1);
+
+    const list = await listProducts(db, "o1");
+    expect(list.length).toBe(2);
+    expect(list.find((p) => p.sku === "C1")?.name).toBe("Camisa Premium");
+
+    const camisa = list.find((p) => p.sku === "C1")!;
+    expect((await listVariants(db, camisa.id)).length).toBe(1);
   });
 });
