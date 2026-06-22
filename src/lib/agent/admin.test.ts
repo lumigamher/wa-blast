@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { agentTools, organization } from "@/lib/db/schema";
-import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, listProducts } from "./admin";
+import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, listProducts, countProducts } from "./admin";
 import { getAgentConfig } from "./config";
 import { getCalendarConfig } from "./integrations/calendar/config";
 import { getCatalogConfig } from "./integrations/catalog/config";
@@ -180,5 +180,18 @@ describe("agent admin helpers", () => {
     const remaining2 = await listProducts(db, "o2");
     expect(remaining1).toHaveLength(0);
     expect(remaining2).toHaveLength(1);
+  });
+  it("filtra por nombre o sku y pagina", async () => {
+    const { db } = makeTestDb();
+    await org(db);
+    for (const [name, sku] of [["Camisa Azul", "CA1"], ["Camisa Roja", "CR1"], ["Pantalón", "PA1"]] as const) {
+      await addProduct(db, "o1", { name, priceCop: 1000, sku });
+    }
+    expect((await listProducts(db, "o1")).length).toBe(3);
+    expect((await listProducts(db, "o1", { search: "camisa" })).map((p) => p.name).sort()).toEqual(["Camisa Azul", "Camisa Roja"]);
+    expect((await listProducts(db, "o1", { search: "pa1" })).map((p) => p.name)).toEqual(["Pantalón"]);
+    expect((await listProducts(db, "o1", { limit: 2, offset: 0 })).length).toBe(2);
+    expect(await countProducts(db, "o1")).toBe(3);
+    expect(await countProducts(db, "o1", { search: "camisa" })).toBe(2);
   });
 });

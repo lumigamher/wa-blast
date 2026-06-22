@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, count, eq, like, or, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { agentTools, products } from "@/lib/db/schema";
 import { saveAgentConfig } from "./config";
@@ -90,8 +90,27 @@ export async function saveCatalog(db: DB, orgId: string, input: CatalogInput): P
   await saveCatalogConfig(db, orgId, { provider: input.provider, credentials, config: input.config });
 }
 
-export async function listProducts(db: DB, orgId: string) {
-  return db.select().from(products).where(eq(products.orgId, orgId)).orderBy(asc(products.name));
+export type ListProductsOpts = { search?: string; limit?: number; offset?: number };
+
+function productSearchCond(orgId: string, search?: string) {
+  const conds = [eq(products.orgId, orgId)];
+  const q = search?.trim().toLowerCase();
+  if (q) {
+    const like$ = `%${q}%`;
+    conds.push(or(like(sql`lower(${products.name})`, like$), like(sql`lower(coalesce(${products.sku}, ''))`, like$))!);
+  }
+  return and(...conds);
+}
+
+export async function listProducts(db: DB, orgId: string, opts: ListProductsOpts = {}) {
+  const base = db.select().from(products).where(productSearchCond(orgId, opts.search)).orderBy(asc(products.name));
+  if (opts.limit != null) return base.limit(opts.limit).offset(opts.offset ?? 0);
+  return base;
+}
+
+export async function countProducts(db: DB, orgId: string, opts: { search?: string } = {}): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(products).where(productSearchCond(orgId, opts.search));
+  return row?.n ?? 0;
 }
 
 export async function addProduct(
