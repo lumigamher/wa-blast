@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { organization, products } from "@/lib/db/schema";
-import { addVariant, listVariants, setVariantAvailable, deleteVariant } from "./variants";
+import { addVariant, listVariants, setVariantAvailable, deleteVariant, upsertVariant } from "./variants";
+import { upsertProductBySku } from "@/lib/agent/admin";
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"]) {
   await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
@@ -57,5 +58,20 @@ describe("variants", () => {
     await deleteVariant(db, "o2", variant!.id);
     const variants = await listVariants(db, "p1");
     expect(variants).toHaveLength(1);
+  });
+
+  it("crea por etiqueta y actualiza si existe", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    const { id: productId } = await upsertProductBySku(db, "o1", { name: "Camisa", priceCop: 1000, sku: "C1" });
+    const a = await upsertVariant(db, "o1", productId, { label: "Talla L", priceCop: 1200, sku: "C1-L" });
+    expect(a.action).toBe("created");
+    const b = await upsertVariant(db, "o1", productId, { label: "Talla L", priceCop: 1300 });
+    expect(b.action).toBe("updated");
+    expect(b.id).toBe(a.id);
+    const vs = await listVariants(db, productId);
+    expect(vs.length).toBe(1);
+    expect(vs[0].priceCop).toBe(1300);
+    expect(vs[0].sku).toBe("C1-L");
   });
 });
