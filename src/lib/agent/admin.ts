@@ -5,6 +5,7 @@ import { agentTools, products } from "@/lib/db/schema";
 import { saveAgentConfig } from "./config";
 import { getCalendarConfig, saveCalendarConfig } from "./integrations/calendar/config";
 import { getCatalogConfig, saveCatalogConfig } from "./integrations/catalog/config";
+import { saveShippingConfig, type ShippingConfig } from "./integrations/shipping/config";
 import { BUILTIN_TOOLS } from "./tools/registry";
 
 type ConfigInput = {
@@ -182,4 +183,17 @@ export async function upsertProductBySku(
     createdAt: new Date(),
   });
   return { id, action: "created" };
+}
+
+export async function saveShipping(db: DB, orgId: string, input: ShippingConfig): Promise<void> {
+  await saveShippingConfig(db, orgId, input);
+}
+
+export async function updateProductDims(
+  db: DB,
+  orgId: string,
+  id: string,
+  dims: { weightGrams?: number | null; lengthCm?: number | null; widthCm?: number | null; heightCm?: number | null },
+): Promise<void> {
+  await db.update(products).set(dims).where(and(eq(products.id, id), eq(products.orgId, orgId)));
 }

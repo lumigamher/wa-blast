@@ -1,9 +1,10 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, setProductAvailable, setProductsAvailable } from "@/lib/agent/admin";
+import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, setProductAvailable, setProductsAvailable, saveShipping, updateProductDims } from "@/lib/agent/admin";
 import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import type { CatalogInput } from "@/lib/agent/admin";
+import type { ShippingConfig } from "@/lib/agent/integrations/shipping/config";
 import { addPaymentMethod, setPaymentMethodEnabled, deletePaymentMethod, setPaymentMethodQr } from "@/lib/agent/payments/methods";
 import type { PaymentType } from "@/lib/agent/payments/methods";
 import { addVariant, deleteVariant, setVariantAvailable } from "@/lib/agent/catalog/variants";
@@ -294,4 +295,29 @@ export async function downloadProductsTemplateAction(): Promise<{ base64: string
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };
   }
+}
+
+export async function saveShippingAction(input: ShippingConfig): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await saveShipping(db, orgId, input);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente/envios");
+  return { ok: true };
+}
+
+export async function updateProductDimsAction(
+  id: string,
+  dims: { weightGrams?: number | null; lengthCm?: number | null; widthCm?: number | null; heightCm?: number | null },
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await updateProductDims(db, orgId, id, dims);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente/catalogo");
+  return { ok: true };
 }

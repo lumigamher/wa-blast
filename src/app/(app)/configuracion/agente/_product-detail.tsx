@@ -15,12 +15,17 @@ import {
   setVariantAvailableAction,
   addImageUrlAction,
   deleteImageAction,
+  updateProductDimsAction,
 } from "./actions";
 
 type Product = {
   id: string;
   name: string;
   priceCop: number;
+  weightGrams?: number | null;
+  lengthCm?: number | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
 };
 
 type Variant = {
@@ -64,6 +69,14 @@ export function ProductDetail({
   const [imageUploadForm, setImageUploadForm] = useState({ file: null as File | null, label: "", variantId: "" });
   const [imgDragging, setImgDragging] = useState(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
+
+  // Dimension form state
+  const [dimsForm, setDimsForm] = useState({
+    weightGrams: product.weightGrams ? String(product.weightGrams) : "",
+    lengthCm: product.lengthCm ? String(product.lengthCm) : "",
+    widthCm: product.widthCm ? String(product.widthCm) : "",
+    heightCm: product.heightCm ? String(product.heightCm) : "",
+  });
 
   const [deleteVariantId, setDeleteVariantId] = useState<string | null>(null);
   const [deleteImageId, setDeleteImageId] = useState<string | null>(null);
@@ -175,6 +188,23 @@ export function ProductDetail({
       } else {
         toast.success("Imagen eliminada");
         setDeleteImageId(null);
+        router.refresh();
+      }
+    });
+  };
+
+  const handleSaveDimensions = () => {
+    startTransition(async () => {
+      const result = await updateProductDimsAction(product.id, {
+        weightGrams: dimsForm.weightGrams ? Number(dimsForm.weightGrams) : null,
+        lengthCm: dimsForm.lengthCm ? Number(dimsForm.lengthCm) : null,
+        widthCm: dimsForm.widthCm ? Number(dimsForm.widthCm) : null,
+        heightCm: dimsForm.heightCm ? Number(dimsForm.heightCm) : null,
+      });
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("Dimensiones guardadas");
         router.refresh();
       }
     });
@@ -312,6 +342,82 @@ export function ProductDetail({
                 })}
               </div>
             )}
+          </div>
+
+          {/* Dimensiones de envío Section */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="font-medium text-sm">Dimensiones de envío</h3>
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="weight-grams" className="text-xs">
+                    Peso (g)
+                  </Label>
+                  <Input
+                    id="weight-grams"
+                    type="number"
+                    value={dimsForm.weightGrams}
+                    onChange={(e) => setDimsForm({ ...dimsForm, weightGrams: e.target.value })}
+                    placeholder="0"
+                    disabled={isPending}
+                    className="text-sm"
+                    min="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="length-cm" className="text-xs">
+                    Largo (cm)
+                  </Label>
+                  <Input
+                    id="length-cm"
+                    type="number"
+                    value={dimsForm.lengthCm}
+                    onChange={(e) => setDimsForm({ ...dimsForm, lengthCm: e.target.value })}
+                    placeholder="0"
+                    disabled={isPending}
+                    className="text-sm"
+                    min="0"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="width-cm" className="text-xs">
+                    Ancho (cm)
+                  </Label>
+                  <Input
+                    id="width-cm"
+                    type="number"
+                    value={dimsForm.widthCm}
+                    onChange={(e) => setDimsForm({ ...dimsForm, widthCm: e.target.value })}
+                    placeholder="0"
+                    disabled={isPending}
+                    className="text-sm"
+                    min="0"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="height-cm" className="text-xs">
+                    Alto (cm)
+                  </Label>
+                  <Input
+                    id="height-cm"
+                    type="number"
+                    value={dimsForm.heightCm}
+                    onChange={(e) => setDimsForm({ ...dimsForm, heightCm: e.target.value })}
+                    placeholder="0"
+                    disabled={isPending}
+                    className="text-sm"
+                    min="0"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" size="sm" onClick={handleSaveDimensions} disabled={isPending}>
+                  Guardar dimensiones
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Imágenes Section */}
