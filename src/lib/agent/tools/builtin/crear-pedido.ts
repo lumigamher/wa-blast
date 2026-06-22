@@ -12,6 +12,7 @@ const schema = z.object({
       z.object({
         productId: z.string(),
         cantidad: z.number().positive(),
+        variantId: z.string().optional(),
       }),
     )
     .min(1),
@@ -32,6 +33,7 @@ export const crearPedido: AgentTool = {
           properties: {
             productId: { type: "string" },
             cantidad: { type: "number" },
+            variantId: { type: "string", description: "ID de la variante elegida (talla/color), si aplica" },
           },
           required: ["productId", "cantidad"],
         },

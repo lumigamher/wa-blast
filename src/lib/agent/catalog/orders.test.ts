@@ -8,6 +8,16 @@ import type { CatalogProvider, Product } from "@/lib/agent/integrations/catalog/
 const PRODS: Record<string, Product> = {
   p1: { id: "p1", name: "Cerveza", priceCop: 2500, available: true },
   p2: { id: "p2", name: "Agua", priceCop: 1500, available: true },
+  p3: {
+    id: "p3",
+    name: "Camiseta",
+    priceCop: 20000,
+    available: true,
+    variants: [
+      { id: "v1", label: "Talla L", priceCop: 25000, available: true },
+      { id: "v2", label: "Talla M", priceCop: 22000, available: true },
+    ],
+  },
 };
 const fakeProvider: CatalogProvider = {
   async search() { return []; },
@@ -25,6 +35,38 @@ describe("createOrder", () => {
     expect(row.status).toBe("pendiente");
     const items = JSON.parse(row.itemsJson);
     expect(items[0]).toMatchObject({ productId: "p1", nombre: "Cerveza", precioUnitario: 2500, cantidad: 2, subtotal: 5000 });
+  });
+  it("variante seleccionada: usa precio y etiqueta de la variante", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    const r = await createOrder(
+      db,
+      { orgId: "o1", items: [{ productId: "p3", cantidad: 2, variantId: "v1" }] },
+      fakeProvider
+    );
+    expect(r.totalCop).toBe(50000); // 2 × 25000
+    const [row] = await db.select().from(orders).where(eq(orders.orgId, "o1"));
+    const items = JSON.parse(row.itemsJson);
+    expect(items[0]).toMatchObject({
+      productId: "p3",
+      nombre: "Camiseta",
+      precioUnitario: 25000,
+      variantId: "v1",
+      variantLabel: "Talla L",
+      cantidad: 2,
+      subtotal: 50000,
+    });
+  });
+  it("variante no encontrada → throw", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await expect(
+      createOrder(
+        db,
+        { orgId: "o1", items: [{ productId: "p3", cantidad: 1, variantId: "v_inexistente" }] },
+        fakeProvider
+      )
+    ).rejects.toThrow("Variante no encontrada: v_inexistente");
   });
   it("producto inexistente → throw", async () => {
     const { db } = makeTestDb();

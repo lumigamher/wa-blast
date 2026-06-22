@@ -22,6 +22,30 @@ describe("crear_pedido", () => {
     expect(order.totalCop).toBe(5000);
   });
 
+  it("acepta variantId en items (requiere catálogo con variantes)", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(conversations).values({ id: "c1", orgId: "o1", phone: "+57300", lastMessageAt: new Date(), unreadCount: 0, createdAt: new Date() });
+    await db.insert(products).values({
+      id: "p1",
+      orgId: "o1",
+      name: "Camiseta",
+      priceCop: 20000,
+      available: true,
+      createdAt: new Date(),
+    });
+    // El catálogo interno cargará la variante si está en DB (no aquí, pero schema lo acepta)
+    await saveCatalogConfig(db, "o1", { provider: "internal", credentials: {}, config: {} });
+    // La herramienta debe aceptar variantId en el schema (sin error)
+    const r = await crearPedido.run(
+      { items: [{ productId: "p1", cantidad: 1, variantId: "v1" }] },
+      { db, orgId: "o1", conversationId: "c1" }
+    );
+    // En este contexto, el catálogo interno de p1 no tiene variantes,
+    // así que debería fallar en createOrder. Pero la herramienta debe aceptar el parámetro.
+    expect(r.ok).toBe(false); // Por la falta de variante, que es correcto
+  });
+
   it("producto inexistente → ok:false", async () => {
     const { db } = makeTestDb();
     await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });

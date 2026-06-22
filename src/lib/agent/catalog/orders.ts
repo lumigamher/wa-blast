@@ -24,6 +24,7 @@ export type CreateOrderInput = {
   items: Array<{
     productId: string;
     cantidad: number;
+    variantId?: string;
   }>;
 };
 
@@ -33,6 +34,8 @@ export type ResolvedOrderItem = {
   precioUnitario: number;
   cantidad: number;
   subtotal: number;
+  variantId?: string;
+  variantLabel?: string;
 };
 
 export type CreateOrderResult = {
@@ -59,13 +62,29 @@ export async function createOrder(
       throw new Error(`Producto no encontrado: ${item.productId}`);
     }
 
-    const subtotal = product.priceCop * item.cantidad;
+    let precioUnitario = product.priceCop;
+    let variantId: string | undefined;
+    let variantLabel: string | undefined;
+
+    // Si se eligió una variante, validar y usar su precio
+    if (item.variantId) {
+      const variant = product.variants?.find((v) => v.id === item.variantId);
+      if (!variant) {
+        throw new Error(`Variante no encontrada: ${item.variantId}`);
+      }
+      precioUnitario = variant.priceCop ?? product.priceCop;
+      variantId = variant.id;
+      variantLabel = variant.label;
+    }
+
+    const subtotal = precioUnitario * item.cantidad;
     resolvedItems.push({
       productId: product.id,
       nombre: product.name,
-      precioUnitario: product.priceCop,
+      precioUnitario,
       cantidad: item.cantidad,
       subtotal,
+      ...(variantId ? { variantId, variantLabel } : {}),
     });
     totalCop += subtotal;
   }

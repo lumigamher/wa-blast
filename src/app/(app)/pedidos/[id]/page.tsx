@@ -25,7 +25,7 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
   const order = await getOrder(db, orgId, id);
   if (!order) notFound();
 
-  const items = safeParse<Array<{ nombre: string; cantidad: number; subtotal: number; precioUnitario: number }>>(order.itemsJson, []);
+  const items = safeParse<Array<{ nombre: string; cantidad: number; subtotal: number; precioUnitario: number; variantLabel?: string }>>(order.itemsJson, []);
   const address = safeParse<{ destinatario?: string; telefono?: string; departamento?: string; ciudad?: string; direccion?: string; barrio?: string; indicaciones?: string } | null>(order.shippingAddressJson, null);
   const quote = safeParse<{ carrier?: string; priceCop?: number | null; deliveryDays?: number | null } | null>(order.shippingQuoteJson, null);
 

@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { products } from "@/lib/db/schema";
+import { products, productVariants } from "@/lib/db/schema";
 import { getShippingConfig } from "@/lib/agent/integrations/shipping/config";
 import { getShippingProvider } from "@/lib/agent/integrations/shipping/index";
 import type { CarrierQuote } from "@/lib/agent/integrations/shipping/types";
@@ -39,7 +39,7 @@ export const cotizarEnvio: AgentTool = {
     const order = await getLatestOrderForConversation(ctx.db, ctx.orgId, ctx.conversationId);
     if (!order) return { ok: false, error: "No hay un pedido para cotizar" };
 
-    let parsed: Array<{ productId: string; cantidad: number }>;
+    let parsed: Array<{ productId: string; cantidad: number; variantId?: string }>;
     try {
       parsed = JSON.parse(order.itemsJson);
     } catch {
@@ -54,26 +54,57 @@ export const cotizarEnvio: AgentTool = {
       .where(and(eq(products.orgId, ctx.orgId), inArray(products.id, ids)));
     const byId = new Map(rows.map((r) => [r.id, r]));
 
+    // Batch-load all variants referenced in the order
+    const variantIds = parsed
+      .filter((i) => i.variantId)
+      .map((i) => i.variantId as string);
+    const variantRows =
+      variantIds.length > 0
+        ? await ctx.db
+            .select()
+            .from(productVariants)
+            .where(
+              and(
+                eq(productVariants.orgId, ctx.orgId),
+                inArray(productVariants.id, variantIds)
+              )
+            )
+        : [];
+    const variantsById = new Map(variantRows.map((v) => [v.id, v]));
+
     const pkgItems: PackageItem[] = [];
     for (const it of parsed) {
       const p = byId.get(it.productId);
       if (!p) return { ok: false, error: "Producto del pedido no encontrado" };
-      if (
-        p.weightGrams == null ||
-        p.lengthCm == null ||
-        p.widthCm == null ||
-        p.heightCm == null
-      ) {
+
+      // Determine weight/dims: variant if present, fallback to product
+      let weight = p.weightGrams;
+      let length = p.lengthCm;
+      let width = p.widthCm;
+      let height = p.heightCm;
+
+      if (it.variantId) {
+        const v = variantsById.get(it.variantId);
+        if (v) {
+          // Use variant values if non-null, otherwise fallback to product
+          weight = v.weightGrams ?? p.weightGrams;
+          length = v.lengthCm ?? p.lengthCm;
+          width = v.widthCm ?? p.widthCm;
+          height = v.heightCm ?? p.heightCm;
+        }
+      }
+
+      if (weight == null || length == null || width == null || height == null) {
         return {
           ok: false,
-          error: `Falta el peso o las dimensiones de "${p.name}". Cárgalos en el catálogo.`,
+          error: `Falta el peso o las dimensiones de "${p.name}"${it.variantId ? ` (variante)` : ""}. Cárgalos en el catálogo.`,
         };
       }
       pkgItems.push({
-        weightGrams: p.weightGrams,
-        lengthCm: p.lengthCm,
-        widthCm: p.widthCm,
-        heightCm: p.heightCm,
+        weightGrams: weight,
+        lengthCm: length,
+        widthCm: width,
+        heightCm: height,
         quantity: it.cantidad,
       });
     }
