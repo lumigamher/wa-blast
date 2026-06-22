@@ -53,6 +53,35 @@ function looksLikeCode(s: string): boolean {
 }
 
 /**
+ * Caché módulo-level del catálogo de ciudades (~1392, 430KB). El catálogo es el
+ * mismo para todas las orgs y cambia muy poco, así que se baja 1× por proceso
+ * cada 24h en vez de en cada cotización. `stale-on-error`: si el refetch falla,
+ * conserva el catálogo viejo. Mipaquete no publica límite de consultas, pero esto
+ * minimiza la huella sobre su API y la latencia del cliente.
+ */
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+let catalogCache: { at: number; locs: MipaqueteLocation[] } | null = null;
+
+/** Solo para tests: limpia el caché del catálogo. */
+export function __resetMipaqueteCatalogCache(): void {
+  catalogCache = null;
+}
+
+async function fetchCatalog(apiKey: string): Promise<MipaqueteLocation[]> {
+  const now = Date.now();
+  if (catalogCache && now - catalogCache.at < CATALOG_TTL_MS) return catalogCache.locs;
+  try {
+    const res = await fetch(`${BASE_URL}/getLocations`, { headers: authHeaders(apiKey) });
+    if (!res.ok) return catalogCache?.locs ?? [];
+    const locs = (await res.json()) as MipaqueteLocation[];
+    if (Array.isArray(locs) && locs.length) catalogCache = { at: now, locs };
+    return catalogCache?.locs ?? [];
+  } catch {
+    return catalogCache?.locs ?? [];
+  }
+}
+
+/**
  * Busca ciudades en el catálogo de Mipaquete por nombre normalizado.
  * Filtro: locationName (o su parte pre-coma) contiene o empieza con el query normalizado.
  * Devuelve hasta `limit` resultados, deduplicados por código.
@@ -67,13 +96,8 @@ export async function searchMipaqueteLocations(
   if (!trimmedQuery) return [];
 
   try {
-    const res = await fetch(`${BASE_URL}/getLocations`, {
-      headers: authHeaders(apiKey),
-    });
-    if (!res.ok) return [];
-
-    const locs = (await res.json()) as MipaqueteLocation[];
-    if (!Array.isArray(locs)) return [];
+    const locs = await fetchCatalog(apiKey);
+    if (!locs.length) return [];
 
     const normalized = normalizeCity(trimmedQuery);
     const seenCodes = new Set<string>();
@@ -115,17 +139,14 @@ export function makeMipaqueteShipping(opts: {
 
   async function loadCityMap(): Promise<Map<string, string>> {
     if (cityMap) return cityMap;
-    const res = await fetch(`${BASE_URL}/getLocations`, { headers: authHeaders(opts.apiKey) });
+    const locs = await fetchCatalog(opts.apiKey);
     const map = new Map<string, string>();
-    if (res.ok) {
-      const locs = (await res.json()) as MipaqueteLocation[];
-      for (const l of locs) {
-        if (!l?.locationCode) continue;
-        const full = normalizeCity(l.locationName ?? "");
-        const head = full.split(",")[0].trim(); // "BOGOTA, D.C." -> "BOGOTA"
-        if (full && !map.has(full)) map.set(full, l.locationCode);
-        if (head && !map.has(head)) map.set(head, l.locationCode);
-      }
+    for (const l of locs) {
+      if (!l?.locationCode) continue;
+      const full = normalizeCity(l.locationName ?? "");
+      const head = full.split(",")[0].trim(); // "BOGOTA, D.C." -> "BOGOTA"
+      if (full && !map.has(full)) map.set(full, l.locationCode);
+      if (head && !map.has(head)) map.set(head, l.locationCode);
     }
     cityMap = map;
     return map;
