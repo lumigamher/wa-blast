@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { eq } from "drizzle-orm";
-import { organization, orders } from "@/lib/db/schema";
-import { createOrder } from "./orders";
+import { organization, orders, conversations } from "@/lib/db/schema";
+import { createOrder, getLatestOrderForConversation, setOrderShipping } from "./orders";
 import type { CatalogProvider, Product } from "@/lib/agent/integrations/catalog/types";
 
 const PRODS: Record<string, Product> = {
@@ -30,5 +30,20 @@ describe("createOrder", () => {
     const { db } = makeTestDb();
     await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
     await expect(createOrder(db, { orgId: "o2", items: [{ productId: "nope", cantidad: 1 }] }, fakeProvider)).rejects.toThrow();
+  });
+});
+
+describe("orders shipping helpers", () => {
+  it("recupera el último pedido de la conversación y guarda envío", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(conversations).values({ id: "c1", orgId: "o1", phone: "57300", lastMessageAt: new Date(), createdAt: new Date() });
+    await db.insert(orders).values({ id: "ord1", orgId: "o1", conversationId: "c1", itemsJson: "[]", totalCop: 1000, createdAt: new Date(Date.now() - 1000) });
+    await db.insert(orders).values({ id: "ord2", orgId: "o1", conversationId: "c1", itemsJson: "[]", totalCop: 2000, createdAt: new Date() });
+    expect((await getLatestOrderForConversation(db, "o1", "c1"))?.id).toBe("ord2");
+    await setOrderShipping(db, "o1", "ord2", { addressJson: '{"ciudad":"Bogotá"}', quoteJson: '{"carrier":"X"}' });
+    const after = await getLatestOrderForConversation(db, "o1", "c1");
+    expect(after?.shippingAddressJson).toContain("Bogotá");
+    expect(after?.shippingQuoteJson).toContain("X");
   });
 });
