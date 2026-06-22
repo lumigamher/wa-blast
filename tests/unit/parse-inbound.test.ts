@@ -53,4 +53,16 @@ describe("parseInboundMessage", () => {
     expect(r.type).toBe("unknown");
     expect(r.payloadJson).toBeTruthy();
   });
+  it("parsea un mensaje de ubicación", () => {
+    const r = parseInboundMessage({ ...base, type: "location", location: { latitude: 4.6, longitude: -74.1, name: "Casa", address: "Cra 1 #2-3, Bogotá" } });
+    expect(r.type).toBe("location");
+    expect(r.body).toContain("Ubicación");
+    expect(r.body).toContain("Casa");
+    expect(r.payloadJson).toContain("4.6");
+  });
+  it("ubicación sin nombre usa la dirección o las coordenadas", () => {
+    const r = parseInboundMessage({ ...base, type: "location", location: { latitude: 1, longitude: 2 } });
+    expect(r.body).toContain("1");
+    expect(r.body).toContain("2");
+  });
 });
