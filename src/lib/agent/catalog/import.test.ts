@@ -9,11 +9,11 @@ import * as XLSX from "xlsx";
 describe("validateProductRows", () => {
   it("valida productos y variantes, reporta inválidas", () => {
     const rows = [
-      { nombre: "Camisa", precio: "20000", sku: "C1", descripcion: "Algodón", disponible: "sí" },
-      { nombre: "", precio: "", sku: "C1", variante: "Talla L", precio_variante: "22000", sku_variante: "C1-L", disponible_variante: "sí" },
-      { nombre: "Pantalón", precio: "abc", sku: "P1" },
-      { nombre: "", precio: "", sku: "", variante: "Suelta" },
-      { nombre: "", precio: "", sku: "" },
+      { nombre: "Camisa", precio: "20000", sku: "C1", descripcion: "Algodón", disponible: "sí", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
+      { nombre: "", precio: "", sku: "C1", descripcion: "", disponible: "", variante: "Talla L", precio_variante: "22000", sku_variante: "C1-L", disponible_variante: "sí" },
+      { nombre: "Pantalón", precio: "abc", sku: "P1", descripcion: "", disponible: "", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
+      { nombre: "", precio: "", sku: "", descripcion: "", disponible: "", variante: "Suelta", precio_variante: "", sku_variante: "", disponible_variante: "" },
+      { nombre: "", precio: "", sku: "", descripcion: "", disponible: "", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
     ];
     const res = validateProductRows(rows);
     expect(res.valid.length).toBe(2);
@@ -28,9 +28,9 @@ describe("validateProductRows", () => {
 
   it("disponible vacío = true; 'no'/'agotado' = false", () => {
     const res = validateProductRows([
-      { nombre: "A", precio: "1", sku: "A" },
-      { nombre: "B", precio: "1", sku: "B", disponible: "no" },
-      { nombre: "C", precio: "1", sku: "C", disponible: "agotado" },
+      { nombre: "A", precio: "1", sku: "A", descripcion: "", disponible: "", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
+      { nombre: "B", precio: "1", sku: "B", descripcion: "", disponible: "no", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
+      { nombre: "C", precio: "1", sku: "C", descripcion: "", disponible: "agotado", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
     ]);
     expect(res.valid.map((v) => v.available)).toEqual([true, false, false]);
   });
@@ -42,9 +42,9 @@ describe("bulkImportProducts", () => {
     await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
 
     const { valid } = validateProductRows([
-      { nombre: "Camisa", precio: "20000", sku: "C1" },
-      { nombre: "", precio: "", sku: "C1", variante: "Talla L", precio_variante: "22000" },
-      { nombre: "Pantalón", precio: "30000", sku: "P1" },
+      { nombre: "Camisa", precio: "20000", sku: "C1", descripcion: "", disponible: "", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
+      { nombre: "", precio: "", sku: "C1", descripcion: "", disponible: "", variante: "Talla L", precio_variante: "22000", sku_variante: "", disponible_variante: "" },
+      { nombre: "Pantalón", precio: "30000", sku: "P1", descripcion: "", disponible: "", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" },
     ]);
 
     const r1 = await bulkImportProducts(db, "o1", valid);
@@ -53,7 +53,7 @@ describe("bulkImportProducts", () => {
     expect((await listProducts(db, "o1")).length).toBe(2);
 
     // Second import: update existing product
-    const { valid: valid2 } = validateProductRows([{ nombre: "Camisa Premium", precio: "25000", sku: "C1" }]);
+    const { valid: valid2 } = validateProductRows([{ nombre: "Camisa Premium", precio: "25000", sku: "C1", descripcion: "", disponible: "", variante: "", precio_variante: "", sku_variante: "", disponible_variante: "" }]);
     const r2 = await bulkImportProducts(db, "o1", valid2);
     expect(r2.productsUpdated).toBe(1);
 
