@@ -89,7 +89,7 @@ export const MODULE_ROUTES: Record<ModuleId, readonly string[]> = {
   flows: ["/flows"],
   carrusel: [], // gateado dentro del wizard, no por ruta
   llamadas: ["/llamadas"],
-  agente: ["/configuracion/agente"],
+  agente: ["/configuracion/agente", "/pedidos"],
 };
 
 export function getPlan(id: PlanId): PlanDef {
