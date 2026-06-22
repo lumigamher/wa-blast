@@ -22,12 +22,18 @@ import type { CarrierQuote, ShippingProvider, ShippingQuoteInput } from "./types
 const BASE_URL = "https://api.mipaquete.com";
 const COLOMBIA_COUNTRY_CODE = "170";
 
-type MipaqueteLocation = { locationName: string; locationCode: string };
+type MipaqueteLocation = {
+  locationName: string;
+  locationCode: string;
+  departmentOrStateName?: string;
+};
 type MipaqueteQuoteOption = {
   deliveryCompanyName?: string;
   shippingCost?: number;
   shippingTime?: number | string;
 };
+
+export type MipaqueteCity = { name: string; code: string; department: string };
 
 function authHeaders(apiKey: string): Record<string, string> {
   return { apikey: apiKey, "session-tracker": randomUUID() };
@@ -44,6 +50,60 @@ function normalizeCity(s: string): string {
 
 function looksLikeCode(s: string): boolean {
   return /^\d{6,}$/.test(s.trim());
+}
+
+/**
+ * Busca ciudades en el catálogo de Mipaquete por nombre normalizado.
+ * Filtro: locationName (o su parte pre-coma) contiene o empieza con el query normalizado.
+ * Devuelve hasta `limit` resultados, deduplicados por código.
+ * En error o query vacío → [].
+ */
+export async function searchMipaqueteLocations(
+  apiKey: string,
+  query: string,
+  limit = 10,
+): Promise<MipaqueteCity[]> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [];
+
+  try {
+    const res = await fetch(`${BASE_URL}/getLocations`, {
+      headers: authHeaders(apiKey),
+    });
+    if (!res.ok) return [];
+
+    const locs = (await res.json()) as MipaqueteLocation[];
+    if (!Array.isArray(locs)) return [];
+
+    const normalized = normalizeCity(trimmedQuery);
+    const seenCodes = new Set<string>();
+    const results: MipaqueteCity[] = [];
+
+    for (const loc of locs) {
+      if (!loc?.locationCode || seenCodes.has(loc.locationCode)) continue;
+
+      const full = normalizeCity(loc.locationName ?? "");
+      const head = full.split(",")[0].trim(); // "BOGOTA, D.C." -> "BOGOTA"
+
+      // Match: normalized query is contained in or starts with either full or head
+      const matchesFull = full.includes(normalized) || full.startsWith(normalized);
+      const matchesHead = head.includes(normalized) || head.startsWith(normalized);
+
+      if (matchesFull || matchesHead) {
+        seenCodes.add(loc.locationCode);
+        results.push({
+          name: loc.locationName ?? "",
+          code: loc.locationCode,
+          department: loc.departmentOrStateName ?? "",
+        });
+        if (results.length >= limit) break;
+      }
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
 }
 
 export function makeMipaqueteShipping(opts: {
