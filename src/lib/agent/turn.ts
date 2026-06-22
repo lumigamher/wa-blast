@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { agentRuns, messages } from "@/lib/db/schema";
+import { agentRuns, messages, conversations } from "@/lib/db/schema";
 import { recordOutboundMessage } from "@/lib/inbox/store";
 import { getAgentConfig } from "./config";
 import { buildSystemPrompt, toLlmHistory } from "./context";
@@ -29,6 +29,13 @@ export async function runAgentTurn(
   const config = await getAgentConfig(db, orgId);
   if (!config.enabled) return;
   if (await isPaused(db, conversationId)) return;
+
+  // Verify conversation belongs to org (defense-in-depth)
+  const [conv] = await db
+    .select({ orgId: conversations.orgId })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId));
+  if (!conv || conv.orgId !== orgId) return;
 
   const provider = deps.provider ?? getProvider({ provider: config.provider });
   const tools = await resolveTools(db, orgId);

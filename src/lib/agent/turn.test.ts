@@ -117,4 +117,18 @@ describe("runAgentTurn", () => {
     await runAgentTurn(db, "o1", "c1", { provider, embeddings, sender, to: "+57300" });
     expect(capturedSystem.toLowerCase()).toContain("envío");
   });
+
+  it("conversación de otra org: no responde ni llama provider", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    const provider = makeFakeProvider([{ text: "respuesta no deseada", toolCalls: [], usage: { promptTokens: 1, completionTokens: 1 } }]);
+    provider.chat = vi.fn();
+    const sender = vi.fn(async () => ({ wamid: "x" }));
+    await runAgentTurn(db, "o2", "c1", { provider, sender, to: "+57300" });
+    expect(provider.chat).not.toHaveBeenCalled();
+    expect(sender).not.toHaveBeenCalled();
+    const runs = await db.select().from(agentRuns).where(eq(agentRuns.orgId, "o2"));
+    expect(runs).toHaveLength(0);
+  });
 });
