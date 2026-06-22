@@ -143,7 +143,7 @@ describe("payment methods", () => {
   it("setPaymentMethodQr guarda y limpia el QR, scoped por org", async () => {
     const { db } = makeTestDb();
     await seed(db);
-    const m = await addPaymentMethod(db, "o1", { type: "nequi", label: "N", details: "300" });
+    await addPaymentMethod(db, "o1", { type: "nequi", label: "N", details: "300" });
     const methods = await listPaymentMethods(db, "o1");
     const method = methods[0];
     await setPaymentMethodQr(db, "o1", method.id, "media_abc");
