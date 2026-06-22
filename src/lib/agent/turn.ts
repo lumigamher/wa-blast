@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { desc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { agentRuns, messages } from "@/lib/db/schema";
+import { agentRuns, messages, conversations } from "@/lib/db/schema";
 import { recordOutboundMessage } from "@/lib/inbox/store";
 import { getAgentConfig } from "./config";
 import { buildSystemPrompt, toLlmHistory } from "./context";
-import { estimateCostCop } from "./cost";
+import { estimateCostCop, estimateEmbeddingCostCop } from "./cost";
 import { isOverCostCap } from "./guardrails";
 import { isPaused, pauseAgent } from "./pause";
 import { getProvider } from "./providers";
@@ -29,6 +29,13 @@ export async function runAgentTurn(
   const config = await getAgentConfig(db, orgId);
   if (!config.enabled) return;
   if (await isPaused(db, conversationId)) return;
+
+  // Verify conversation belongs to org (defense-in-depth)
+  const [conv] = await db
+    .select({ orgId: conversations.orgId })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId));
+  if (!conv || conv.orgId !== orgId) return;
 
   const provider = deps.provider ?? getProvider({ provider: config.provider });
   const tools = await resolveTools(db, orgId);
@@ -76,6 +83,11 @@ export async function runAgentTurn(
 
     const costCop = estimateCostCop(res.usage, config.provider, config.model);
 
+    // Estimate embedding cost toward cap (roughly ~4 chars/token)
+    const embedTokens = knowledge ? Math.ceil(lastIncoming.length / 4) : 0;
+    const embedCostCop = estimateEmbeddingCostCop(embedTokens);
+    const totalCostCop = costCop + embedCostCop;
+
     if (res.status === "escalated") {
       await pauseAgent(db, conversationId);
     } else if (res.status === "ok" && res.reply) {
@@ -95,7 +107,7 @@ export async function runAgentTurn(
     await db.insert(agentRuns).values({
       id: randomUUID(), orgId, conversationId, stepsJson: JSON.stringify(res.steps),
       promptTokens: res.usage.promptTokens, completionTokens: res.usage.completionTokens,
-      costCop, status: res.status, createdAt: new Date(),
+      costCop: totalCostCop, status: res.status, createdAt: new Date(),
     });
   } catch (e) {
     // Falla del provider/Meta: registra un run "error" para observabilidad.

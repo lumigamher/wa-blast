@@ -14,7 +14,7 @@ describe("images", () => {
     const { db } = makeTestDb();
     await seed(db);
     await addImageUrl(db, "o1", "p1", { url: "https://example.com/img.png", label: "Front" });
-    const images = await listImages(db, "p1");
+    const images = await listImages(db, "o1", "p1");
     expect(images).toHaveLength(1);
     expect(images[0]!.source).toBe("url");
     expect(images[0]!.url).toBe("https://example.com/img.png");
@@ -25,7 +25,7 @@ describe("images", () => {
     const { db } = makeTestDb();
     await seed(db);
     await addImageUrl(db, "o1", "p1", { url: "https://example.com/img.png" });
-    const [image] = await listImages(db, "p1");
+    const [image] = await listImages(db, "o1", "p1");
     expect(imageUrl(image!)).toBe("https://example.com/img.png");
   });
 
@@ -33,7 +33,7 @@ describe("images", () => {
     const { db } = makeTestDb();
     await seed(db);
     await addImageUpload(db, "o1", "p1", { mediaAssetId: "ma-123", label: "Back" });
-    const images = await listImages(db, "p1");
+    const images = await listImages(db, "o1", "p1");
     expect(images).toHaveLength(1);
     expect(images[0]!.source).toBe("upload");
     expect(images[0]!.mediaAssetId).toBe("ma-123");
@@ -44,7 +44,7 @@ describe("images", () => {
     const { db } = makeTestDb();
     await seed(db);
     await addImageUpload(db, "o1", "p1", { mediaAssetId: "ma-456" });
-    const [image] = await listImages(db, "p1");
+    const [image] = await listImages(db, "o1", "p1");
     expect(imageUrl(image!)).toBe("/api/inbox/media/ma-456");
   });
 
@@ -52,9 +52,9 @@ describe("images", () => {
     const { db } = makeTestDb();
     await seed(db);
     await addImageUrl(db, "o1", "p1", { url: "https://example.com/img.png" });
-    const [image] = await listImages(db, "p1");
+    const [image] = await listImages(db, "o1", "p1");
     await deleteImage(db, "o1", image!.id);
-    const images = await listImages(db, "p1");
+    const images = await listImages(db, "o1", "p1");
     expect(images).toHaveLength(0);
   });
 
@@ -63,9 +63,9 @@ describe("images", () => {
     await seed(db);
     await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
     await addImageUrl(db, "o1", "p1", { url: "https://example.com/img.png" });
-    const [image] = await listImages(db, "p1");
+    const [image] = await listImages(db, "o1", "p1");
     await deleteImage(db, "o2", image!.id);
-    const images = await listImages(db, "p1");
+    const images = await listImages(db, "o1", "p1");
     expect(images).toHaveLength(1);
   });
 
@@ -80,7 +80,7 @@ describe("images", () => {
     await seed(db);
     await addImageUrl(db, "o1", "p1", { url: "https://example.com/1.png", variantId: "v1" });
     await addImageUrl(db, "o1", "p1", { url: "https://example.com/2.png" });
-    const images = await listImages(db, "p1");
+    const images = await listImages(db, "o1", "p1");
     expect(images).toHaveLength(2);
     expect(images[0]!.variantId).toBe("v1");
     expect(images[1]!.variantId).toBeNull();

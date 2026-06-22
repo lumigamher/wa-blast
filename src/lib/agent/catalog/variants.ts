@@ -3,8 +3,8 @@ import { and, asc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { productVariants } from "@/lib/db/schema";
 
-export async function listVariants(db: DB, productId: string) {
-  return db.select().from(productVariants).where(eq(productVariants.productId, productId)).orderBy(asc(productVariants.sortOrder));
+export async function listVariants(db: DB, orgId: string, productId: string) {
+  return db.select().from(productVariants).where(and(eq(productVariants.orgId, orgId), eq(productVariants.productId, productId))).orderBy(asc(productVariants.sortOrder));
 }
 
 export async function addVariant(db: DB, orgId: string, productId: string, input: { label: string; priceCop?: number | null; sku?: string | null }): Promise<void> {

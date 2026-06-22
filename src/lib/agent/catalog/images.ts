@@ -9,8 +9,8 @@ export function imageUrl(row: { source: string; mediaAssetId: string | null; url
   return "";
 }
 
-export async function listImages(db: DB, productId: string) {
-  return db.select().from(productImages).where(eq(productImages.productId, productId)).orderBy(asc(productImages.sortOrder));
+export async function listImages(db: DB, orgId: string, productId: string) {
+  return db.select().from(productImages).where(and(eq(productImages.orgId, orgId), eq(productImages.productId, productId))).orderBy(asc(productImages.sortOrder));
 }
 
 export async function addImageUrl(db: DB, orgId: string, productId: string, input: { url: string; label?: string | null; variantId?: string | null }): Promise<void> {

@@ -63,7 +63,7 @@ describe("bulkImportProducts", () => {
     expect(list.find((p) => p.sku === "C1")?.name).toBe("Camisa Premium");
 
     const camisa = list.find((p) => p.sku === "C1")!;
-    expect((await listVariants(db, camisa.id)).length).toBe(1);
+    expect((await listVariants(db, "o1", camisa.id)).length).toBe(1);
   });
 });
 
