@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { saveShippingAction } from "../actions";
 import type { ShippingConfig } from "@/lib/agent/integrations/shipping/config";
+import type { MipaqueteCity } from "@/lib/agent/integrations/shipping/mipaquete";
 
 export function AgentShipping({
   provider,
@@ -42,6 +43,52 @@ export function AgentShipping({
     volumetricFactor,
     ratesJson,
   });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<MipaqueteCity[]>([]);
+  const [selectedCity, setSelectedCity] = useState<MipaqueteCity | null>(
+    originCityCode ? { name: originCityName, code: originCityCode, department: "" } : null,
+  );
+
+  const handleSearch = useCallback(async (query: string) => {
+    setSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/agent/shipping/locations?q=${encodeURIComponent(query)}`);
+      if (!res.ok) {
+        if (res.status === 400) {
+          toast.error("Configura tu API key de Mipaquete primero");
+        } else {
+          toast.error("Error al buscar ciudades");
+        }
+        setSearchResults([]);
+        return;
+      }
+      const data = await res.json();
+      setSearchResults(data.cities || []);
+    } catch {
+      toast.error("Error al conectar con el servicio de búsqueda");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleSelectCity = useCallback((city: MipaqueteCity) => {
+    setSelectedCity(city);
+    setValues((v) => ({
+      ...v,
+      originCityName: city.name,
+      originCityCode: city.code,
+    }));
+    setSearchQuery("");
+    setSearchResults([]);
+    toast.success(`Ciudad seleccionada: ${city.name}`);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -138,18 +185,70 @@ export function AgentShipping({
             />
           </div>
 
-          {/* Código de ciudad (solo Mipaquete) */}
+          {/* Buscador de ciudad (solo Mipaquete) */}
+          {values.provider === "mipaquete" && (
+            <div className="space-y-2">
+              <Label>Buscar ciudad por nombre</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Ej: Medellín, Bogotá..."
+                  disabled={isPending || isSearching}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending || isSearching || searchQuery.length < 2}
+                >
+                  {isSearching ? "Buscando..." : "Buscar"}
+                </Button>
+              </div>
+              {searchResults.length > 0 && (
+                <div className="grid grid-cols-1 gap-1">
+                  {searchResults.map((city) => (
+                    <button
+                      key={city.code}
+                      type="button"
+                      onClick={() => handleSelectCity(city)}
+                      className="text-left px-3 py-2 text-sm rounded border border-muted hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring transition"
+                    >
+                      <div className="font-medium">{city.name}</div>
+                      {city.department && (
+                        <div className="text-xs text-muted-foreground">{city.department}</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedCity && (
+                <div className="px-3 py-2 text-sm rounded bg-muted/50 border border-muted">
+                  <div className="font-medium">Seleccionado: {selectedCity.name}</div>
+                  {selectedCity.department && (
+                    <div className="text-xs text-muted-foreground">{selectedCity.department}</div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Código: <code>{selectedCity.code}</code>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Código de ciudad (raw, visible para override) */}
           {values.provider === "mipaquete" && (
             <div className="space-y-1.5">
-              <Label htmlFor="originCityCode">Código de ciudad (opcional)</Label>
+              <Label htmlFor="originCityCode">Código de ciudad (manual)</Label>
               <Input
                 id="originCityCode"
                 value={values.originCityCode}
                 onChange={(e) => setValues({ ...values, originCityCode: e.target.value })}
-                placeholder="Ej: BG"
+                placeholder="Ej: 05001000"
                 disabled={isPending}
               />
-              <p className="text-xs text-muted-foreground">Código interno de Mipaquete para la ciudad.</p>
+              <p className="text-xs text-muted-foreground">
+                Código interno de Mipaquete. Se actualiza automáticamente al buscar una ciudad.
+              </p>
             </div>
           )}
 
