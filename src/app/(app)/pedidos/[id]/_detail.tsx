@@ -14,7 +14,7 @@ const STATUSES: OrderStatus[] = ["pendiente", "confirmado", "pagado", "cancelado
 
 type Address = { destinatario?: string; telefono?: string; departamento?: string; ciudad?: string; direccion?: string; barrio?: string; indicaciones?: string };
 type Quote = { carrier?: string; priceCop?: number | null; deliveryDays?: number | null };
-type Item = { nombre: string; cantidad: number; subtotal: number; precioUnitario: number };
+type Item = { nombre: string; cantidad: number; subtotal: number; precioUnitario: number; variantLabel?: string };
 
 export function OrderDetail({ id, status, dispatched, totalCop, paymentMethod, comprobanteMediaId, customer, items, address, quote, createdAt }: {
   id: string; status: string; dispatched: boolean; totalCop: number; paymentMethod: string | null;
@@ -74,7 +74,7 @@ export function OrderDetail({ id, status, dispatched, totalCop, paymentMethod, c
         <CardContent className="space-y-1">
           {items.map((it, i) => (
             <div key={i} className="flex justify-between text-sm">
-              <span>{it.cantidad}× {it.nombre}</span>
+              <span>{it.cantidad}× {it.nombre}{it.variantLabel ? ` (${it.variantLabel})` : ""}</span>
               <span className="font-mono">{fmt(it.subtotal)}</span>
             </div>
           ))}
