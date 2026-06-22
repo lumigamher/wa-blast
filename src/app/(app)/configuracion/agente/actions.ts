@@ -4,7 +4,7 @@ import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct,
 import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import type { CatalogInput } from "@/lib/agent/admin";
-import { addPaymentMethod, setPaymentMethodEnabled, deletePaymentMethod } from "@/lib/agent/payments/methods";
+import { addPaymentMethod, setPaymentMethodEnabled, deletePaymentMethod, setPaymentMethodQr } from "@/lib/agent/payments/methods";
 import type { PaymentType } from "@/lib/agent/payments/methods";
 import { addVariant, deleteVariant, setVariantAvailable } from "@/lib/agent/catalog/variants";
 import { addImageUrl, deleteImage } from "@/lib/agent/catalog/images";
@@ -231,5 +231,16 @@ export async function deleteDocumentAction(
     return { error: e instanceof Error ? e.message : "Error" };
   }
   revalidatePath("/configuracion/agente");
+  return { ok: true };
+}
+
+export async function removePaymentQrAction(id: string): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await setPaymentMethodQr(db, orgId, id, null);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente/pagos");
   return { ok: true };
 }

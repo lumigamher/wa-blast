@@ -1,0 +1,1 @@
+ALTER TABLE `payment_methods` ADD `qr_media_asset_id` text;

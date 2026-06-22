@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState } from "react";
+import { useTransition, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2Icon, ToggleLeftIcon, ToggleRightIcon } from "lucide-react";
@@ -19,6 +19,7 @@ import {
   addPaymentMethodAction,
   togglePaymentMethodAction,
   deletePaymentMethodAction,
+  removePaymentQrAction,
 } from "./actions";
 import type { paymentMethods as paymentMethodsSchema } from "@/lib/db/schema";
 
@@ -36,6 +37,8 @@ export function AgentPayments({ items }: { items: PaymentMethod[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [form, setForm] = useState<{ type: string; label: string; details: string }>({
     type: "nequi",
     label: "",
@@ -87,6 +90,41 @@ export function AgentPayments({ items }: { items: PaymentMethod[] }) {
       } else {
         toast.success("Medio de pago eliminado");
         setDeleteId(null);
+        router.refresh();
+      }
+    });
+  };
+
+  const handleQrUpload = (id: string, file: File) => {
+    setUploadingId(id);
+    const formData = new FormData();
+    formData.append("file", file);
+    fetch(`/api/agent/payment-methods/${id}/qr`, {
+      method: "POST",
+      body: formData,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Error al subir QR");
+        return res.json();
+      })
+      .then(() => {
+        toast.success("QR cargado");
+        setUploadingId(null);
+        router.refresh();
+      })
+      .catch((err) => {
+        toast.error(err.message || "Error al subir QR");
+        setUploadingId(null);
+      });
+  };
+
+  const handleRemoveQr = (id: string) => {
+    startTransition(async () => {
+      const result = await removePaymentQrAction(id);
+      if ("error" in result) {
+        toast.error(result.error);
+      } else {
+        toast.success("QR removido");
         router.refresh();
       }
     });
@@ -184,6 +222,53 @@ export function AgentPayments({ items }: { items: PaymentMethod[] }) {
                   {method.details && (
                     <p className="text-xs text-muted-foreground mt-1 truncate">{method.details}</p>
                   )}
+                  {/* QR control */}
+                  <div className="flex items-center gap-2 mt-2">
+                    {method.qrMediaAssetId ? (
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={`/api/inbox/media/${method.qrMediaAssetId}`}
+                          alt="QR"
+                          className="size-10 rounded object-cover border border-border"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRemoveQr(method.id)}
+                          disabled={isPending}
+                          className="h-6 px-2 text-xs"
+                        >
+                          Quitar QR
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => fileInputRefs.current[method.id]?.click()}
+                          disabled={uploadingId !== null}
+                          className="h-6 px-2 text-xs"
+                        >
+                          {uploadingId === method.id ? "Subiendo..." : "Subir QR"}
+                        </Button>
+                        <input
+                          ref={(el) => {
+                            if (el) fileInputRefs.current[method.id] = el;
+                          }}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.currentTarget.files?.[0];
+                            if (file) handleQrUpload(method.id, file);
+                            e.currentTarget.value = "";
+                          }}
+                          disabled={uploadingId !== null}
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button

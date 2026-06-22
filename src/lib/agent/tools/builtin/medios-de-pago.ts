@@ -23,6 +23,7 @@ export const mediosDePago: AgentTool = {
           type: m.type,
           label: m.label,
           details: m.details,
+          hasQr: !!m.qrMediaAssetId,
         })),
       },
     };

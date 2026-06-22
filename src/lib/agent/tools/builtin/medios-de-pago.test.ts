@@ -13,7 +13,7 @@ describe("medios_de_pago", () => {
     const r = await mediosDePago.run({}, { db, orgId: "o1", conversationId: "c1" });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      const data = r.data as { metodos: Array<{ type: string; label: string; details: string }> };
+      const data = r.data as { metodos: Array<{ type: string; label: string; details: string; hasQr: boolean }> };
       expect(data.metodos).toEqual([]);
     }
   });
@@ -29,17 +29,19 @@ describe("medios_de_pago", () => {
     const r = await mediosDePago.run({}, { db, orgId: "o2", conversationId: "c2" });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      const data = r.data as { metodos: Array<{ type: string; label: string; details: string }> };
+      const data = r.data as { metodos: Array<{ type: string; label: string; details: string; hasQr: boolean }> };
       expect(data.metodos).toHaveLength(2);
       expect(data.metodos[0]).toEqual({
         type: "nequi",
         label: "Nequi (móvil)",
         details: "3157000000",
+        hasQr: false,
       });
       expect(data.metodos[1]).toEqual({
         type: "daviplata",
         label: "DaviPlata",
         details: "312XXXX",
+        hasQr: false,
       });
     }
   });
@@ -64,9 +66,10 @@ describe("medios_de_pago", () => {
     const r = await mediosDePago.run({}, { db, orgId: "o3", conversationId: "c3" });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      const data = r.data as { metodos: Array<{ type: string; label: string; details: string }> };
+      const data = r.data as { metodos: Array<{ type: string; label: string; details: string; hasQr: boolean }> };
       expect(data.metodos).toHaveLength(1);
       expect(data.metodos[0].type).toBe("nequi");
+      expect(data.metodos[0].hasQr).toBe(false);
     }
   });
 
@@ -86,8 +89,8 @@ describe("medios_de_pago", () => {
     expect(ra.ok).toBe(true);
     expect(rb.ok).toBe(true);
     if (ra.ok && rb.ok) {
-      const dataA = ra.data as { metodos: Array<{ type: string; label: string; details: string }> };
-      const dataB = rb.data as { metodos: Array<{ type: string; label: string; details: string }> };
+      const dataA = ra.data as { metodos: Array<{ type: string; label: string; details: string; hasQr: boolean }> };
+      const dataB = rb.data as { metodos: Array<{ type: string; label: string; details: string; hasQr: boolean }> };
       expect(dataA.metodos).toHaveLength(1);
       expect(dataA.metodos[0].type).toBe("nequi");
       expect(dataB.metodos).toHaveLength(1);
