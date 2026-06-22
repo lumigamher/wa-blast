@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct } from "@/lib/agent/admin";
+import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, setProductAvailable, setProductsAvailable } from "@/lib/agent/admin";
 import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import type { CatalogInput } from "@/lib/agent/admin";
@@ -11,6 +11,7 @@ import { addImageUrl, deleteImage } from "@/lib/agent/catalog/images";
 import { ingestDocument } from "@/lib/agent/rag/ingest";
 import { deleteDocument } from "@/lib/agent/rag/admin";
 import { getEmbeddingProvider } from "@/lib/agent/rag/embeddings";
+import { bulkImportProducts, buildProductsTemplate, type ValidProductRow } from "@/lib/agent/catalog/import";
 
 export async function saveAgentConfigAction(
   input: Parameters<typeof updateAgentConfig>[2],
@@ -243,4 +244,54 @@ export async function removePaymentQrAction(id: string): Promise<{ ok: true } | 
   }
   revalidatePath("/configuracion/agente/pagos");
   return { ok: true };
+}
+
+export async function setProductAvailableAction(
+  id: string,
+  available: boolean,
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await setProductAvailable(db, orgId, id, available);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente/catalogo");
+  return { ok: true };
+}
+
+export async function setProductsAvailableAction(
+  ids: string[],
+  available: boolean,
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await setProductsAvailable(db, orgId, ids, available);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+  revalidatePath("/configuracion/agente/catalogo");
+  return { ok: true };
+}
+
+export async function importProductsAction(
+  rows: ValidProductRow[],
+): Promise<{ ok: true; summary: Awaited<ReturnType<typeof bulkImportProducts>> } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    const summary = await bulkImportProducts(db, orgId, rows);
+    revalidatePath("/configuracion/agente/catalogo");
+    return { ok: true, summary };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+}
+
+export async function downloadProductsTemplateAction(): Promise<{ base64: string } | { error: string }> {
+  try {
+    const buf = await buildProductsTemplate();
+    return { base64: Buffer.from(buf).toString("base64") };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
 }

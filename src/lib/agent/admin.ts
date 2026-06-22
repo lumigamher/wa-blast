@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, count, eq, inArray, like, or, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { agentTools, products } from "@/lib/db/schema";
 import { saveAgentConfig } from "./config";
@@ -90,8 +90,27 @@ export async function saveCatalog(db: DB, orgId: string, input: CatalogInput): P
   await saveCatalogConfig(db, orgId, { provider: input.provider, credentials, config: input.config });
 }
 
-export async function listProducts(db: DB, orgId: string) {
-  return db.select().from(products).where(eq(products.orgId, orgId)).orderBy(asc(products.name));
+export type ListProductsOpts = { search?: string; limit?: number; offset?: number };
+
+function productSearchCond(orgId: string, search?: string) {
+  const conds = [eq(products.orgId, orgId)];
+  const q = search?.trim().toLowerCase();
+  if (q) {
+    const like$ = `%${q}%`;
+    conds.push(or(like(sql`lower(${products.name})`, like$), like(sql`lower(coalesce(${products.sku}, ''))`, like$))!);
+  }
+  return and(...conds);
+}
+
+export async function listProducts(db: DB, orgId: string, opts: ListProductsOpts = {}) {
+  const base = db.select().from(products).where(productSearchCond(orgId, opts.search)).orderBy(asc(products.name));
+  if (opts.limit != null) return base.limit(opts.limit).offset(opts.offset ?? 0);
+  return base;
+}
+
+export async function countProducts(db: DB, orgId: string, opts: { search?: string } = {}): Promise<number> {
+  const [row] = await db.select({ n: count() }).from(products).where(productSearchCond(orgId, opts.search));
+  return row?.n ?? 0;
 }
 
 export async function addProduct(
@@ -115,4 +134,52 @@ export async function addProduct(
 
 export async function deleteProduct(db: DB, orgId: string, productId: string): Promise<void> {
   await db.delete(products).where(and(eq(products.id, productId), eq(products.orgId, orgId)));
+}
+
+export async function setProductAvailable(db: DB, orgId: string, id: string, available: boolean): Promise<void> {
+  await db.update(products).set({ available }).where(and(eq(products.id, id), eq(products.orgId, orgId)));
+}
+
+export async function setProductsAvailable(db: DB, orgId: string, ids: string[], available: boolean): Promise<void> {
+  if (ids.length === 0) return;
+  await db.update(products).set({ available }).where(and(eq(products.orgId, orgId), inArray(products.id, ids)));
+}
+
+export async function upsertProductBySku(
+  db: DB,
+  orgId: string,
+  input: { name: string; priceCop: number; sku?: string | null; description?: string | null; available?: boolean },
+): Promise<{ id: string; action: "created" | "updated" }> {
+  const name = input.name.trim();
+  if (!name) throw new Error("Nombre requerido");
+  if (!Number.isFinite(input.priceCop) || input.priceCop < 0) throw new Error("Precio inválido");
+  const sku = (input.sku ?? "").trim() || null;
+  const priceCop = Math.round(input.priceCop);
+  if (sku) {
+    const [existing] = await db.select().from(products).where(and(eq(products.orgId, orgId), eq(products.sku, sku)));
+    if (existing) {
+      await db
+        .update(products)
+        .set({
+          name,
+          priceCop,
+          description: input.description ?? existing.description,
+          available: input.available ?? existing.available,
+        })
+        .where(eq(products.id, existing.id));
+      return { id: existing.id, action: "updated" };
+    }
+  }
+  const id = randomUUID();
+  await db.insert(products).values({
+    id,
+    orgId,
+    name,
+    priceCop,
+    description: input.description ?? null,
+    sku,
+    available: input.available ?? true,
+    createdAt: new Date(),
+  });
+  return { id, action: "created" };
 }
