@@ -14,7 +14,7 @@ describe("variants", () => {
     const { db } = makeTestDb();
     await seed(db);
     await addVariant(db, "o1", "p1", { label: "Rojo", priceCop: 2000, sku: "SKU-RED" });
-    const variants = await listVariants(db, "p1");
+    const variants = await listVariants(db, "o1", "p1");
     expect(variants).toHaveLength(1);
     expect(variants[0]!.label).toBe("Rojo");
     expect(variants[0]!.priceCop).toBe(2000);
@@ -31,10 +31,10 @@ describe("variants", () => {
     const { db } = makeTestDb();
     await seed(db);
     await addVariant(db, "o1", "p1", { label: "Blue" });
-    const [variant] = await listVariants(db, "p1");
+    const [variant] = await listVariants(db, "o1", "p1");
     expect(variant?.available).toBe(true);
     await setVariantAvailable(db, "o1", variant!.id, false);
-    const [updated] = await listVariants(db, "p1");
+    const [updated] = await listVariants(db, "o1", "p1");
     expect(updated?.available).toBe(false);
   });
 
@@ -43,9 +43,9 @@ describe("variants", () => {
     await seed(db);
     await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
     await addVariant(db, "o1", "p1", { label: "Green" });
-    const [variant] = await listVariants(db, "p1");
+    const [variant] = await listVariants(db, "o1", "p1");
     await deleteVariant(db, "o1", variant!.id);
-    const variants = await listVariants(db, "p1");
+    const variants = await listVariants(db, "o1", "p1");
     expect(variants).toHaveLength(0);
   });
 
@@ -54,9 +54,9 @@ describe("variants", () => {
     await seed(db);
     await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
     await addVariant(db, "o1", "p1", { label: "Yellow" });
-    const [variant] = await listVariants(db, "p1");
+    const [variant] = await listVariants(db, "o1", "p1");
     await deleteVariant(db, "o2", variant!.id);
-    const variants = await listVariants(db, "p1");
+    const variants = await listVariants(db, "o1", "p1");
     expect(variants).toHaveLength(1);
   });
 
@@ -69,9 +69,19 @@ describe("variants", () => {
     const b = await upsertVariant(db, "o1", productId, { label: "Talla L", priceCop: 1300 });
     expect(b.action).toBe("updated");
     expect(b.id).toBe(a.id);
-    const vs = await listVariants(db, productId);
+    const vs = await listVariants(db, "o1", productId);
     expect(vs.length).toBe(1);
     expect(vs[0].priceCop).toBe(1300);
     expect(vs[0].sku).toBe("C1-L");
+  });
+
+  it("listVariants no devuelve variantes de otra org", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    const { id: productId } = await upsertProductBySku(db, "o1", { name: "P", priceCop: 1, sku: "P1" });
+    await addVariant(db, "o1", productId, { label: "L" });
+    expect((await listVariants(db, "o1", productId)).length).toBe(1);
+    expect((await listVariants(db, "o2", productId)).length).toBe(0);
   });
 });

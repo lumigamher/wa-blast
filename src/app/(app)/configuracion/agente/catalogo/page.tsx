@@ -31,8 +31,8 @@ export default async function CatalogoPage({
 
   const productList = await Promise.all(
     baseProductList.map(async (product) => {
-      const variants = await listVariants(db, product.id);
-      const imageRows = await listImages(db, product.id);
+      const variants = await listVariants(db, orgId, product.id);
+      const imageRows = await listImages(db, orgId, product.id);
       return {
         ...product,
         variants: variants.map((v) => ({
