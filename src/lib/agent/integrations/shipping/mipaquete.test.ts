@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { makeMipaqueteShipping, searchMipaqueteLocations } from "./mipaquete";
+import {
+  __resetMipaqueteCatalogCache,
+  makeMipaqueteShipping,
+  searchMipaqueteLocations,
+} from "./mipaquete";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  __resetMipaqueteCatalogCache();
+});
 
 const CATALOG = [
   { locationName: "MEDELLÍN", locationCode: "05001000" },
@@ -102,6 +109,21 @@ describe("makeMipaqueteShipping", () => {
         declaredValueCop: 1,
       }),
     ).toEqual([]);
+  });
+
+  it("cachea el catálogo: dos cotizaciones → un solo GET /getLocations", async () => {
+    const fetchMock = mockFetch();
+    const q = {
+      originCityName: "Medellín",
+      destinationCityName: "Bogotá",
+      pkg: { pesoFacturableKg: 1, lengthCm: 1, widthCm: 1, heightCm: 1 },
+      declaredValueCop: 1,
+    };
+    // dos instancias distintas (como dos turnos) comparten el caché módulo-level
+    await makeMipaqueteShipping({ apiKey: "x", originCityCode: "05001000" }).quote(q);
+    await makeMipaqueteShipping({ apiKey: "x", originCityCode: "05001000" }).quote(q);
+    const locationCalls = fetchMock.mock.calls.filter((c) => c[0].toString().includes("/getLocations"));
+    expect(locationCalls.length).toBe(1);
   });
 });
 
