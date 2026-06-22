@@ -169,6 +169,13 @@
       "when": 1782086594484,
       "tag": "0023_sad_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1782138151297,
+      "tag": "0024_clean_the_anarchist",
+      "breakpoints": true
     }
   ]
 }
