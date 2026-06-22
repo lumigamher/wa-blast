@@ -7,10 +7,10 @@ import { UploadIcon, DownloadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  parseProductsFile, validateProductRows, buildProductsTemplate,
+  parseProductsFile, validateProductRows,
   type ProductValidation,
-} from "@/lib/agent/catalog/import";
-import { importProductsAction } from "../../actions";
+} from "@/lib/agent/catalog/import-client";
+import { importProductsAction, downloadProductsTemplateAction } from "../../actions";
 
 export function ImportProducts() {
   const router = useRouter();
@@ -18,9 +18,18 @@ export function ImportProducts() {
   const [fileName, setFileName] = useState("");
   const [validation, setValidation] = useState<ProductValidation | null>(null);
 
-  function downloadTemplate() {
-    const buf = buildProductsTemplate();
-    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  async function downloadTemplate() {
+    const res = await downloadProductsTemplateAction();
+    if ("error" in res) {
+      toast.error(res.error);
+      return;
+    }
+    const binaryString = atob(res.base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

@@ -11,7 +11,7 @@ import { addImageUrl, deleteImage } from "@/lib/agent/catalog/images";
 import { ingestDocument } from "@/lib/agent/rag/ingest";
 import { deleteDocument } from "@/lib/agent/rag/admin";
 import { getEmbeddingProvider } from "@/lib/agent/rag/embeddings";
-import { bulkImportProducts, type ValidProductRow } from "@/lib/agent/catalog/import";
+import { bulkImportProducts, buildProductsTemplate, type ValidProductRow } from "@/lib/agent/catalog/import";
 
 export async function saveAgentConfigAction(
   input: Parameters<typeof updateAgentConfig>[2],
@@ -282,6 +282,15 @@ export async function importProductsAction(
     const summary = await bulkImportProducts(db, orgId, rows);
     revalidatePath("/configuracion/agente/catalogo");
     return { ok: true, summary };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error" };
+  }
+}
+
+export async function downloadProductsTemplateAction(): Promise<{ base64: string } | { error: string }> {
+  try {
+    const buf = await buildProductsTemplate();
+    return { base64: Buffer.from(buf).toString("base64") };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };
   }

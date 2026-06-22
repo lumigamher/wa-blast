@@ -1,6 +1,8 @@
+import dynamicImport from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { ImportProducts } from "./_import";
+
+const ImportProducts = dynamicImport(() => import("./_import").then((mod) => ({ default: mod.ImportProducts })));
 
 export const dynamic = "force-dynamic";
 

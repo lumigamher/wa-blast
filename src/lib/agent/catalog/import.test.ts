@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { validateProductRows, bulkImportProducts, buildProductsTemplate } from "./import";
+import { validateProductRows } from "./import-client";
+import { bulkImportProducts, buildProductsTemplate } from "./import";
 import { makeTestDb } from "@/lib/db/test-db";
 import { organization } from "@/lib/db/schema";
 import { listProducts } from "@/lib/agent/admin";
@@ -67,8 +68,8 @@ describe("bulkImportProducts", () => {
 });
 
 describe("buildProductsTemplate", () => {
-  it("genera un XLSX con los encabezados esperados", () => {
-    const buf = buildProductsTemplate();
+  it("genera un XLSX con los encabezados esperados", async () => {
+    const buf = await buildProductsTemplate();
     const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { raw: false, defval: "" });
