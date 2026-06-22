@@ -10,9 +10,9 @@ El agente ya vende a nivel nacional (catálogo, variantes, pedidos, pagos, fotos
 
 ## Objetivo / No-objetivo
 
-**Objetivo (v1):** que el agente, con un pedido armado, pida la **ciudad de destino**, calcule el **paquete** (peso + volumen sumando las unidades) y **cotice** con el proveedor de envíos configurado por la org, ofreciendo al cliente **la opción más barata + la más rápida** (transportadora, precio, días). Cargar peso/dimensiones en producto/variante. Configurar el proveedor de envíos como una **integración por org** (el cliente conecta su propia cuenta) + un **fallback de tabla manual**.
+**Objetivo (v1):** que el agente, con un pedido armado, (a) pida la **ciudad de destino** (texto, o confirmando la ciudad cuando el cliente **comparte su ubicación** de WhatsApp), (b) calcule el **paquete** (peso + volumen sumando las unidades), (c) **cotice** con el proveedor de envíos configurado por la org y ofrezca **la opción más barata + la más rápida** (transportadora, precio, días), y (d) tras elegir el cliente, **capture y guarde la dirección completa de despacho** (estructurada) en el pedido — **el vendedor la necesita para enviar correctamente el paquete**. Cargar peso/dimensiones en producto/variante. Proveedor de envíos como **integración por org** (el cliente conecta su propia cuenta) + **fallback de tabla manual**.
 
-**No-objetivo (v1):** generar la guía/rótulo, tracking, bin-packing real (optimización de empaque), reglas de envío gratis / markup / recaudo contra-entrega. Todo fast-follow.
+**No-objetivo (v1):** generar la guía/rótulo, tracking, **reverse-geocoding automático** de la ubicación (lat/lng→municipio sin confirmar), bin-packing real, reglas de envío gratis / markup / recaudo contra-entrega. Todo fast-follow.
 
 ## Decisiones (confirmadas con Luis 2026-06-21)
 
@@ -22,21 +22,29 @@ El agente ya vende a nivel nacional (catálogo, variantes, pedidos, pagos, fotos
 4. **El agente ofrece la más barata + la más rápida** (2 opciones) cuando hay varias.
 5. **Peso y dimensiones en producto Y variante**; la variante **sobreescribe** al producto si los trae.
 6. **Peso facturable = max(peso real, peso volumétrico)**, volumétrico = `L×W×H(cm) / factor` (factor configurable por org, Colombia ≈ 2500).
+7. **Cotización por ciudad** (origen→ciudad destino); el barrio/dirección NO cambia la tarifa. La **dirección completa** es para el despacho, no para cotizar.
+8. **Ubicación de WhatsApp = opción 1**: parsear el mensaje `location` para que el agente lo "vea" y **pida confirmar la ciudad** (sin geocoder). El reverse-geocoding automático es fast-follow.
+9. **Dirección de despacho estructurada y guardada en el pedido** (no solo texto libre), para que el vendedor envíe bien. Campos: destinatario, teléfono, departamento, ciudad, dirección, barrio, indicaciones (opcional).
 
 ## Arquitectura
 
 ```
-Pedido armado → cotizar_envio(ciudadDestino)
-  → computePackage(items[]) (peso real + volumétrico → paquete)
-  → ShippingProvider.quote({ origen, destino, paquete, valorDeclarado })
-  → CarrierQuote[] (transportadora, servicio, precioCop, díasEntrega)
-  → el agente ofrece la más barata + la más rápida
+Pedido armado → (cliente da ciudad por texto o comparte ubicación → agente confirma ciudad)
+  → cotizar_envio(ciudadDestino)
+      → computePackage(items[]) (peso real + volumétrico → paquete)
+      → ShippingProvider.quote({ origen, destino, paquete, valorDeclarado })
+      → CarrierQuote[] → ofrece la más barata + la más rápida
+  → cliente elige opción
+  → guardar_direccion_envio({ destinatario, telefono, depto, ciudad, direccion, barrio, ... })
+      → persiste en orders.shipping_address_json + shipping_quote_json (el vendedor despacha)
 ```
 
 ### Modelo de datos
 - `products` y `product_variants`: nuevos campos `weight_grams`, `length_cm`, `width_cm`, `height_cm` (integer, nullable). La variante sobreescribe al producto cuando trae valor.
 - `agent_shipping` (nueva tabla, mig nueva, una por org): `orgId` PK, `provider` (enum `["mipaquete","manual"]`, extensible), `credentials_enc` (JSON cifrado: p.ej. `{ apiKey }`), `config_json` (no secreto: `{ originCityCode, originCityName, volumetricFactor }`), `updatedAt`. Mismo patrón exacto que `agent_catalog`/`agent_calendar`.
 - Fallback manual: tabla `shipping_rates` (orgId, zona/ciudad o "default", maxWeightKg, priceCop, díasEntrega) o un JSON en `agent_shipping.config_json`. **Decisión de implementación:** empezar con un JSON de reglas en `config_json` (simple); promover a tabla si crece.
+- `orders`: **dirección de despacho** — añadir `shipping_address_json` (JSON estructurado: `{ destinatario, telefono, departamento, ciudad, direccion, barrio, indicaciones }`) y opcional `shipping_quote_json` (la opción de envío elegida: transportadora, servicio, precioCop, díasEntrega). El vendedor lo ve en el pedido / como nota en la conversación.
+- `parse-inbound.ts`: manejar `msg.type === "location"` → `body = "📍 Ubicación: <name/address o lat,lng>"`, `payloadJson = raw` (lat/lng quedan en el payload para fast-follow de geocoding). Así el agente "ve" la ubicación y pide confirmar la ciudad.
 
 ### Módulos (siguiendo `src/lib/agent/integrations/`)
 - `src/lib/agent/integrations/shipping/types.ts` — `Package`, `ShippingQuoteInput`, `CarrierQuote`, `ShippingProvider { quote(input) → CarrierQuote[] }`.
@@ -46,6 +54,7 @@ Pedido armado → cotizar_envio(ciudadDestino)
 - `src/lib/agent/integrations/shipping/manual.ts` — impl tabla manual: resuelve precio/días por zona+peso desde la config.
 - `src/lib/agent/shipping/package.ts` — `computePackage(items, { volumetricFactor })` **función pura**: `items` = `[{ weightGrams, lengthCm, widthCm, heightCm, quantity }]` → `{ pesoRealKg, pesoVolumetricoKg, pesoFacturableKg, dims }`. Falla/avisa si a algún item le falta peso o dimensiones.
 - `src/lib/agent/tools/builtin/cotizar-envio.ts` — tool `cotizar_envio`. Params: `{ ciudadDestino: string, valorDeclaradoCop?: number }`. Carga items del pedido en curso (o del contexto), `computePackage`, `getShippingProvider`, `provider.quote`. Devuelve la más barata + la más rápida (o las dos si coinciden). Si falta peso/dims en algún producto → `{ ok:false, error:"Falta el peso/dimensiones de <producto>" }` (no inventa). Registrar en `registry.ts`.
+- `src/lib/agent/tools/builtin/guardar-direccion-envio.ts` — tool `guardar_direccion_envio`. Params estructurados: `{ destinatario, telefono, departamento, ciudad, direccion, barrio?, indicaciones?, transportadora?, precioEnvioCop?, diasEntrega? }`. Persiste en el pedido (`orders.shipping_address_json` + `shipping_quote_json`) y deja la dirección visible para el vendedor (nota de conversación). El agente lo llama tras elegir el cliente la opción de envío. Validación zod estricta (el vendedor necesita datos correctos). Registrar en `registry.ts`.
 
 ### Panel
 - Nueva sección **"Envíos"** en el menú lateral del agente (`/configuracion/agente/envios`, encaja con el panel ya separado por secciones): elegir provider (Mipaquete / Tabla manual), credenciales (api key Mipaquete), **ciudad de origen**, factor volumétrico, y —si manual— la tabla de tarifas por zona/peso. Mismo estilo que la sección Calendario/Catálogo.
@@ -65,12 +74,14 @@ Pedido armado → cotizar_envio(ciudadDestino)
 - `mipaquete` provider: con `fetch` mockeado (mapeo de respuesta → `CarrierQuote[]`, auth header, manejo de error HTTP). Sin red real en tests.
 - `getShippingProvider` switch + `config` cifrado/descifrado.
 - `cotizar_envio` tool: feliz (ofrece barata+rápida), falta peso/dims, provider no configurado, destino sin cobertura.
+- `parse-inbound` con `type:"location"`: produce body legible + payload con lat/lng.
+- `guardar_direccion_envio` tool: persiste address+quote en el pedido; rechaza datos incompletos (validación estricta); scoped por org.
 
 ## Plan de fases (para writing-plans)
-1. Data: columnas peso/dims en products+variants + tabla `agent_shipping` (migración) + `computePackage` puro.
+1. Data: columnas peso/dims en products+variants + `agent_shipping` + `orders.shipping_address_json`/`shipping_quote_json` (migración) + `computePackage` puro.
 2. Abstracción `ShippingProvider` + `manual` (tabla) + config cifrada.
 3. `mipaquete` provider (verificar endpoints reales) + city resolver.
-4. Tool `cotizar_envio` + registro + integración con el pedido.
+4. Tools `cotizar_envio` + `guardar_direccion_envio` + parseo de `location` en parse-inbound + registro.
 5. Panel: sección "Envíos" + campos peso/dims en producto/variante + sub-link sidebar.
 6. Gauntlet + review + merge + deploy.
 
