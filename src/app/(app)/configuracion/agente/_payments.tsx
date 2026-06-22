@@ -4,7 +4,6 @@ import { useTransition, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2Icon, ToggleLeftIcon, ToggleRightIcon } from "lucide-react";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -227,12 +226,10 @@ export function AgentPayments({ items }: { items: PaymentMethod[] }) {
                   <div className="flex items-center gap-2 mt-2">
                     {method.qrMediaAssetId ? (
                       <div className="flex items-center gap-2">
-                        <Image
+                        <img
                           src={`/api/inbox/media/${method.qrMediaAssetId}`}
                           alt="QR"
-                          width={40}
-                          height={40}
-                          className="rounded object-cover border border-border"
+                          className="size-10 rounded object-cover border border-border"
                         />
                         <Button
                           size="sm"
