@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { agentTools, organization } from "@/lib/db/schema";
-import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, listProducts, countProducts } from "./admin";
+import { setAgentTool, updateAgentConfig, saveCalendar, saveCatalog, addProduct, deleteProduct, listProducts, countProducts, setProductAvailable, setProductsAvailable } from "./admin";
 import { getAgentConfig } from "./config";
 import { getCalendarConfig } from "./integrations/calendar/config";
 import { getCatalogConfig } from "./integrations/catalog/config";
@@ -193,5 +193,19 @@ describe("agent admin helpers", () => {
     expect((await listProducts(db, "o1", { limit: 2, offset: 0 })).length).toBe(2);
     expect(await countProducts(db, "o1")).toBe(3);
     expect(await countProducts(db, "o1", { search: "camisa" })).toBe(2);
+  });
+  it("toggle individual y masivo, scoped por org", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    await addProduct(db, "o1", { name: "A", priceCop: 1, sku: "A" });
+    await addProduct(db, "o1", { name: "B", priceCop: 1, sku: "B" });
+    const [a, b] = await listProducts(db, "o1");
+    await setProductAvailable(db, "o1", a.id, false);
+    expect((await listProducts(db, "o1")).find((p) => p.id === a.id)?.available).toBe(false);
+    await setProductsAvailable(db, "o1", [a.id, b.id], true);
+    expect((await listProducts(db, "o1")).every((p) => p.available)).toBe(true);
+    await setProductAvailable(db, "o2", a.id, false);
+    expect((await listProducts(db, "o1")).find((p) => p.id === a.id)?.available).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, like, or, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { agentTools, products } from "@/lib/db/schema";
 import { saveAgentConfig } from "./config";
@@ -134,4 +134,13 @@ export async function addProduct(
 
 export async function deleteProduct(db: DB, orgId: string, productId: string): Promise<void> {
   await db.delete(products).where(and(eq(products.id, productId), eq(products.orgId, orgId)));
+}
+
+export async function setProductAvailable(db: DB, orgId: string, id: string, available: boolean): Promise<void> {
+  await db.update(products).set({ available }).where(and(eq(products.id, id), eq(products.orgId, orgId)));
+}
+
+export async function setProductsAvailable(db: DB, orgId: string, ids: string[], available: boolean): Promise<void> {
+  if (ids.length === 0) return;
+  await db.update(products).set({ available }).where(and(eq(products.orgId, orgId), inArray(products.id, ids)));
 }
