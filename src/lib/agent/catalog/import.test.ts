@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { validateProductRows, bulkImportProducts } from "./import";
+import { validateProductRows, bulkImportProducts, buildProductsTemplate } from "./import";
 import { makeTestDb } from "@/lib/db/test-db";
 import { organization } from "@/lib/db/schema";
 import { listProducts } from "@/lib/agent/admin";
 import { listVariants } from "./variants";
+import * as XLSX from "xlsx";
 
 describe("validateProductRows", () => {
   it("valida productos y variantes, reporta inválidas", () => {
@@ -62,5 +63,26 @@ describe("bulkImportProducts", () => {
 
     const camisa = list.find((p) => p.sku === "C1")!;
     expect((await listVariants(db, camisa.id)).length).toBe(1);
+  });
+});
+
+describe("buildProductsTemplate", () => {
+  it("genera un XLSX con los encabezados esperados", () => {
+    const buf = buildProductsTemplate();
+    const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { raw: false, defval: "" });
+
+    expect(Object.keys(rows[0])).toEqual([
+      "nombre",
+      "precio",
+      "sku",
+      "descripcion",
+      "disponible",
+      "variante",
+      "precio_variante",
+      "sku_variante",
+      "disponible_variante",
+    ]);
   });
 });

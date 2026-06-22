@@ -197,3 +197,39 @@ export async function bulkImportProducts(db: DB, orgId: string, valid: ValidProd
 
   return summary;
 }
+
+export function buildProductsTemplate(): ArrayBuffer {
+  const sample = [
+    {
+      nombre: "Camisa Clásica",
+      precio: "59900",
+      sku: "CAM-001",
+      descripcion: "Algodón 100%",
+      disponible: "sí",
+      variante: "Talla M",
+      precio_variante: "59900",
+      sku_variante: "CAM-001-M",
+      disponible_variante: "sí",
+    },
+    {
+      nombre: "",
+      precio: "",
+      sku: "CAM-001",
+      descripcion: "",
+      disponible: "",
+      variante: "Talla L",
+      precio_variante: "62900",
+      sku_variante: "CAM-001-L",
+      disponible_variante: "sí",
+    },
+  ];
+
+  const ws = XLSX.utils.json_to_sheet(sample, {
+    header: ["nombre", "precio", "sku", "descripcion", "disponible", "variante", "precio_variante", "sku_variante", "disponible_variante"],
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Productos");
+
+  return XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+}
