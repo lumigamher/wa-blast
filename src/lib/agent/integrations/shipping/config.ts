@@ -18,13 +18,18 @@ export async function saveShippingConfig(
   const hasCreds = Object.keys(input.credentials).length > 0;
   const credentialsEnc = hasCreds ? encrypt(JSON.stringify(input.credentials)) : null;
   const configJson = JSON.stringify(input.config ?? {});
+  // En update: solo sobrescribe las credenciales cuando se proveen; si vienen vacías,
+  // CONSERVA la API key existente (el panel envía creds vacías al editar otros campos).
+  const setOnUpdate: Record<string, unknown> = {
+    provider: input.provider,
+    configJson,
+    updatedAt: now,
+  };
+  if (hasCreds) setOnUpdate.credentialsEnc = credentialsEnc;
   await db
     .insert(agentShipping)
     .values({ orgId, provider: input.provider, credentialsEnc, configJson, updatedAt: now })
-    .onConflictDoUpdate({
-      target: agentShipping.orgId,
-      set: { provider: input.provider, credentialsEnc, configJson, updatedAt: now },
-    });
+    .onConflictDoUpdate({ target: agentShipping.orgId, set: setOnUpdate });
 }
 
 export async function getShippingConfig(db: DB, orgId: string): Promise<ShippingConfig | null> {
