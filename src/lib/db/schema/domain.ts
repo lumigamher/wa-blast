@@ -668,6 +668,7 @@ export const paymentMethods = sqliteTable(
     }).notNull(),
     label: text("label").notNull(),
     details: text("details").notNull().default(""),
+    qrMediaAssetId: text("qr_media_asset_id"),
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),

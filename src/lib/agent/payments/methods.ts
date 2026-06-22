@@ -53,3 +53,15 @@ export async function deletePaymentMethod(
     .delete(paymentMethods)
     .where(and(eq(paymentMethods.id, id), eq(paymentMethods.orgId, orgId)));
 }
+
+export async function setPaymentMethodQr(
+  db: DB,
+  orgId: string,
+  id: string,
+  mediaAssetId: string | null,
+): Promise<void> {
+  await db
+    .update(paymentMethods)
+    .set({ qrMediaAssetId: mediaAssetId })
+    .where(and(eq(paymentMethods.id, id), eq(paymentMethods.orgId, orgId)));
+}
