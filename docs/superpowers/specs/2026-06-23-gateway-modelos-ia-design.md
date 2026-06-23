@@ -162,9 +162,11 @@ Cada función conserva su propio gating (agente = Premium, etc.).
 Proveedor + Modelo (y su estado `customModel`/`initialModelIsCurated`). El agente
 hereda proveedor/modelo del gateway. `saveAgentConfigAction` deja de recibir
 `provider`/`model`. Las columnas `agent_configs.provider`/`model` quedan
-vestigiales: se **eliminan en la misma migración** (Drizzle) para no dejar estado
-muerto; `getAgentConfig`/`saveAgentConfig` y sus tipos se ajustan. (Temperatura,
-persona, fallback, tope de costo, etc. se mantienen en `agent_configs`.)
+**vestigiales**: NO se borran (evitamos un rebuild destructivo de tabla en
+SQLite); conservan su default, dejan de leerse/escribirse y se quitan de
+`DEFAULTS`/form. La migración nueva es **aditiva** (solo crea `ai_gateway`).
+(Temperatura, persona, fallback, tope de costo, etc. se mantienen en
+`agent_configs`.)
 
 `CURATED_MODELS`/`models.ts` se reutiliza tal cual en el form del gateway.
 
@@ -184,8 +186,8 @@ Convención: `bunx vitest run`, mocks de `fetch`/SDK como en el resto del repo.
 
 ## Migración y despliegue
 
-- Migración Drizzle: crea `ai_gateway`; elimina `agent_configs.provider` y
-  `agent_configs.model`.
+- Migración Drizzle: **aditiva**, crea `ai_gateway`. `agent_configs.provider`/
+  `model` quedan vestigiales (no se borran).
 - No hay datos que preservar (ninguna org tiene key hoy; prod no tiene key env).
 - Para que una org use IA tras esto: Configuración › IA → elegir proveedor +
   modelo + pegar su key → "Probar conexión".
