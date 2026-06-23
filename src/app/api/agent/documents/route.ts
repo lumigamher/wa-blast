@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { saveMediaAsset } from "@/lib/media/store";
 import { extractDocumentText } from "@/lib/agent/rag/extract";
 import { ingestDocument } from "@/lib/agent/rag/ingest";
-import { getEmbeddingProvider } from "@/lib/agent/rag/embeddings";
+import { resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 import { RAG_LIMITS } from "@/lib/agent/rag/limits";
 
 export async function POST(req: Request): Promise<NextResponse> {
@@ -42,6 +42,10 @@ export async function POST(req: Request): Promise<NextResponse> {
   });
 
   try {
+    const embeddings = await resolveEmbeddingProvider(db, orgId);
+    if (!embeddings) {
+      return NextResponse.json({ error: "Configura tu API key de OpenAI en Configuración › IA." }, { status: 400 });
+    }
     const res = await ingestDocument(
       db,
       orgId,
@@ -52,7 +56,7 @@ export async function POST(req: Request): Promise<NextResponse> {
         mediaAssetId: asset.id,
         bytes: file.size,
       },
-      { embeddings: getEmbeddingProvider() },
+      { embeddings },
     );
     return NextResponse.json({ ok: true, ...res });
   } catch (e) {

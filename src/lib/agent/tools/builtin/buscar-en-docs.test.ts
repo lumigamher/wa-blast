@@ -3,6 +3,7 @@ import { makeTestDb } from "@/lib/db/test-db";
 import { organization } from "@/lib/db/schema";
 import { ingestDocument } from "@/lib/agent/rag/ingest";
 import { makeFakeEmbeddings } from "@/lib/agent/rag/testing/fake-embeddings";
+import { saveGatewayConfig } from "@/lib/ai/gateway/config";
 import { buscarEnDocs } from "./buscar-en-docs";
 
 describe("buscar_en_docs", () => {
@@ -17,7 +18,10 @@ describe("buscar_en_docs", () => {
       slug: "org1",
       createdAt: new Date(),
     });
-    vi.spyOn(await import("@/lib/agent/rag/embeddings"), "getEmbeddingProvider").mockReturnValue(embeddings);
+    // Seed gateway config with a fake OpenAI key so resolveEmbeddingProvider succeeds
+    await saveGatewayConfig(db.db, "org1", { openaiKey: "sk-test-key" });
+    // Mock the makeOpenAiEmbeddingProvider to return fake embeddings
+    vi.spyOn(await import("@/lib/agent/rag/embeddings/openai"), "makeOpenAiEmbeddingProvider").mockReturnValue(embeddings);
   });
 
   it("devuelve fragmentos relevantes", async () => {
@@ -47,5 +51,16 @@ describe("buscar_en_docs", () => {
       { db: db.db, orgId: "org1", conversationId: "c1" },
     );
     expect(res.ok).toBe(true);
+  });
+
+  it("sin gateway config → error RAG no disponible", async () => {
+    const res = await buscarEnDocs.run(
+      { query: "lo que sea" },
+      { db: db.db, orgId: "org-sin-config", conversationId: "c1" },
+    );
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error).toContain("RAG no disponible");
+    }
   });
 });

@@ -8,12 +8,11 @@ import { buildSystemPrompt, toLlmHistory } from "./context";
 import { estimateCostCop, estimateEmbeddingCostCop } from "./cost";
 import { isOverCostCap } from "./guardrails";
 import { isPaused, pauseAgent } from "./pause";
-import { resolveChatProvider } from "@/lib/ai/gateway/resolve";
+import { resolveChatProvider, resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 import { getGatewayConfig } from "@/lib/ai/gateway/config";
 import type { LlmProvider } from "./providers/types";
 import { runAgentLoop } from "./runtime";
 import { resolveTools } from "./tools/registry";
-import { getEmbeddingProvider } from "./rag/embeddings";
 import type { EmbeddingProvider } from "./rag/embeddings/types";
 import { retrieveKnowledge } from "./rag";
 
@@ -81,8 +80,10 @@ export async function runAgentTurn(
   let knowledge = "";
   if (typeof lastIncoming === "string" && lastIncoming.trim()) {
     try {
-      const embeddings = deps.embeddings ?? getEmbeddingProvider();
-      knowledge = await retrieveKnowledge(db, orgId, lastIncoming, { embeddings });
+      const embeddings = deps.embeddings ?? (await resolveEmbeddingProvider(db, orgId));
+      if (embeddings) {
+        knowledge = await retrieveKnowledge(db, orgId, lastIncoming, { embeddings });
+      }
     } catch {
       // Falla de embeddings/RAG no debe romper el turno: seguimos sin conocimiento.
       knowledge = "";
