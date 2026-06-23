@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { AgentConfig } from "@/lib/agent/config";
-import { CURATED_MODELS } from "@/lib/agent/providers/models";
 import { saveAgentConfigAction } from "./actions";
 
 const PRESETS: Record<string, string> = {
@@ -29,16 +28,10 @@ export function AgentForm({ config }: { config: AgentConfig }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const initialModelIsCurated = CURATED_MODELS[
-    (config.provider as "openai" | "anthropic") ?? "openai"
-  ].some((m) => m.id === config.model);
-  const [customModel, setCustomModel] = useState(!initialModelIsCurated);
   const [values, setValues] = useState({
     enabled: config.enabled,
     name: config.name,
     systemPrompt: config.systemPrompt,
-    provider: config.provider,
-    model: config.model,
     temperature: config.temperature,
     fallbackMessage: config.fallbackMessage,
     monthlyCostCapCop: config.monthlyCostCapCop?.toString() ?? "",
@@ -63,8 +56,6 @@ export function AgentForm({ config }: { config: AgentConfig }) {
           enabled: values.enabled,
           name: values.name,
           systemPrompt: values.systemPrompt,
-          provider: values.provider as "openai" | "anthropic",
-          model: values.model,
           temperature: Number(values.temperature),
           fallbackMessage: values.fallbackMessage,
           monthlyCostCapCop: values.monthlyCostCapCop ? Number(values.monthlyCostCapCop) : null,
@@ -176,65 +167,10 @@ export function AgentForm({ config }: { config: AgentConfig }) {
           {advancedOpen && (
             <div className="space-y-6 border-l-2 border-muted pl-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {/* Provider */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="provider">Proveedor</Label>
-                  <Select value={values.provider} onValueChange={(v) => {
-                    if (v === "openai" || v === "anthropic") {
-                      const list = CURATED_MODELS[v];
-                      const stillValid = list.some((m) => m.id === values.model);
-                      setValues({
-                        ...values,
-                        provider: v,
-                        model: stillValid || customModel ? values.model : list[0].id,
-                      });
-                    }
-                  }}>
-                    <SelectTrigger id="provider">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="anthropic">Anthropic</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Model */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="model">Modelo</Label>
-                  <Select
-                    value={customModel ? "__custom__" : values.model}
-                    onValueChange={(v) => {
-                      if (v === "__custom__") {
-                        setCustomModel(true);
-                      } else if (v) {
-                        setCustomModel(false);
-                        setValues({ ...values, model: v });
-                      }
-                    }}
-                  >
-                    <SelectTrigger id="model">
-                      <SelectValue placeholder="Selecciona un modelo..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURATED_MODELS[values.provider as "openai" | "anthropic"].map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.label} · {m.cost} — {m.hint}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="__custom__">Personalizado…</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {customModel && (
-                    <Input
-                      className="mt-2"
-                      value={values.model}
-                      onChange={(e) => setValues({ ...values, model: e.target.value })}
-                      placeholder={values.provider === "openai" ? "gpt-5-mini" : "claude-haiku-4-5-20251001"}
-                    />
-                  )}
-                </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  El proveedor y el modelo de IA se configuran en{" "}
+                  <a href="/configuracion/ia" className="underline">Configuración › IA</a>.
+                </p>
 
                 {/* Temperature */}
                 <div className="space-y-1.5">
