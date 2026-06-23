@@ -2,9 +2,10 @@
 // Usa el LLM real (OPENAI_API_KEY del entorno) + makeMedusaCatalog apuntando a
 // api.elmandelosteclados.com. NO toca la base de datos ni envía a WhatsApp.
 // Uso: bunx tsx medusa-turn-demo.ts "mensaje del cliente"
+import OpenAI from "openai";
 import { z } from "zod";
 import { makeMedusaCatalog } from "./src/lib/agent/integrations/catalog/medusa";
-import { getProvider } from "./src/lib/agent/providers/index";
+import { makeOpenAiProvider } from "./src/lib/agent/providers/openai";
 import { runAgentLoop } from "./src/lib/agent/runtime";
 import type { AgentTool } from "./src/lib/agent/tools/types";
 
@@ -39,7 +40,9 @@ No inventes productos ni precios. Si no encuentras algo, dilo y ofrece alternati
 const userMsg = process.argv[2] ?? "Hola, ¿tienen teclados mecánicos? ¿qué precio?";
 
 (async () => {
-  const provider = getProvider({ provider: "openai" });
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY no configurada");
+  const provider = makeOpenAiProvider(new OpenAI({ apiKey: key }));
   const result = await runAgentLoop({
     provider,
     model: process.env.DEMO_MODEL ?? "gpt-5-mini",
