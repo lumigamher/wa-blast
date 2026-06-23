@@ -7,6 +7,7 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { credsFromSettings, MetaApiError } from "@/lib/meta/graph";
 import { createAndPublishFlow, createFlow, getFlowPreview, type FlowCategory } from "@/lib/meta/flows";
 import { generateFlowJson } from "@/lib/flow-ai";
+import { resolveChatProvider } from "@/lib/ai/gateway/resolve";
 import { sendFlow } from "@/lib/meta/client";
 import { createCampaign } from "@/lib/campaigns/create";
 import { getWorker } from "@/lib/campaigns/worker";
@@ -19,7 +20,9 @@ export async function generateFlowAction(request: string): Promise<GenerateFlowR
 
   if (!request.trim()) return { ok: false, error: "Describe el formulario que quieres" };
   try {
-    return { ok: true, flowJson: await generateFlowJson(request) };
+    const resolved = await resolveChatProvider(db, orgId);
+    if (!resolved.ok) return { ok: false, error: resolved.error };
+    return { ok: true, flowJson: await generateFlowJson(request, { provider: resolved.provider, model: resolved.model }) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Error al generar" };
   }

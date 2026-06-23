@@ -1,5 +1,4 @@
-import OpenAI from "openai";
-import { env } from "@/lib/env";
+import type { LlmProvider } from "@/lib/agent/providers/types";
 
 export function extractFlowJson(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -24,20 +23,20 @@ Esquema (Flow JSON version "6.3", estático, sin data_api_version ni endpoint):
 
 Reglas: ≥1 pantalla; exactamente una terminal (la última) con "terminal":true y "success":true; "name" de componentes en snake_case minúsculas; ids de pantalla en MAYÚSCULAS_SNAKE; incluye los campos pedidos + por defecto nombre y teléfono si no se especifican; etiquetas en español salvo que la petición esté en otro idioma.`;
 
-export async function generateFlowJson(request: string): Promise<string> {
-  if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY no configurada");
-  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
-  const model = env.OPENAI_MODEL ?? "gpt-5-mini";
+export async function generateFlowJson(
+  request: string,
+  deps: { provider: LlmProvider; model: string },
+): Promise<string> {
+  const { provider, model } = deps;
   async function ask(extra?: string): Promise<string> {
-    const res = await client.chat.completions.create({
+    const res = await provider.chat({
+      system: SYSTEM,
+      messages: [{ role: "user", content: `Genera el Flow JSON para: ${request}${extra ? `\n\n${extra}` : ""}` }],
+      tools: [],
+      temperature: 0.2,
       model,
-      messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user", content: `Genera el Flow JSON para: ${request}${extra ? `\n\n${extra}` : ""}` },
-      ],
-      response_format: { type: "json_object" },
     });
-    return res.choices[0]?.message?.content ?? "";
+    return res.text ?? "";
   }
   const first = await ask();
   try {
