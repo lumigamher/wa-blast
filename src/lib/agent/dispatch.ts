@@ -5,7 +5,6 @@ import type { DB } from "@/lib/db/client";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getAgentConfig } from "./config";
 import { isPaused } from "./pause";
-import { getProvider } from "./providers";
 import { enqueueAgentTurn } from "./queue";
 import { type AgentSender, runAgentTurn } from "./turn";
 
@@ -35,9 +34,7 @@ async function runRealTurn(orgId: string, conversationId: string, phone: string)
     const res = await sendText(settings, { to, body });
     return { wamid: "wamid" in res ? res.wamid : null };
   };
-  const config = await getAgentConfig(defaultDb, orgId);
   await runAgentTurn(defaultDb, orgId, conversationId, {
-    provider: getProvider({ provider: config.provider }),
     sender,
     to: phone,
   });

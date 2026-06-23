@@ -8,7 +8,8 @@ import { buildSystemPrompt, toLlmHistory } from "./context";
 import { estimateCostCop, estimateEmbeddingCostCop } from "./cost";
 import { isOverCostCap } from "./guardrails";
 import { isPaused, pauseAgent } from "./pause";
-import { getProvider } from "./providers";
+import { resolveChatProvider } from "@/lib/ai/gateway/resolve";
+import { getGatewayConfig } from "@/lib/ai/gateway/config";
 import type { LlmProvider } from "./providers/types";
 import { runAgentLoop } from "./runtime";
 import { resolveTools } from "./tools/registry";
@@ -37,7 +38,34 @@ export async function runAgentTurn(
     .where(eq(conversations.id, conversationId));
   if (!conv || conv.orgId !== orgId) return;
 
-  const provider = deps.provider ?? getProvider({ provider: config.provider });
+  // Resolve chat provider: from deps (test injection) or from gateway (org BYO key)
+  let chatProvider: LlmProvider;
+  let chatModel: string;
+  let chatProviderKind: "openai" | "anthropic";
+
+  if (deps.provider) {
+    // Test injection
+    chatProvider = deps.provider;
+    chatModel = "gpt-5-mini";
+    chatProviderKind = "openai";
+  } else {
+    // Resolve from gateway; if no key → send fallback and return
+    const resolved = await resolveChatProvider(db, orgId);
+    if (!resolved.ok) {
+      // No usable gateway config: send fallback message and return gracefully
+      const sent = await deps.sender({ to: deps.to, body: config.fallbackMessage });
+      await recordOutboundMessage(db, {
+        orgId, conversationId, wamid: sent.wamid, type: "text", body: config.fallbackMessage,
+        status: sent.wamid ? "sent" : "failed",
+      });
+      return;
+    }
+    chatProvider = resolved.provider;
+    chatModel = resolved.model;
+    const gatewayCfg = await getGatewayConfig(db, orgId);
+    chatProviderKind = gatewayCfg?.chatProvider ?? "openai";
+  }
+
   const tools = await resolveTools(db, orgId);
 
   const rows = await db
@@ -71,8 +99,8 @@ export async function runAgentTurn(
 
   try {
     const res = await runAgentLoop({
-      provider,
-      model: config.model,
+      provider: chatProvider,
+      model: chatModel,
       temperature: config.temperature,
       system: buildSystemPrompt({ name: config.name, systemPrompt: config.systemPrompt, knowledge }),
       history,
@@ -81,7 +109,7 @@ export async function runAgentTurn(
       ctx: { db, orgId, conversationId },
     });
 
-    const costCop = estimateCostCop(res.usage, config.provider, config.model);
+    const costCop = estimateCostCop(res.usage, chatProviderKind, chatModel);
 
     // Estimate embedding cost toward cap (roughly ~4 chars/token)
     const embedTokens = knowledge ? Math.ceil(lastIncoming.length / 4) : 0;
