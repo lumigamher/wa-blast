@@ -43,17 +43,16 @@ export async function saveGatewayConfig(db: DB, orgId: string, patch: GatewayPat
     if (incoming && incoming.trim()) return encrypt(incoming.trim());
     return current ?? null;
   };
-  const values = {
-    orgId,
-    chatProvider: patch.chatProvider ?? existing?.chatProvider ?? "openai",
-    chatModel: patch.chatModel ?? existing?.chatModel ?? "gpt-5-mini",
-    openaiKeyEnc: encOrKeep(patch.openaiKey, existing?.openaiKeyEnc),
-    anthropicKeyEnc: encOrKeep(patch.anthropicKey, existing?.anthropicKeyEnc),
-    updatedAt: now,
-  };
-  const { orgId: _, ...updateValues } = values;
+  const chatProvider = patch.chatProvider ?? existing?.chatProvider ?? "openai";
+  const chatModel = patch.chatModel ?? existing?.chatModel ?? "gpt-5-mini";
+  const openaiKeyEnc = encOrKeep(patch.openaiKey, existing?.openaiKeyEnc);
+  const anthropicKeyEnc = encOrKeep(patch.anthropicKey, existing?.anthropicKeyEnc);
+  const updatedAt = now;
   await db
     .insert(aiGateway)
-    .values(values)
-    .onConflictDoUpdate({ target: aiGateway.orgId, set: updateValues });
+    .values({ orgId, chatProvider, chatModel, openaiKeyEnc, anthropicKeyEnc, updatedAt })
+    .onConflictDoUpdate({
+      target: aiGateway.orgId,
+      set: { chatProvider, chatModel, openaiKeyEnc, anthropicKeyEnc, updatedAt },
+    });
 }

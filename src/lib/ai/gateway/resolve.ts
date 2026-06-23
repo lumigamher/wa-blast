@@ -1,0 +1,39 @@
+import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import type { DB } from "@/lib/db/client";
+import { makeAnthropicProvider } from "@/lib/agent/providers/anthropic";
+import { makeOpenAiProvider } from "@/lib/agent/providers/openai";
+import type { LlmProvider } from "@/lib/agent/providers/types";
+import { makeOpenAiEmbeddingProvider } from "@/lib/agent/rag/embeddings/openai";
+import type { EmbeddingProvider } from "@/lib/agent/rag/embeddings/types";
+import { getGatewayConfig } from "./config";
+
+export type ChatResolution =
+  | { ok: true; provider: LlmProvider; model: string }
+  | { ok: false; error: string };
+
+export async function resolveChatProvider(db: DB, orgId: string): Promise<ChatResolution> {
+  const cfg = await getGatewayConfig(db, orgId);
+  if (!cfg) return { ok: false, error: "Configura tu modelo y API key en Configuración › IA." };
+  if (cfg.chatProvider === "anthropic") {
+    if (!cfg.anthropicKey)
+      return { ok: false, error: "Falta tu API key de Anthropic. Agrégala en Configuración › IA." };
+    return {
+      ok: true,
+      provider: makeAnthropicProvider(new Anthropic({ apiKey: cfg.anthropicKey })),
+      model: cfg.chatModel,
+    };
+  }
+  if (!cfg.openaiKey) return { ok: false, error: "Falta tu API key de OpenAI. Agrégala en Configuración › IA." };
+  return {
+    ok: true,
+    provider: makeOpenAiProvider(new OpenAI({ apiKey: cfg.openaiKey })),
+    model: cfg.chatModel,
+  };
+}
+
+export async function resolveEmbeddingProvider(db: DB, orgId: string): Promise<EmbeddingProvider | null> {
+  const cfg = await getGatewayConfig(db, orgId);
+  if (!cfg?.openaiKey) return null;
+  return makeOpenAiEmbeddingProvider(new OpenAI({ apiKey: cfg.openaiKey }));
+}
