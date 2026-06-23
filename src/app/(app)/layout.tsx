@@ -15,6 +15,7 @@ import {
   SettingsIcon,
   ShieldIcon,
   ShoppingBagIcon,
+  SparklesIcon,
   TagIcon,
   TruckIcon,
   UsersIcon,
@@ -79,6 +80,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: "Cuenta",
     items: [
+      { href: "/configuracion/ia", icon: SparklesIcon, label: "IA / Modelos" },
       { href: "/salud", icon: HeartPulseIcon, label: "Salud WhatsApp" },
       { href: "/facturacion", icon: CreditCardIcon, label: "Facturación" },
       { href: "/configuracion", icon: SettingsIcon, label: "Configuración" },
