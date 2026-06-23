@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getEmbeddingProvider } from "@/lib/agent/rag/embeddings";
+import { resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 import { retrieveKnowledge } from "@/lib/agent/rag";
 import type { AgentTool } from "../types";
 
@@ -19,7 +19,8 @@ export const buscarEnDocs: AgentTool = {
   async run(args, ctx) {
     const { query } = schema.parse(args);
     try {
-      const embeddings = getEmbeddingProvider();
+      const embeddings = await resolveEmbeddingProvider(ctx.db, ctx.orgId);
+      if (!embeddings) return { ok: false, error: "RAG no disponible: configura tu API key de OpenAI en Configuración › IA." };
       const info = await retrieveKnowledge(ctx.db, ctx.orgId, query, { embeddings });
       return { ok: true, data: { info } };
     } catch (e) {

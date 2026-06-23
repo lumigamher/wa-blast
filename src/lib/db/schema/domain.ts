@@ -330,6 +330,19 @@ export const agentConfigs = sqliteTable("agent_configs", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
+export const aiGateway = sqliteTable("ai_gateway", {
+  orgId: text("org_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  chatProvider: text("chat_provider", { enum: ["openai", "anthropic"] })
+    .notNull()
+    .default("openai"),
+  chatModel: text("chat_model").notNull().default("gpt-5-mini"),
+  openaiKeyEnc: text("openai_key_enc"),
+  anthropicKeyEnc: text("anthropic_key_enc"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
 export const agentTools = sqliteTable(
   "agent_tools",
   {

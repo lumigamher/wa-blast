@@ -11,7 +11,7 @@ import { addVariant, deleteVariant, setVariantAvailable } from "@/lib/agent/cata
 import { addImageUrl, deleteImage } from "@/lib/agent/catalog/images";
 import { ingestDocument } from "@/lib/agent/rag/ingest";
 import { deleteDocument } from "@/lib/agent/rag/admin";
-import { getEmbeddingProvider } from "@/lib/agent/rag/embeddings";
+import { resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 import { bulkImportProducts, buildProductsTemplate, type ValidProductRow } from "@/lib/agent/catalog/import";
 
 export async function saveAgentConfigAction(
@@ -210,11 +210,13 @@ export async function addTextDocumentAction(input: {
 }): Promise<{ ok: true } | { error: string }> {
   const { orgId } = await requireOrg();
   try {
+    const embeddings = await resolveEmbeddingProvider(db, orgId);
+    if (!embeddings) return { error: "Configura tu API key de OpenAI en Configuración › IA para indexar documentos." };
     await ingestDocument(
       db,
       orgId,
       { name: input.name || "Documento", text: input.text, source: "text" },
-      { embeddings: getEmbeddingProvider() },
+      { embeddings },
     );
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error" };

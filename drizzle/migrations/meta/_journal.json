@@ -183,6 +183,13 @@
       "when": 1782153030374,
       "tag": "0025_woozy_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1782230089133,
+      "tag": "0026_wet_scourge",
+      "breakpoints": true
     }
   ]
 }

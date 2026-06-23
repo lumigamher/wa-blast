@@ -155,4 +155,20 @@ describe("runAgentTurn", () => {
     expect(run.status).toBe("ok");
     expect(typeof run.costCop).toBe("number");
   });
+
+  it("sin gateway configurado: envía fallback y no llama al LLM", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    // Org sin ai_gateway row → resolveChatProvider retorna {ok: false}
+    const sender = vi.fn(async () => ({ wamid: "fallback1" }));
+    await runAgentTurn(db, "o1", "c1", { sender, to: "+57300" });
+    // Debe enviar el fallback message
+    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden" });
+    // Debe persistir el mensaje en la BD
+    const out = await db.select().from(messages).where(eq(messages.conversationId, "c1"));
+    expect(out.some((m) => m.direction === "out" && m.body === "ya te atienden")).toBe(true);
+    // NO debe registrar run (error path es silencioso)
+    const runs = await db.select().from(agentRuns).where(eq(agentRuns.orgId, "o1"));
+    expect(runs).toHaveLength(0);
+  });
 });
