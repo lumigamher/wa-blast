@@ -52,6 +52,20 @@ describe("getCatalogProvider", () => {
     expect(typeof provider.get).toBe("function");
   });
 
+  it("resuelve medusa catalog", () => {
+    const { db } = makeTestDb();
+    const input: CatalogResolveInput = {
+      provider: "medusa",
+      db,
+      orgId: "o1",
+      credentials: { publishableKey: "pk_test" },
+      config: { backendUrl: "https://api.elman.com", regionId: "reg_1" },
+    };
+    const provider = getCatalogProvider(input);
+    expect(typeof provider.search).toBe("function");
+    expect(typeof provider.get).toBe("function");
+  });
+
   it("provider desconocido lanza error", () => {
     const { db } = makeTestDb();
     const input: CatalogResolveInput = {

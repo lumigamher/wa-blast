@@ -22,7 +22,7 @@ export function AgentCatalog({
   provider,
   config,
 }: {
-  provider: "internal" | "http" | "shopify";
+  provider: "internal" | "http" | "shopify" | "medusa";
   config: Record<string, unknown>;
 }) {
   const router = useRouter();
@@ -37,6 +37,9 @@ export function AgentCatalog({
     idField: (config.idField as string) ?? "id",
     shop: (config.shop as string) ?? "",
     storefrontToken: "",
+    backendUrl: (config.backendUrl as string) ?? "",
+    publishableKey: "",
+    regionId: (config.regionId as string) ?? "",
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -57,11 +60,20 @@ export function AgentCatalog({
               idField: values.idField,
             },
           };
-        } else {
+        } else if (values.provider === "shopify") {
           input = {
             provider: "shopify",
             credentials: { storefrontToken: values.storefrontToken },
             config: { shop: values.shop },
+          };
+        } else {
+          input = {
+            provider: "medusa",
+            credentials: { publishableKey: values.publishableKey },
+            config: {
+              backendUrl: values.backendUrl,
+              regionId: values.regionId,
+            },
           };
         }
         const result = await saveCatalogAction(input);
@@ -70,7 +82,7 @@ export function AgentCatalog({
         } else {
           toast.success("Catálogo guardado");
           router.refresh();
-          setValues({ ...values, apiKey: "", storefrontToken: "" });
+          setValues({ ...values, apiKey: "", storefrontToken: "", publishableKey: "" });
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Error al guardar");
@@ -94,7 +106,7 @@ export function AgentCatalog({
             <Select
               value={values.provider}
               onValueChange={(v) => {
-                if (v === "internal" || v === "http" || v === "shopify") {
+                if (v === "internal" || v === "http" || v === "shopify" || v === "medusa") {
                   setValues({ ...values, provider: v });
                 }
               }}
@@ -106,6 +118,7 @@ export function AgentCatalog({
                 <SelectItem value="internal">Interno (gestiona tú)</SelectItem>
                 <SelectItem value="http">HTTP API</SelectItem>
                 <SelectItem value="shopify">Shopify</SelectItem>
+                <SelectItem value="medusa">Medusa v2</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -223,6 +236,53 @@ export function AgentCatalog({
                     Déjalo vacío para mantener el existente.
                   </p>
                 )}
+              </div>
+            </>
+          )}
+
+          {/* Medusa provider fields */}
+          {values.provider === "medusa" && (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="medusa-backend-url">URL del Backend</Label>
+                <Input
+                  id="medusa-backend-url"
+                  value={values.backendUrl}
+                  onChange={(e) => setValues({ ...values, backendUrl: e.target.value })}
+                  placeholder="https://api.ejemplo.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Ej: https://api.mimedusa.com
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="medusa-publishable-key">Publishable Key</Label>
+                <Input
+                  id="medusa-publishable-key"
+                  type="password"
+                  value={values.publishableKey}
+                  onChange={(e) => setValues({ ...values, publishableKey: e.target.value })}
+                  placeholder={provider === "medusa" ? "•••• (déjalo vacío para no cambiarla)" : "Ingresa tu publishable key"}
+                />
+                {provider === "medusa" && (
+                  <p className="text-xs text-muted-foreground">
+                    Déjalo vacío para mantener el existente.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="medusa-region-id">Region ID (opcional)</Label>
+                <Input
+                  id="medusa-region-id"
+                  value={values.regionId}
+                  onChange={(e) => setValues({ ...values, regionId: e.target.value })}
+                  placeholder="Ej: reg_XXX"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Si está vacío, se detectará automáticamente de la API.
+                </p>
               </div>
             </>
           )}

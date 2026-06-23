@@ -659,7 +659,7 @@ export const agentCatalog = sqliteTable("agent_catalog", {
   orgId: text("org_id")
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
-  provider: text("provider", { enum: ["internal", "http", "shopify"] })
+  provider: text("provider", { enum: ["internal", "http", "shopify", "medusa"] })
     .notNull()
     .default("internal"),
   credentialsEnc: text("credentials_enc"),
