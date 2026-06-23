@@ -75,13 +75,13 @@ export async function saveCalendar(db: DB, orgId: string, input: CalendarInput):
 }
 
 export type CatalogInput = {
-  provider: "internal" | "http" | "shopify";
+  provider: "internal" | "http" | "shopify" | "medusa";
   credentials: Record<string, string>;
   config: Record<string, unknown>;
 };
 
 export async function saveCatalog(db: DB, orgId: string, input: CatalogInput): Promise<void> {
-  if (!["internal", "http", "shopify"].includes(input.provider)) throw new Error("Provider inválido");
+  if (!["internal", "http", "shopify", "medusa"].includes(input.provider)) throw new Error("Provider inválido");
   // Si dejan credenciales vacías, conserva las guardadas (no re-pegar secretos).
   let credentials = input.credentials;
   if (Object.keys(credentials).length === 0) {

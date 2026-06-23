@@ -4,7 +4,7 @@ import type { DB } from "@/lib/db/client";
 import { agentCatalog } from "@/lib/db/schema";
 
 export type CatalogConfig = {
-  provider: "internal" | "http" | "shopify";
+  provider: "internal" | "http" | "shopify" | "medusa";
   credentials: Record<string, string>;
   config: Record<string, unknown>;
 };

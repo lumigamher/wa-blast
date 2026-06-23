@@ -1,11 +1,12 @@
 import type { DB } from "@/lib/db/client";
 import { makeHttpCatalog } from "./http";
 import { makeInternalCatalog } from "./internal";
+import { makeMedusaCatalog } from "./medusa";
 import { makeShopifyCatalog } from "./shopify";
 import type { CatalogProvider } from "./types";
 
 export type CatalogResolveInput = {
-  provider: "internal" | "http" | "shopify";
+  provider: "internal" | "http" | "shopify" | "medusa";
   db: DB;
   orgId: string;
   credentials: Record<string, string>;
@@ -29,6 +30,12 @@ export function getCatalogProvider(input: CatalogResolveInput): CatalogProvider 
       return makeShopifyCatalog({
         shop: String(input.config.shop ?? ""),
         storefrontToken: input.credentials.storefrontToken ?? "",
+      });
+    case "medusa":
+      return makeMedusaCatalog({
+        backendUrl: String(input.config.backendUrl ?? ""),
+        publishableKey: input.credentials.publishableKey ?? "",
+        regionId: input.config.regionId ? String(input.config.regionId) : undefined,
       });
     default:
       throw new Error(`Provider de catálogo no soportado: ${input.provider}`);

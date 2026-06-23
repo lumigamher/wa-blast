@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { AgentConfig } from "@/lib/agent/config";
+import { CURATED_MODELS } from "@/lib/agent/providers";
 import { saveAgentConfigAction } from "./actions";
 
 const PRESETS: Record<string, string> = {
@@ -28,6 +29,10 @@ export function AgentForm({ config }: { config: AgentConfig }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const initialModelIsCurated = CURATED_MODELS[
+    (config.provider as "openai" | "anthropic") ?? "openai"
+  ].some((m) => m.id === config.model);
+  const [customModel, setCustomModel] = useState(!initialModelIsCurated);
   const [values, setValues] = useState({
     enabled: config.enabled,
     name: config.name,
@@ -176,7 +181,13 @@ export function AgentForm({ config }: { config: AgentConfig }) {
                   <Label htmlFor="provider">Proveedor</Label>
                   <Select value={values.provider} onValueChange={(v) => {
                     if (v === "openai" || v === "anthropic") {
-                      setValues({ ...values, provider: v });
+                      const list = CURATED_MODELS[v];
+                      const stillValid = list.some((m) => m.id === values.model);
+                      setValues({
+                        ...values,
+                        provider: v,
+                        model: stillValid || customModel ? values.model : list[0].id,
+                      });
                     }
                   }}>
                     <SelectTrigger id="provider">
@@ -192,17 +203,37 @@ export function AgentForm({ config }: { config: AgentConfig }) {
                 {/* Model */}
                 <div className="space-y-1.5">
                   <Label htmlFor="model">Modelo</Label>
-                  <Input
-                    id="model"
-                    value={values.model}
-                    onChange={(e) => setValues({ ...values, model: e.target.value })}
-                    placeholder={values.provider === "openai" ? "gpt-5-mini" : "claude-haiku-4-5-20251001"}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {values.provider === "openai"
-                      ? "Ej: gpt-5-mini, gpt-4-turbo"
-                      : "Ej: claude-haiku-4-5-20251001, claude-opus-4-1"}
-                  </p>
+                  <Select
+                    value={customModel ? "__custom__" : values.model}
+                    onValueChange={(v) => {
+                      if (v === "__custom__") {
+                        setCustomModel(true);
+                      } else if (v) {
+                        setCustomModel(false);
+                        setValues({ ...values, model: v });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="model">
+                      <SelectValue placeholder="Selecciona un modelo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURATED_MODELS[values.provider as "openai" | "anthropic"].map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.label} · {m.cost} — {m.hint}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">Personalizado…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {customModel && (
+                    <Input
+                      className="mt-2"
+                      value={values.model}
+                      onChange={(e) => setValues({ ...values, model: e.target.value })}
+                      placeholder={values.provider === "openai" ? "gpt-5-mini" : "claude-haiku-4-5-20251001"}
+                    />
+                  )}
                 </div>
 
                 {/* Temperature */}
