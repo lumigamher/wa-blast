@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { AgentConfig } from "@/lib/agent/config";
-import { CURATED_MODELS } from "@/lib/agent/providers";
+import { CURATED_MODELS } from "@/lib/agent/providers/models";
 import { saveAgentConfigAction } from "./actions";
 
 const PRESETS: Record<string, string> = {
