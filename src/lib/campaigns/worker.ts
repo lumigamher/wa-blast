@@ -8,6 +8,7 @@ import { TokenBucket } from "./rate-limit";
 import { getOrCreateConversation, recordOutboundMessage } from "@/lib/inbox/store";
 import { listTemplates, credsFromSettings } from "@/lib/meta/graph";
 import type { ButtonSpec } from "@/lib/meta/types";
+import { saveMediaAsset, publicMediaUrl } from "@/lib/media/store";
 
 export interface SenderWorker {
   runCampaign(campaignId: string): Promise<void>;
@@ -32,6 +33,11 @@ export class InProcessSenderWorker implements SenderWorker {
 
     // Fetch template metadata once for all recipients (templates are reused)
     let templateMetadata: Record<string, { bodyText: string; buttons: ButtonSpec[]; headerType?: string }> | null = null;
+    // Plantilla ESTÁNDAR con header de media (imagen/video/doc): el plan estándar
+    // no lleva el header → Meta rechaza con 132012. Persistimos la imagen aprobada
+    // del template en el store público y armamos el componente header UNA vez por
+    // campaña (el carrusel ya maneja su propio header con headerLink).
+    let standardHeaderComponent: unknown | null = null;
     if (!camp.componentPlanJson || JSON.parse(camp.componentPlanJson).kind !== "flow") {
       try {
         const creds = credsFromSettings(settings);
@@ -43,6 +49,47 @@ export class InProcessSenderWorker implements SenderWorker {
             const bodyComp = template.components.find((c) => c.type === "BODY");
             const buttonsComp = template.components.find((c) => c.type === "BUTTONS");
             const headerComp = template.components.find((c) => c.type === "HEADER");
+
+            const planKind = camp.componentPlanJson
+              ? (JSON.parse(camp.componentPlanJson).kind as string)
+              : "standard";
+            const hdrFmt = String(headerComp?.format ?? "").toUpperCase();
+            const handle = headerComp?.example?.header_handle?.[0];
+            if (
+              planKind !== "carousel" &&
+              handle &&
+              (hdrFmt === "IMAGE" || hdrFmt === "VIDEO" || hdrFmt === "DOCUMENT")
+            ) {
+              try {
+                const r = await fetch(handle, { cache: "no-store" });
+                if (r.ok) {
+                  const bytes = await r.arrayBuffer();
+                  const mime =
+                    (r.headers.get("content-type") ?? "").split(";")[0].trim() ||
+                    (hdrFmt === "VIDEO"
+                      ? "video/mp4"
+                      : hdrFmt === "DOCUMENT"
+                        ? "application/pdf"
+                        : "image/jpeg");
+                  const asset = await saveMediaAsset(this.db, {
+                    orgId: camp.orgId,
+                    bytes,
+                    mime,
+                  });
+                  const link = publicMediaUrl(asset.id);
+                  const key =
+                    hdrFmt === "VIDEO" ? "video" : hdrFmt === "DOCUMENT" ? "document" : "image";
+                  const mediaObj: Record<string, unknown> = { link };
+                  if (key === "document") mediaObj.filename = "documento.pdf";
+                  standardHeaderComponent = {
+                    type: "header",
+                    parameters: [{ type: key, [key]: mediaObj }],
+                  };
+                }
+              } catch {
+                // best-effort: si no se puede preparar la imagen, se envía sin header
+              }
+            }
 
             const buttonSpecs: ButtonSpec[] = [];
             if (buttonsComp?.buttons) {
@@ -95,6 +142,11 @@ export class InProcessSenderWorker implements SenderWorker {
             Object.keys(params).length > 0
               ? [{ type: "body", parameters: Object.values(params).map((v) => ({ type: "text", text: v })) }]
               : [];
+        }
+        // Plantilla estándar con header de media → anteponer el header resuelto
+        // (el carrusel arma su header dentro de buildSendComponents).
+        if (standardHeaderComponent && (!plan || plan.kind === "standard")) {
+          components = [standardHeaderComponent, ...components];
         }
 
         result = await sendTemplate(settings, {
