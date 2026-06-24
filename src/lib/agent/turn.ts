@@ -16,7 +16,7 @@ import { resolveTools } from "./tools/registry";
 import type { EmbeddingProvider } from "./rag/embeddings/types";
 import { retrieveKnowledge } from "./rag";
 
-export type AgentSender = (input: { to: string; body: string }) => Promise<{ wamid: string | null }>;
+export type AgentSender = (input: { to: string; body: string; replyTo?: string }) => Promise<{ wamid: string | null }>;
 
 const HISTORY_LIMIT = 20;
 
@@ -37,6 +37,16 @@ export async function runAgentTurn(
     .where(eq(conversations.id, conversationId));
   if (!conv || conv.orgId !== orgId) return;
 
+  // Load messages and compute last inbound wamid for reply quote
+  const rows = await db
+    .select({ direction: messages.direction, body: messages.body, wamid: messages.wamid })
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(desc(messages.createdAt))
+    .limit(HISTORY_LIMIT);
+  const lastInboundMsg = rows.find((m) => m.direction === "in");
+  const lastInboundWamid = lastInboundMsg?.wamid ?? undefined;
+
   // Resolve chat provider: from deps (test injection) or from gateway (org BYO key)
   let chatProvider: LlmProvider;
   let chatModel: string;
@@ -52,7 +62,7 @@ export async function runAgentTurn(
     const resolved = await resolveChatProvider(db, orgId);
     if (!resolved.ok) {
       // No usable gateway config: send fallback message and return gracefully
-      const sent = await deps.sender({ to: deps.to, body: config.fallbackMessage });
+      const sent = await deps.sender({ to: deps.to, body: config.fallbackMessage, replyTo: lastInboundWamid });
       await recordOutboundMessage(db, {
         orgId, conversationId, wamid: sent.wamid, type: "text", body: config.fallbackMessage,
         status: sent.wamid ? "sent" : "failed",
@@ -67,12 +77,6 @@ export async function runAgentTurn(
 
   const tools = await resolveTools(db, orgId);
 
-  const rows = await db
-    .select({ direction: messages.direction, body: messages.body })
-    .from(messages)
-    .where(eq(messages.conversationId, conversationId))
-    .orderBy(desc(messages.createdAt))
-    .limit(HISTORY_LIMIT);
   const history = toLlmHistory(rows.reverse());
 
   // Auto-RAG: recupera info de los documentos de la org relevante al último mensaje del cliente.
@@ -120,13 +124,13 @@ export async function runAgentTurn(
     if (res.status === "escalated") {
       await pauseAgent(db, conversationId);
     } else if (res.status === "ok" && res.reply) {
-      const sent = await deps.sender({ to: deps.to, body: res.reply });
+      const sent = await deps.sender({ to: deps.to, body: res.reply, replyTo: lastInboundWamid });
       await recordOutboundMessage(db, {
         orgId, conversationId, wamid: sent.wamid, type: "text", body: res.reply,
         status: sent.wamid ? "sent" : "failed",
       });
     } else if (res.status === "capped") {
-      const sent = await deps.sender({ to: deps.to, body: config.fallbackMessage });
+      const sent = await deps.sender({ to: deps.to, body: config.fallbackMessage, replyTo: lastInboundWamid });
       await recordOutboundMessage(db, {
         orgId, conversationId, wamid: sent.wamid, type: "text", body: config.fallbackMessage,
         status: sent.wamid ? "sent" : "failed",
