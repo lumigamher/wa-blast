@@ -187,7 +187,7 @@ export default async function InboxPage({
                       : "border-border hover:opacity-80"
                   }`}
                   style={{
-                    backgroundColor: label === lbl.id ? lbl.color : lbl.color,
+                    backgroundColor: lbl.color,
                     opacity: label === lbl.id ? 1 : 0.6,
                   }}
                 >
