@@ -4,7 +4,7 @@ import { conversations, organization } from "@/lib/db/schema";
 import { listConversations } from "./store";
 import { createLabel, setConversationLabels } from "./labels";
 
-async function seed(db: any, orgId = "o1") {
+async function seed(db: ReturnType<typeof makeTestDb>["db"], orgId = "o1") {
   await db
     .insert(organization)
     .values({ id: orgId, name: "Org", slug: orgId, createdAt: new Date() })
