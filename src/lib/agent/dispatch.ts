@@ -7,7 +7,7 @@ import { getAgentConfig } from "./config";
 import { isPaused, setAgentTyping } from "./pause";
 import { enqueueAgentTurn } from "./queue";
 import { type AgentSender, runAgentTurn } from "./turn";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { messages } from "@/lib/db/schema";
 
 const DEBOUNCE_MS = Number(process.env.AGENT_DEBOUNCE_MS ?? 8000);
@@ -41,8 +41,8 @@ async function runRealTurn(orgId: string, conversationId: string, phone: string)
   const lastInbound = await defaultDb
     .select({ wamid: messages.wamid })
     .from(messages)
-    .where(eq(messages.conversationId, conversationId))
-    .orderBy(messages.createdAt)
+    .where(and(eq(messages.conversationId, conversationId), eq(messages.direction, "in")))
+    .orderBy(desc(messages.createdAt))
     .limit(1);
   const lastInboundWamid = lastInbound[0]?.wamid;
 
