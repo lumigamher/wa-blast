@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { isStaleActionError } from "./(app)/_stale-action";
+
 export default function GlobalError({
   error,
   reset,
@@ -7,6 +10,19 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    const msg = `${error?.message ?? ""} ${error?.digest ?? ""}`;
+    if (typeof window !== "undefined" && isStaleActionError(msg)) {
+      if (sessionStorage.getItem("sa-reloaded")) {
+        sessionStorage.removeItem("sa-reloaded");
+      } else {
+        sessionStorage.setItem("sa-reloaded", "1");
+        window.location.reload();
+        return;
+      }
+    }
+    console.error("[global-error] error:", error);
+  }, [error]);
   return (
     <html lang="es">
       <body
