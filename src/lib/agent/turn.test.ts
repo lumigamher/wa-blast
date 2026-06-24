@@ -23,7 +23,7 @@ describe("runAgentTurn", () => {
     const provider = makeFakeProvider([{ text: "¡Hola! ¿En qué te ayudo?", toolCalls: [], usage: { promptTokens: 10, completionTokens: 5 } }]);
     const sender = vi.fn(async () => ({ wamid: "out1" }));
     await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
-    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "¡Hola! ¿En qué te ayudo?" });
+    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "¡Hola! ¿En qué te ayudo?", replyTo: "w1" });
     const out = await db.select().from(messages).where(eq(messages.conversationId, "c1"));
     expect(out.some((m) => m.direction === "out" && m.body === "¡Hola! ¿En qué te ayudo?")).toBe(true);
     const runs = await db.select().from(agentRuns).where(eq(agentRuns.orgId, "o1"));
@@ -86,7 +86,7 @@ describe("runAgentTurn", () => {
     const provider = makeFakeProvider([toolCall, toolCall, toolCall]);
     const sender = vi.fn(async () => ({ wamid: "fb1" }));
     await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
-    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden" });
+    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden", replyTo: "w1" });
     const out = await db
       .select()
       .from(messages)
@@ -163,7 +163,7 @@ describe("runAgentTurn", () => {
     const sender = vi.fn(async () => ({ wamid: "fallback1" }));
     await runAgentTurn(db, "o1", "c1", { sender, to: "+57300" });
     // Debe enviar el fallback message
-    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden" });
+    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden", replyTo: "w1" });
     // Debe persistir el mensaje en la BD
     const out = await db.select().from(messages).where(eq(messages.conversationId, "c1"));
     expect(out.some((m) => m.direction === "out" && m.body === "ya te atienden")).toBe(true);

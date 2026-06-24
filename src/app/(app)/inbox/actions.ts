@@ -1,11 +1,12 @@
 "use server";
 
+import { requireModuleAccess } from "@/lib/billing/require-module";
 import { revalidatePath } from "next/cache";
 import { readFile } from "node:fs/promises";
 import { requireOrg } from "@/lib/auth/session";
 import { checkSubscriptionGate } from "@/lib/billing/gate";
 import { db } from "@/lib/db/client";
-import { getLastInboundWamid, getThread, markConversationRead, recordOutboundMessage, setConversationStatus } from "@/lib/inbox/store";
+import { getLastInboundWamid, getThread, markConversationRead, recordOutboundMessage, setConversationStatus, listConversations, } from "@/lib/inbox/store";
 import { upsertReaction } from "@/lib/inbox/reactions";
 import { isWindowOpen } from "@/lib/inbox/window";
 import { markRead, sendMedia, sendReaction, sendTemplate, sendText, uploadMedia } from "@/lib/meta/client";
@@ -16,7 +17,8 @@ import { addNote, deleteNote } from "@/lib/inbox/notes";
 import { addSticker, listStickers } from "@/lib/inbox/stickers";
 import { listTemplates, credsFromSettings } from "@/lib/meta/graph";
 import { pauseAgent, setAgentPaused } from "@/lib/agent/pause";
-import { createLabel, deleteLabel, setConversationLabels } from "@/lib/inbox/labels";
+import { getAgentConfig } from "@/lib/agent/config";
+import { createLabel, deleteLabel, setConversationLabels, listLabels, labelsByConversation } from "@/lib/inbox/labels";
 import type { ButtonSpec } from "@/lib/meta/types";
 
 export type SendResult = { ok: true } | { ok: false; error: string; windowClosed?: boolean };
@@ -518,4 +520,56 @@ export async function setConversationLabelsAction(
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Error desconocido" };
   }
+}
+
+// ============================================================================
+// getInboxData: Server action for fetching list pane data
+// ============================================================================
+
+// ============================================================================
+// getInboxData: Server action for fetching list pane data
+// ============================================================================
+
+export type Conversation = Awaited<ReturnType<typeof listConversations>>[0];
+export type Label = Awaited<ReturnType<typeof listLabels>>[0];
+
+export async function getInboxData(params: {
+  q?: string;
+  unreadOnly?: string;
+  status?: string;
+  agent?: string;
+  label?: string;
+}): Promise<{
+  conversations: (Conversation & { labels: Label[] })[];
+  allLabels: Label[];
+  agentEnabled: boolean;
+}> {
+  await requireModuleAccess("inbox");
+  const { orgId } = await requireOrg();
+
+  const agentConfig = await getAgentConfig(db, orgId);
+  const allLabels = await listLabels(db, orgId);
+
+  const conversations = await listConversations(db, orgId, {
+    q: params.q ?? undefined,
+    unreadOnly: params.unreadOnly === "true",
+    status: (params.status as "open" | "resolved" | "all" | undefined) ?? undefined,
+    agent: (params.agent as "ia" | "humano" | "all" | undefined) ?? undefined,
+    labelId: params.label ?? undefined,
+  });
+
+  const labelMap = await labelsByConversation(
+    db,
+    orgId,
+    conversations.map((c) => c.id),
+  );
+
+  return {
+    conversations: conversations.map((c) => ({
+      ...c,
+      labels: labelMap[c.id] ?? [],
+    })),
+    allLabels,
+    agentEnabled: agentConfig.enabled,
+  };
 }

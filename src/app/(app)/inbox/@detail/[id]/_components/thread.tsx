@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { messages as messagesSchema } from "@/lib/db/schema";
-import { sendReactionAction } from "../../actions";
+import { sendReactionAction } from "../../../actions";
 import { AudioPlayer } from "./audio-player";
 import { CallEntry } from "./call-entry";
 import { EmojiPicker } from "./emoji-picker";

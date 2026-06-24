@@ -264,6 +264,7 @@ export type ConversationListItem = {
   unreadCount: number;
   status: "open" | "resolved";
   agentPaused: boolean;
+  agentTypingUntil: Date | null;
 };
 
 export async function listConversations(
@@ -319,6 +320,7 @@ export async function listConversations(
       unreadCount: conversations.unreadCount,
       status: conversations.status,
       agentPaused: conversations.agentPaused,
+      agentTypingUntil: conversations.agentTypingUntil,
       preview: sql<
         string | null
       >`(SELECT ${messages.body} FROM ${messages} WHERE ${messages.conversationId} = ${conversations.id} ORDER BY ${messages.createdAt} DESC LIMIT 1)`,

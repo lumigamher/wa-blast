@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { StickerIcon, PlusIcon } from "lucide-react";
-import { addStickerAction, sendStickerAction } from "../../actions";
+import { addStickerAction, sendStickerAction } from "../../../actions";
 
 type Sticker = { id: string; assetId: string };
 

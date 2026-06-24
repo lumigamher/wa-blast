@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { markReadAction } from "../../actions";
+import { markReadAction } from "../../../actions";
 
 export function MarkReadOnOpen({ conversationId }: { conversationId: string }) {
   useEffect(() => {

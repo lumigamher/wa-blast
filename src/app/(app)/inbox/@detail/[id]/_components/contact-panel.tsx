@@ -8,9 +8,9 @@ import {
   MessageCircleIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { deleteNoteAction } from "../../actions";
+import { deleteNoteAction } from "../../../actions";
 import { ContactAvatar } from "./contact-avatar";
-import { CallButton } from "../../../_components/call-button";
+import { CallButton } from "@/app/(app)/_components/call-button";
 
 type Note = {
   id: string;

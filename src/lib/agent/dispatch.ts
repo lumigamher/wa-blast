@@ -1,14 +1,16 @@
-import { sendText } from "@/lib/meta/client";
+import { sendText, markRead } from "@/lib/meta/client";
 import { credsFromSettings } from "@/lib/meta/graph";
 import { db as defaultDb } from "@/lib/db/client";
 import type { DB } from "@/lib/db/client";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getAgentConfig } from "./config";
-import { isPaused } from "./pause";
+import { isPaused, setAgentTyping } from "./pause";
 import { enqueueAgentTurn } from "./queue";
 import { type AgentSender, runAgentTurn } from "./turn";
+import { and, desc, eq } from "drizzle-orm";
+import { messages } from "@/lib/db/schema";
 
-const DEBOUNCE_MS = 6000;
+const DEBOUNCE_MS = Number(process.env.AGENT_DEBOUNCE_MS ?? 8000);
 
 type EnqueueFn = (id: string, runner: () => Promise<void>, delayMs: number) => void;
 
@@ -29,13 +31,36 @@ export async function maybeDispatchAgentTurn(
 async function runRealTurn(orgId: string, conversationId: string, phone: string): Promise<void> {
   const settings = await getOrgSettings(defaultDb, orgId);
   const creds = credsFromSettings(settings);
-  const sender: AgentSender = async ({ to, body }) => {
+  const sender: AgentSender = async ({ to, body, replyTo }) => {
     if (!creds) return { wamid: null };
-    const res = await sendText(settings, { to, body });
+    const res = await sendText(settings, { to, body, replyTo });
     return { wamid: "wamid" in res ? res.wamid : null };
   };
-  await runAgentTurn(defaultDb, orgId, conversationId, {
-    sender,
-    to: phone,
-  });
+
+  // Query last inbound wamid for typing indicator
+  const lastInbound = await defaultDb
+    .select({ wamid: messages.wamid })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conversationId), eq(messages.direction, "in")))
+    .orderBy(desc(messages.createdAt))
+    .limit(1);
+  const lastInboundWamid = lastInbound[0]?.wamid;
+
+  // Send typing indicator
+  if (lastInboundWamid && creds) {
+    await markRead(settings, { wamid: lastInboundWamid, typing: true }).catch(() => {});
+  }
+
+  // Set typing expiration
+  await setAgentTyping(defaultDb, conversationId, new Date(Date.now() + 30_000)).catch(() => {});
+
+  try {
+    await runAgentTurn(defaultDb, orgId, conversationId, {
+      sender,
+      to: phone,
+    });
+  } finally {
+    // Clear typing on success or error
+    await setAgentTyping(defaultDb, conversationId, null).catch(() => {});
+  }
 }

@@ -28,3 +28,7 @@ export async function setAgentPaused(
     .set({ agentPaused: paused })
     .where(and(eq(conversations.id, conversationId), eq(conversations.orgId, orgId)));
 }
+
+export async function setAgentTyping(db: DB, conversationId: string, until: Date | null): Promise<void> {
+  await db.update(conversations).set({ agentTypingUntil: until }).where(eq(conversations.id, conversationId));
+}

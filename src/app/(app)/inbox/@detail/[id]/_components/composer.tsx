@@ -9,7 +9,7 @@ import {
   sendMediaAction,
   sendMessageAction,
   sendVoiceAction,
-} from "../../actions";
+} from "../../../actions";
 import { EmojiPicker } from "./emoji-picker";
 import { StickerPicker } from "./sticker-picker";
 import type { ReplyTarget } from "./thread";
@@ -132,7 +132,7 @@ export function Composer({
       return err;
     }
     setIsTemplatePending(true);
-    const { sendTemplateToConversationAction } = await import("../../actions");
+    const { sendTemplateToConversationAction } = await import("../../../actions");
     const result = await sendTemplateToConversationAction(conversationId, {
       templateName: selectedTemplate.name,
       language: selectedTemplate.language,
