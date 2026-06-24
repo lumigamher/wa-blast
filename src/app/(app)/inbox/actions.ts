@@ -15,7 +15,8 @@ import { toOggOpus, toWebpSticker } from "@/lib/media/transcode";
 import { addNote, deleteNote } from "@/lib/inbox/notes";
 import { addSticker, listStickers } from "@/lib/inbox/stickers";
 import { listTemplates, credsFromSettings } from "@/lib/meta/graph";
-import { pauseAgent } from "@/lib/agent/pause";
+import { pauseAgent, setAgentPaused } from "@/lib/agent/pause";
+import { createLabel, deleteLabel, setConversationLabels } from "@/lib/inbox/labels";
 import type { ButtonSpec } from "@/lib/meta/types";
 
 export type SendResult = { ok: true } | { ok: false; error: string; windowClosed?: boolean };
@@ -462,4 +463,59 @@ export async function resolveConversationAction(conversationId: string, resolved
   await setConversationStatus(db, orgId, conversationId, resolved ? "resolved" : "open");
   revalidatePath(`/inbox/${conversationId}`);
   revalidatePath(`/inbox`);
+}
+
+export async function setAgentPausedAction(
+  conversationId: string,
+  paused: boolean,
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await setAgentPaused(db, orgId, conversationId, paused);
+    revalidatePath(`/inbox/${conversationId}`);
+    revalidatePath(`/inbox`);
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error desconocido" };
+  }
+}
+
+export async function createLabelAction(input: {
+  name: string;
+  color: string;
+}): Promise<{ ok: true; id: string } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    const id = await createLabel(db, orgId, input);
+    revalidatePath(`/inbox`);
+    return { ok: true, id };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error desconocido" };
+  }
+}
+
+export async function deleteLabelAction(id: string): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await deleteLabel(db, orgId, id);
+    revalidatePath(`/inbox`);
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error desconocido" };
+  }
+}
+
+export async function setConversationLabelsAction(
+  conversationId: string,
+  labelIds: string[],
+): Promise<{ ok: true } | { error: string }> {
+  const { orgId } = await requireOrg();
+  try {
+    await setConversationLabels(db, orgId, conversationId, labelIds);
+    revalidatePath(`/inbox`);
+    revalidatePath(`/inbox/${conversationId}`);
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Error desconocido" };
+  }
 }
