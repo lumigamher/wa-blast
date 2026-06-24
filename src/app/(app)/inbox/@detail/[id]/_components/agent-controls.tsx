@@ -33,26 +33,19 @@ export function AgentControls({
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        size="icon"
-        variant="ghost"
-        onClick={handleToggle}
-        disabled={isPending}
-        className={`h-9 w-9 ${agentPaused ? "text-amber-600 dark:text-amber-400" : ""}`}
-        title={agentPaused ? "Retomar IA" : "Pausar IA"}
-      >
-        {agentPaused ? (
-          <Play className="size-4" />
-        ) : (
-          <Pause className="size-4" />
-        )}
-      </Button>
-      {agentPaused && (
-        <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-          IA en pausa
-        </span>
+    <Button
+      size="icon"
+      variant="ghost"
+      onClick={handleToggle}
+      disabled={isPending}
+      className={`h-9 w-9 ${agentPaused ? "text-amber-600 dark:text-amber-400" : ""}`}
+      title={agentPaused ? "Retomar IA · IA en pausa" : "Pausar IA"}
+    >
+      {agentPaused ? (
+        <Play className="size-4" />
+      ) : (
+        <Pause className="size-4" />
       )}
-    </div>
+    </Button>
   );
 }
