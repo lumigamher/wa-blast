@@ -130,7 +130,7 @@ export function ConversationListPane() {
 
   if (!data) {
     return (
-      <div className="flex min-h-0 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
         <div className="h-10 bg-muted rounded animate-pulse" />
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
@@ -188,7 +188,7 @@ export function ConversationListPane() {
   };
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
       {/* Search */}
       <form className="relative" onSubmit={(e) => {
         e.preventDefault();

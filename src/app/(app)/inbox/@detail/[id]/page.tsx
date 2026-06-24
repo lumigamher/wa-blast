@@ -79,7 +79,7 @@ export default async function InboxThreadPage({
   const windowOpen = isWindowOpen(thread.conversation.lastIncomingAt);
 
   return (
-    <div className="relative flex min-h-0 flex-col border rounded-lg bg-card overflow-hidden w-full">
+    <div className="relative flex flex-1 min-h-0 flex-col border rounded-lg bg-card overflow-hidden m-3">
       {/* Header */}
       <div className="px-4 py-3 border-b bg-card space-y-3">
         <div className="flex items-center justify-between">
