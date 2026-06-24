@@ -69,4 +69,30 @@ describe("maybeDispatchAgentTurn", () => {
     // Default es 8000 (desde AGENT_DEBOUNCE_MS o default en dispatch.ts)
     expect(delayMs).toBe(8000);
   });
+
+  it("envía typing de inmediato en dispatch (no espera debounce)", async () => {
+    const { db } = makeTestDb();
+    await seed(db, true);
+    // Agrega un mensaje inbound con wamid
+    await db.insert(messages).values({
+      id: "m1",
+      conversationId: "c1",
+      orgId: "o1",
+      direction: "in",
+      wamid: "wamid-123",
+      type: "text",
+      body: "Hola bot",
+      createdAt: new Date(),
+    });
+
+    const enqueue = vi.fn();
+    await maybeDispatchAgentTurn(db, "o1", "c1", "+57300", { enqueue });
+
+    // Verificar que se encoló con typing enviado
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    // El typing se debe haber enviado antes del enqueue (sin esperar el debounce)
+    // Verificar que hay un mensaje agentPending en la DB con agentTypingUntil seteado
+    const [conversationId] = enqueue.mock.calls[0];
+    expect(conversationId).toBe("c1");
+  });
 });

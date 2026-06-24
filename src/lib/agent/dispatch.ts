@@ -24,6 +24,25 @@ export async function maybeDispatchAgentTurn(
   const config = await getAgentConfig(db, orgId);
   if (!config.enabled) return;
   if (await isPaused(db, conversationId)) return;
+
+  // Mostrar "escribiendo…" de inmediato (cubre el debounce + el turno).
+  try {
+    const settings = await getOrgSettings(db, orgId);
+    const creds = credsFromSettings(settings);
+    const lastInbound = await db
+      .select({ wamid: messages.wamid })
+      .from(messages)
+      .where(and(eq(messages.conversationId, conversationId), eq(messages.direction, "in")))
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+    if (lastInbound[0]?.wamid && creds) {
+      await markRead(settings, { wamid: lastInbound[0].wamid, typing: true }).catch(() => {});
+    }
+    await setAgentTyping(db, conversationId, new Date(Date.now() + 30_000)).catch(() => {});
+  } catch {
+    // No romper el dispatch si falla el typing inicial
+  }
+
   const enqueue = deps?.enqueue ?? enqueueAgentTurn;
   enqueue(conversationId, () => runRealTurn(orgId, conversationId, phone), DEBOUNCE_MS);
 }
