@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { TriangleAlertIcon } from "lucide-react";
+import { isStaleActionError } from "./_stale-action";
 
 export default function Error({
   error,
@@ -12,6 +13,16 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    const msg = `${error?.message ?? ""} ${error?.digest ?? ""}`;
+    if (typeof window !== "undefined" && isStaleActionError(msg)) {
+      if (sessionStorage.getItem("sa-reloaded")) {
+        sessionStorage.removeItem("sa-reloaded"); // segundo fallo seguido: no insistir, resetea para el próximo deploy
+      } else {
+        sessionStorage.setItem("sa-reloaded", "1");
+        window.location.reload();
+        return;
+      }
+    }
     console.error("[app-error] error:", error);
   }, [error]);
 

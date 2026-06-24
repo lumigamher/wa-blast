@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, gt, like, or, type SQL, sql } from "drizzle-orm";
 import { getCallsForConversation } from "@/lib/calls/store";
 import type { DB } from "@/lib/db/client";
-import { contacts, conversations, messages } from "@/lib/db/schema";
+import {
+  contacts,
+  conversations,
+  conversationLabelLinks,
+  messages,
+} from "@/lib/db/schema";
 import { recordFlowResponse } from "@/lib/flows/responses";
 import { listNotes } from "@/lib/inbox/notes";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
@@ -258,6 +263,7 @@ export type ConversationListItem = {
   lastIncomingAt: Date | null;
   unreadCount: number;
   status: "open" | "resolved";
+  agentPaused: boolean;
 };
 
 export async function listConversations(
@@ -267,7 +273,9 @@ export async function listConversations(
     q?: string;
     unreadOnly?: boolean;
     status?: "open" | "resolved" | "all";
-  },
+    agent?: "ia" | "humano" | "all";
+    labelId?: string;
+  } = {},
 ): Promise<ConversationListItem[]> {
   const conditions: SQL<unknown>[] = [eq(conversations.orgId, orgId)];
 
@@ -291,6 +299,16 @@ export async function listConversations(
     }
   }
 
+  if (opts.agent === "ia") conditions.push(eq(conversations.agentPaused, false));
+  if (opts.agent === "humano")
+    conditions.push(eq(conversations.agentPaused, true));
+
+  if (opts.labelId) {
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${conversationLabelLinks} WHERE ${conversationLabelLinks.conversationId} = ${conversations.id} AND ${conversationLabelLinks.labelId} = ${opts.labelId})`,
+    );
+  }
+
   return db
     .select({
       id: conversations.id,
@@ -300,6 +318,7 @@ export async function listConversations(
       lastIncomingAt: conversations.lastIncomingAt,
       unreadCount: conversations.unreadCount,
       status: conversations.status,
+      agentPaused: conversations.agentPaused,
       preview: sql<
         string | null
       >`(SELECT ${messages.body} FROM ${messages} WHERE ${messages.conversationId} = ${conversations.id} ORDER BY ${messages.createdAt} DESC LIMIT 1)`,
