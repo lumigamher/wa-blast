@@ -416,6 +416,7 @@ export const conversations = sqliteTable(
     agentPaused: integer("agent_paused", { mode: "boolean" })
       .notNull()
       .default(false),
+    agentTypingUntil: integer("agent_typing_until", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (t) => ({
@@ -791,3 +792,15 @@ export const conversationLabelLinks = sqliteTable(
   },
   (t) => ({ pk: primaryKey({ columns: [t.conversationId, t.labelId] }) }),
 );
+
+export const agentMediaLibrary = sqliteTable("agent_media_library", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["image", "video", "document"] }).notNull(),
+  mediaAssetId: text("media_asset_id").notNull(),
+  label: text("label").notNull(),
+  productId: text("product_id"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
