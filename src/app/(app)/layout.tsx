@@ -31,6 +31,7 @@ import { getOrgAccess } from "@/lib/billing/access";
 import { db } from "@/lib/db/client";
 import { CallPanel } from "./_components/call-panel";
 import { NavGroup, NavLink, NavSection } from "./_components/nav-link";
+import { AppContent } from "./_components/app-content";
 
 type NavItem = {
   href: string;
@@ -202,11 +203,7 @@ export default async function AppLayout({
       </aside>
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-6 py-8 md:px-10 md:py-10 animate-in fade-in-0 slide-in-from-bottom-1 duration-300">
-            {children}
-          </div>
-        </div>
+        <AppContent>{children}</AppContent>
       </main>
       <CallPanel />
       <Toaster richColors position="top-right" />

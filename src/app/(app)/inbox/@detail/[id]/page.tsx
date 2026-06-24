@@ -131,6 +131,13 @@ export default async function InboxThreadPage({
                 {windowOpen ? "Ventana abierta" : "Ventana cerrada"}
               </span>
             </div>
+            {agentConfig.enabled && (
+              <AgentControls
+                conversationId={conversationId}
+                agentEnabled={agentConfig.enabled}
+                agentPaused={thread.conversation.agentPaused}
+              />
+            )}
             <ResolveButton
               conversationId={conversationId}
               resolved={thread.conversation.status === "resolved"}
@@ -163,14 +170,6 @@ export default async function InboxThreadPage({
           </div>
         </div>
 
-        {/* Agent Controls */}
-        {agentConfig.enabled && (
-          <AgentControls
-            conversationId={conversationId}
-            agentEnabled={agentConfig.enabled}
-            agentPaused={thread.conversation.agentPaused}
-          />
-        )}
       </div>
 
       {/* Messages and Composer */}
