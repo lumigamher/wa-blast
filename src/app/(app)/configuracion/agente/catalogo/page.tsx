@@ -4,8 +4,10 @@ import { getCatalogConfig } from "@/lib/agent/integrations/catalog/config";
 import { listProducts, countProducts } from "@/lib/agent/admin";
 import { listVariants } from "@/lib/agent/catalog/variants";
 import { listImages, imageUrl } from "@/lib/agent/catalog/images";
+import { listMedia } from "@/lib/agent/media-library";
 import { AgentCatalog } from "../_catalog";
 import { AgentProducts } from "../_products";
+import { MediaLibrary } from "../_media-library";
 
 export const dynamic = "force-dynamic";
 
@@ -45,9 +47,12 @@ export default async function CatalogoPage({
     }),
   );
 
+  const mediaItems = await listMedia(db, orgId);
+
   return (
     <div className="space-y-6">
       <AgentCatalog provider={catalogConfig?.provider ?? "internal"} config={catalogConfig?.config ?? {}} />
+      <MediaLibrary items={mediaItems} />
       {isInternal && (
         <AgentProducts
           items={productList}
