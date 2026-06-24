@@ -1,5 +1,4 @@
 import { requireModuleAccess } from "@/lib/billing/require-module";
-import { Check } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
@@ -22,6 +21,7 @@ import { ContactAvatar } from "./_components/contact-avatar";
 import { ContactInfoToggle } from "./_components/contact-panel";
 import { ConversationSearch } from "./_components/conversation-search";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";
+import { MobileBackButton } from "./_components/mobile-back-button";
 import { ResolveButton } from "./_components/resolve-button";
 import { ThreadAndComposer } from "./_components/thread-and-composer";
 import { AgentBadge } from "../../_components/agent-badge";
@@ -84,6 +84,7 @@ export default async function InboxThreadPage({
       <div className="px-4 py-3 border-b bg-card space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <MobileBackButton />
             <ContactAvatar
               seed={thread.conversation.phone}
               name={thread.contact?.name}
@@ -111,7 +112,7 @@ export default async function InboxThreadPage({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+          <div className="hidden md:flex items-center gap-2 ml-2 flex-shrink-0">
             <ConversationSearch />
             <div className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs whitespace-nowrap">
               <span
@@ -138,6 +139,19 @@ export default async function InboxThreadPage({
               conversationId={conversationId}
               allLabels={allLabels}
               currentLabelIds={currentLabels.map((l) => l.id)}
+            />
+            <ContactInfoToggle
+              conversationId={conversationId}
+              contact={thread.contact}
+              contactId={thread.contact?.id ?? null}
+              phone={thread.conversation.phone}
+              notes={contactPanelNotes}
+            />
+          </div>
+          <div className="md:hidden flex items-center gap-2 ml-2 flex-shrink-0">
+            <ResolveButton
+              conversationId={conversationId}
+              resolved={thread.conversation.status === "resolved"}
             />
             <ContactInfoToggle
               conversationId={conversationId}

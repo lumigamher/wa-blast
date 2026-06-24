@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getInboxData } from "@/app/(app)/inbox/actions";
-import { ContactAvatar } from "@/app/(app)/inbox/[id]/_components/contact-avatar";
+import { ContactAvatar } from "@/app/(app)/inbox/@detail/[id]/_components/contact-avatar";
 import { AgentBadge } from "@/app/(app)/inbox/_components/agent-badge";
 import { LabelChips } from "@/app/(app)/inbox/_components/label-chips";
 
