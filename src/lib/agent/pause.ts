@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { conversations } from "@/lib/db/schema";
 
@@ -15,4 +15,16 @@ export async function isPaused(db: DB, conversationId: string): Promise<boolean>
     await db.select({ paused: conversations.agentPaused }).from(conversations).where(eq(conversations.id, conversationId))
   )[0];
   return row?.paused ?? false;
+}
+
+export async function setAgentPaused(
+  db: DB,
+  orgId: string,
+  conversationId: string,
+  paused: boolean,
+): Promise<void> {
+  await db
+    .update(conversations)
+    .set({ agentPaused: paused })
+    .where(and(eq(conversations.id, conversationId), eq(conversations.orgId, orgId)));
 }
