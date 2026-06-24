@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import { conversations, organization } from "@/lib/db/schema";
 import { listConversations } from "./store";
 import { createLabel, setConversationLabels } from "./labels";
+import { setAgentTyping } from "@/lib/agent/pause";
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"], orgId = "o1") {
   await db
@@ -75,5 +77,31 @@ describe("inbox store", () => {
     const withLabel = await listConversations(db, "o1", { labelId });
     expect(withLabel.map((c) => c.id)).toContain(c_ia);
     expect(withLabel.map((c) => c.id)).not.toContain(c_hum);
+  });
+
+  it("listConversations retorna agentTypingUntil", async () => {
+    const { db } = makeTestDb();
+    const { c_ia } = await seed(db);
+
+    // Sin typing: null
+    const listBefore = await listConversations(db, "o1", {});
+    const convBefore = listBefore.find((c) => c.id === c_ia);
+    expect(convBefore?.agentTypingUntil).toBeNull();
+
+    // Setea typing
+    const futureDate = new Date(Date.now() + 30_000);
+    await setAgentTyping(db, c_ia, futureDate);
+
+    // Verifica que listConversations lo retorna
+    const listAfter = await listConversations(db, "o1", {});
+    const convAfter = listAfter.find((c) => c.id === c_ia);
+    expect(convAfter?.agentTypingUntil).toBeDefined();
+    expect(convAfter?.agentTypingUntil?.getTime()).toBeLessThanOrEqual(futureDate.getTime());
+
+    // Limpia typing
+    await setAgentTyping(db, c_ia, null);
+    const listCleared = await listConversations(db, "o1", {});
+    const convCleared = listCleared.find((c) => c.id === c_ia);
+    expect(convCleared?.agentTypingUntil).toBeNull();
   });
 });
