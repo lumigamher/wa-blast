@@ -768,3 +768,26 @@ export const documentChunks = sqliteTable(
   },
   (t) => ({ orgIdx: index("document_chunks_org_idx").on(t.orgId) }),
 );
+
+export const conversationLabels = sqliteTable("conversation_labels", {
+  id: text("id").primaryKey(),
+  orgId: text("org_id")
+    .notNull()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  color: text("color").notNull().default("#6366f1"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
+export const conversationLabelLinks = sqliteTable(
+  "conversation_label_links",
+  {
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    labelId: text("label_id")
+      .notNull()
+      .references(() => conversationLabels.id, { onDelete: "cascade" }),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.conversationId, t.labelId] }) }),
+);
