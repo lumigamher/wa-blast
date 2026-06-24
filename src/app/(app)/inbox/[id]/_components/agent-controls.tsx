@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { AlertCircleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { setAgentPausedAction } from "@/app/(app)/inbox/actions";
@@ -25,6 +26,8 @@ export function AgentControls({
       const result = await setAgentPausedAction(conversationId, !agentPaused);
       if ("ok" in result && result.ok) {
         router.refresh();
+      } else if ("error" in result) {
+        toast.error(result.error || "No se pudo cambiar el estado de la IA");
       }
     });
   };

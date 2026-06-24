@@ -294,13 +294,11 @@ export default async function InboxThreadPage({
                   conversationId={conversationId}
                   resolved={thread.conversation.status === "resolved"}
                 />
-                {allLabels.length > 0 && (
-                  <LabelPopover
-                    conversationId={conversationId}
-                    allLabels={allLabels}
-                    currentLabelIds={currentLabels.map((l) => l.id)}
-                  />
-                )}
+                <LabelPopover
+                  conversationId={conversationId}
+                  allLabels={allLabels}
+                  currentLabelIds={currentLabels.map((l) => l.id)}
+                />
                 <ContactInfoToggle
                   conversationId={conversationId}
                   contact={thread.contact}

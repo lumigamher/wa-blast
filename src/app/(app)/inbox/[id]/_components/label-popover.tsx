@@ -2,6 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { TagsIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,8 @@ export function LabelPopover({
       if ("ok" in result && result.ok) {
         setOpen(false);
         router.refresh();
+      } else if ("error" in result) {
+        toast.error(result.error || "No se pudo guardar las etiquetas");
       }
     });
   };
@@ -70,6 +73,8 @@ export function LabelPopover({
         setNewLabelColor(COLOR_PRESETS[0]!);
         setShowNewLabel(false);
         router.refresh();
+      } else if ("error" in result) {
+        toast.error(result.error || "No se pudo crear la etiqueta");
       }
     });
   };
