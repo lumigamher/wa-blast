@@ -17,13 +17,13 @@ describe("crear_pedido", () => {
     if (r.ok) {
       const data = r.data as {
         orderId: string;
-        numeroCorto: string;
+        numero: number;
         items: Array<{ nombre: string; cantidad: number; subtotalCop: number; variante?: string }>;
         totalCop: number;
         siguientePaso: string;
       };
       expect(data.totalCop).toBe(5000);
-      expect(data.numeroCorto).toMatch(/^[A-F0-9]{6}$/);
+      expect(data.numero).toBe(1);
       expect(data.items).toHaveLength(1);
       expect(data.items[0]).toEqual({
         nombre: "Cerveza",
