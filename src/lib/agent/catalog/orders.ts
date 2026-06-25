@@ -37,6 +37,7 @@ export type ResolvedOrderItem = {
   subtotal: number;
   variantId?: string;
   variantLabel?: string;
+  imageUrl?: string;
 };
 
 export type CreateOrderResult = {
@@ -85,6 +86,7 @@ export async function createOrder(
     }
 
     const subtotal = precioUnitario * item.cantidad;
+    const imageUrl = product.images?.[0]?.url;
     resolvedItems.push({
       productId: product.id,
       nombre: product.name,
@@ -92,6 +94,7 @@ export async function createOrder(
       cantidad: item.cantidad,
       subtotal,
       ...(variantId ? { variantId, variantLabel } : {}),
+      ...(imageUrl ? { imageUrl } : {}),
     });
     totalCop += subtotal;
   }

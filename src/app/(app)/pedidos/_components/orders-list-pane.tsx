@@ -4,6 +4,9 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { SearchIcon } from "lucide-react";
 import { FilterDialog } from "@/app/(app)/_components/filter-dialog";
 import { getOrdersData } from "../actions";
 import type { OrderListItem, OrderStatus } from "@/lib/agent/catalog/orders";
@@ -17,11 +20,41 @@ const STATUSES: Array<{ value: OrderStatus | ""; label: string }> = [
 ];
 
 const STATUS_CLS: Record<string, string> = {
-  pendiente: "text-amber-600",
-  confirmado: "text-blue-600",
-  pagado: "text-emerald-600",
-  cancelado: "text-red-600",
+  pendiente: "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800",
+  confirmado: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800",
+  pagado: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950 dark:border-emerald-800",
+  cancelado: "text-red-600 bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800",
 };
+
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const intervals = {
+    year: 31536000,
+    month: 2592000,
+    week: 604800,
+    day: 86400,
+    hour: 3600,
+    minute: 60,
+  };
+
+  for (const [key, secondsInUnit] of Object.entries(intervals)) {
+    const interval = Math.floor(seconds / secondsInUnit);
+    if (interval >= 1) {
+      if (interval === 1) return `Hace 1 ${key}`;
+      if (
+        key === "year" ||
+        key === "month" ||
+        key === "week" ||
+        key === "day"
+      ) {
+        return `Hace ${interval} ${key}s`;
+      }
+      return `Hace ${interval} ${key}s`;
+    }
+  }
+  return "Hace unos segundos";
+}
 
 export function OrdersListPane() {
   const searchParams = useSearchParams();
@@ -31,6 +64,7 @@ export function OrdersListPane() {
 
   const currentStatus = (searchParams.get("status") ?? "") as OrderStatus | "";
   const currentPage = parseInt(searchParams.get("page") ?? "1", 10);
+  const q = searchParams.get("q") ?? undefined;
 
   const [data, setData] = useState<{ orders: OrderListItem[]; total: number; page: number; pageSize: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,8 +137,28 @@ export function OrdersListPane() {
   const activeFilterCount = currentStatus ? 1 : 0;
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      <div className="flex-0 space-y-3 border-b p-4 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+      {/* Search */}
+      <form className="relative" onSubmit={(e) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
+        const newQ = (formData.get("q") as string) || undefined;
+        const params = new URLSearchParams();
+        if (newQ) params.set("q", newQ);
+        if (currentStatus) params.set("status", currentStatus);
+        router.replace(`/pedidos${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+      }}>
+        <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Buscar…"
+          className="pl-8"
+        />
+      </form>
+
+      {/* Filters Button */}
+      <div className="flex gap-2">
         <FilterDialog
           activeCount={activeFilterCount}
           onOpen={handleFilterOpen}
@@ -114,7 +168,7 @@ export function OrdersListPane() {
           {/* Estado */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Estado</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {STATUSES.map((s) => (
                 <button
                   key={s.value || "todos"}
@@ -133,73 +187,97 @@ export function OrdersListPane() {
         </FilterDialog>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="p-4 space-y-4">
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">
-              {total} pedido{total !== 1 ? "s" : ""} · Página {currentPage} de {totalPages}
-            </p>
+      {/* Orders List */}
+      <div className="space-y-1 flex-1 overflow-y-auto min-h-0">
+        {isLoading && (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-muted rounded animate-pulse" />
+            ))}
           </div>
+        )}
 
-          {isLoading && <p className="text-xs text-muted-foreground">Cargando...</p>}
+        {!isLoading && orders.length === 0 && (
+          <Card className="p-3">
+            <p className="text-xs text-muted-foreground text-center">
+              {q ? "No hay pedidos" : "Tu lista de pedidos está vacía"}
+            </p>
+          </Card>
+        )}
 
-          {!isLoading && orders.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No hay pedidos.</p>}
-
-          {!isLoading && orders.length > 0 && (
-            <div className="space-y-2">
+        {!isLoading && orders.length > 0 && (
+          <>
+            <div className="px-1 py-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {total} pedido{total !== 1 ? "s" : ""} · Página {currentPage} de {totalPages}
+              </p>
+            </div>
+            <div className="space-y-1">
               {orders.map((o) => {
                 const qs = searchParams.toString();
+                const isActive = openOrderId === o.id;
+
                 return (
-                <Link
-                  key={o.id}
-                  href={`/pedidos/${o.id}${qs ? `?${qs}` : ""}`}
-                  className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors cursor-pointer ${
-                    openOrderId === o.id
-                      ? "border-primary bg-accent"
-                      : "border-border hover:bg-muted/50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-medium truncate">{o.contactName || o.phone || "Sin cliente"}</span>
-                    <span className="text-xs font-mono whitespace-nowrap">#{o.numero ?? "—"}</span>
-                  </div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={STATUS_CLS[o.status] ?? ""}>
-                        {o.status}
-                      </Badge>
-                      {o.dispatchedAt && <Badge variant="outline" className="text-emerald-600">Despachado</Badge>}
+                  <Link
+                    key={o.id}
+                    href={`/pedidos/${o.id}${qs ? `?${qs}` : ""}`}
+                    scroll={false}
+                    className={`block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors group ${
+                      isActive ? "bg-accent border-primary" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <div className="text-sm font-medium truncate">
+                            {o.contactName || o.phone || "Sin cliente"}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          Pedido #{o.numero ?? "—"} · {o.shippingCity || "—"}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="text-right">
+                          <div className="text-xs font-medium">{fmt(o.totalCop)}</div>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] mt-0.5 ${STATUS_CLS[o.status] ?? ""}`}
+                          >
+                            {o.status}
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-xs font-mono whitespace-nowrap">{fmt(o.totalCop)}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {o.shippingCity ? `${o.shippingCity} · ` : ""}{new Date(o.createdAt).toLocaleDateString("es-CO")}
-                  </p>
-                </Link>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      {formatRelativeTime(o.createdAt)}
+                      {o.dispatchedAt && <span className="ml-2 font-medium text-emerald-600">Despachado</span>}
+                    </div>
+                  </Link>
                 );
               })}
             </div>
-          )}
+          </>
+        )}
 
-          {!isLoading && total > pageSize && (
-            <div className="flex items-center justify-between gap-2 pt-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage <= 1 || isPending}
-                className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Anterior
-              </button>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage >= totalPages || isPending}
-                className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
-        </div>
+        {!isLoading && total > pageSize && (
+          <div className="flex items-center justify-between gap-2 pt-4">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1 || isPending}
+              className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages || isPending}
+              className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
