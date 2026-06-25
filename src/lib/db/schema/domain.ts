@@ -616,6 +616,7 @@ export const orders = sqliteTable(
     }),
     itemsJson: text("items_json").notNull().default("[]"),
     totalCop: integer("total_cop").notNull().default(0),
+    numero: integer("numero"),
     status: text("status", {
       enum: ["pendiente", "confirmado", "pagado", "cancelado"],
     })

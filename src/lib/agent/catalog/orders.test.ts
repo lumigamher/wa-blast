@@ -25,6 +25,45 @@ const fakeProvider: CatalogProvider = {
 };
 
 describe("createOrder", () => {
+  it("reusa el pedido pendiente en vez de duplicar", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(conversations).values({ id: "cv1", orgId: "o1", phone: "57300", lastMessageAt: new Date(), createdAt: new Date() });
+
+    // Primer pedido: crea con numero 1, status pendiente
+    const r1 = await createOrder(db, { orgId: "o1", conversationId: "cv1", items: [{ productId: "p1", cantidad: 1 }] }, fakeProvider);
+    expect(r1.numero).toBe(1);
+    expect(r1.totalCop).toBe(2500);
+
+    // Segundo pedido (misma conversación, sigue pendiente): actualiza el mismo
+    const r2 = await createOrder(db, { orgId: "o1", conversationId: "cv1", items: [{ productId: "p1", cantidad: 3 }] }, fakeProvider);
+    expect(r2.orderId).toBe(r1.orderId);
+    expect(r2.numero).toBe(r1.numero);
+    expect(r2.totalCop).toBe(7500); // 3 × 2500
+
+    const all = await listOrders(db, "o1", {});
+    expect(all.length).toBe(1);
+    expect(all[0].totalCop).toBe(r2.totalCop); // refleja la 2da (3 unidades)
+  });
+
+  it("crea pedido nuevo (numero+1) si el último ya no está pendiente", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(conversations).values({ id: "cv1", orgId: "o1", phone: "57300", lastMessageAt: new Date(), createdAt: new Date() });
+
+    const r1 = await createOrder(db, { orgId: "o1", conversationId: "cv1", items: [{ productId: "p1", cantidad: 1 }] }, fakeProvider);
+    expect(r1.numero).toBe(1);
+
+    // Cambiar estado a pagado
+    await updateOrderStatus(db, "o1", r1.orderId, "pagado");
+
+    // Nuevo pedido: debe ser diferente, numero=2
+    const r2 = await createOrder(db, { orgId: "o1", conversationId: "cv1", items: [{ productId: "p1", cantidad: 1 }] }, fakeProvider);
+    expect(r2.orderId).not.toBe(r1.orderId);
+    expect(r2.numero).toBe((r1.numero ?? 0) + 1);
+    expect(r2.numero).toBe(2);
+  });
+
   it("resuelve productos, congela precios y crea el pedido", async () => {
     const { db } = makeTestDb();
     await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });

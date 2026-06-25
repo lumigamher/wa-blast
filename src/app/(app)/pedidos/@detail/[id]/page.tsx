@@ -32,6 +32,7 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
   return (
     <OrderDetail
       id={order.id}
+      numero={order.numero}
       status={order.status}
       dispatched={!!order.dispatchedAt}
       totalCop={order.totalCop}
