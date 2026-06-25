@@ -7,7 +7,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { updateOrderStatusAction, setOrderDispatchedAction } from "../actions";
+import { updateOrderStatusAction, setOrderDispatchedAction } from "../../actions";
 import type { OrderStatus } from "@/lib/agent/catalog/orders";
 
 const STATUSES: OrderStatus[] = ["pendiente", "confirmado", "pagado", "cancelado"];
@@ -42,10 +42,12 @@ export function OrderDetail({ id, status, dispatched, totalCop, paymentMethod, c
   }
 
   return (
-    <div className="space-y-4 max-w-2xl">
-      <Link href="/pedidos" className="text-xs text-muted-foreground hover:underline">
-        <ArrowLeftIcon className="inline size-3" /> Pedidos
-      </Link>
+    <div className="flex flex-col min-h-0 overflow-y-auto p-4 space-y-4">
+      <div className="hidden md:block">
+        <Link href="/pedidos" className="text-xs text-muted-foreground hover:underline">
+          <ArrowLeftIcon className="inline size-3" /> Pedidos
+        </Link>
+      </div>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{customer}</h1>
         <span className="text-lg font-mono">{fmt(totalCop)}</span>
@@ -62,7 +64,7 @@ export function OrderDetail({ id, status, dispatched, totalCop, paymentMethod, c
             ))}
           </div>
           <Button size="sm" variant={dispatched ? "default" : "outline"} disabled={pending} onClick={toggleDispatched}>
-            {dispatched ? "✓ Despachado (deshacer)" : "Marcar despachado"}
+            {dispatched ? "Despachado (deshacer)" : "Marcar despachado"}
           </Button>
           {paymentMethod && <p className="text-xs text-muted-foreground">Pago: {paymentMethod}</p>}
         </CardContent>

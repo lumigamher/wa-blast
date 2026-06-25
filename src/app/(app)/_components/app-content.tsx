@@ -4,9 +4,9 @@ import { usePathname } from "next/navigation";
 
 export function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isInbox = pathname.startsWith("/inbox");
+  const fullBleed = pathname.startsWith("/inbox") || pathname.startsWith("/pedidos");
 
-  if (isInbox) {
+  if (fullBleed) {
     return (
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {children}
