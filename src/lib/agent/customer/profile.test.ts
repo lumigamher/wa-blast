@@ -4,7 +4,7 @@ import { makeTestDb } from "@/lib/db/test-db";
 import { contacts, conversations, orders, organization } from "@/lib/db/schema";
 import { saveContactFacts, buildCustomerProfile } from "./profile";
 
-async function seed(db: any) {
+async function seed(db: ReturnType<typeof makeTestDb>["db"]) {
   await db
     .insert(organization)
     .values({ id: "o1", name: "O", slug: "o1", createdAt: new Date() })
