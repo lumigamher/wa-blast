@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { conversations } from "@/lib/db/schema";
 import { saveContactFacts } from "@/lib/agent/customer/profile";
 import type { AgentTool } from "../types";
@@ -23,7 +23,7 @@ export const recopilarDatos: AgentTool = {
     const [conv] = await ctx.db
       .select({ contactId: conversations.contactId })
       .from(conversations)
-      .where(eq(conversations.id, ctx.conversationId));
+      .where(and(eq(conversations.id, ctx.conversationId), eq(conversations.orgId, ctx.orgId)));
     if (conv?.contactId) await saveContactFacts(ctx.db, ctx.orgId, conv.contactId, campos);
     return { ok: true, data: { guardados: Object.keys(campos) } };
   },
