@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { agentRuns, messages, conversations } from "@/lib/db/schema";
 import { recordOutboundMessage } from "@/lib/inbox/store";
+import { addNote } from "@/lib/inbox/notes";
 import { getAgentConfig } from "./config";
 import { buildSystemPrompt, toLlmHistory } from "./context";
 import { estimateCostCop, estimateEmbeddingCostCop } from "./cost";
@@ -122,6 +123,27 @@ export async function runAgentTurn(
     const totalCostCop = costCop + embedCostCop;
 
     if (res.status === "escalated") {
+      // 1) Aviso amable al cliente (no lo dejamos en silencio).
+      const handoff = "Permíteme un momento 🙏 Un compañero del equipo continúa contigo enseguida para ayudarte.";
+      const sent = await deps.sender({ to: deps.to, body: handoff, replyTo: lastInboundWamid });
+      await recordOutboundMessage(db, {
+        orgId, conversationId, wamid: sent.wamid, type: "text", body: handoff,
+        status: sent.wamid ? "sent" : "failed",
+      });
+      // 2) Nota interna para el humano con el contexto del escalado.
+      const escalateStep = res.steps.find((s) => s.tool === "escalar_a_humano");
+      const motivo = (escalateStep?.result as { data?: { motivo?: string } } | undefined)?.data?.motivo;
+      if (motivo) {
+        await addNote(db, orgId, {
+          conversationId,
+          authorUserId: "system:agent",
+          authorName: config.name || "Asistente IA",
+          body: `Escalado por la IA — contexto:\n${motivo}`,
+        }).catch(() => {
+          // Falla al crear nota no debe romper el escalado
+        });
+      }
+      // 3) Pausar la IA (handoff).
       await pauseAgent(db, conversationId);
     } else if (res.status === "ok" && res.reply) {
       const sent = await deps.sender({ to: deps.to, body: res.reply, replyTo: lastInboundWamid });

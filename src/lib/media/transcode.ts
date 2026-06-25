@@ -49,3 +49,15 @@ export async function toWebpSticker(input: ArrayBuffer): Promise<Uint8Array> {
     .toBuffer();
   return new Uint8Array(out);
 }
+
+/** Convierte una imagen a JPEG (WhatsApp solo entrega jpeg/png como mensaje de imagen; webp NO). */
+export async function toJpeg(input: ArrayBuffer): Promise<Uint8Array> {
+  const out = await sharp(Buffer.from(input)).jpeg({ quality: 85 }).toBuffer();
+  return new Uint8Array(out);
+}
+
+/** True si el mime ya es un formato de imagen que WhatsApp entrega (jpeg/png). */
+export function isWhatsAppImageMime(mime: string): boolean {
+  const m = mime.toLowerCase();
+  return m === "image/jpeg" || m === "image/jpg" || m === "image/png";
+}

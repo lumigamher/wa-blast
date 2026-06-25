@@ -6,6 +6,7 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { getMediaAsset } from "@/lib/media/store";
 import { conversations } from "@/lib/db/schema";
 import { findMedia, listMedia, mimeToKind } from "../../../agent/media-library";
+import { toJpeg, isWhatsAppImageMime } from "@/lib/media/transcode";
 import type { AgentTool } from "../types";
 
 const schema = z.object({
@@ -91,6 +92,7 @@ export const enviarArchivo: AgentTool = {
 
     // 5. Read file bytes
     let bytes: ArrayBuffer;
+    let mime = asset.mime;
     try {
       const buf = await readFile(asset.path);
       bytes = buf.buffer.slice(
@@ -104,10 +106,24 @@ export const enviarArchivo: AgentTool = {
       };
     }
 
+    // 5a. Convert image to JPEG if not JPEG/PNG (WhatsApp doesn't deliver WebP as image)
+    const kind = mimeToKind(mime);
+    if (kind === "image" && !isWhatsAppImageMime(mime)) {
+      try {
+        bytes = (await toJpeg(bytes)).buffer as ArrayBuffer;
+        mime = "image/jpeg";
+      } catch {
+        return {
+          ok: false,
+          error: "No pude preparar la imagen.",
+        };
+      }
+    }
+
     // 6. Upload to Meta
     const uploadResult = await uploadMedia(settings, {
       bytes,
-      mime: asset.mime,
+      mime,
       filename: item.label,
     });
     if ("error" in uploadResult) {
@@ -118,12 +134,12 @@ export const enviarArchivo: AgentTool = {
     }
 
     // 7. Send media
-    const kind = mimeToKind(asset.mime);
     const sendResult = await sendMedia(settings, {
       to: conv.phone,
       kind,
       mediaId: uploadResult.mediaId,
       filename: kind === "document" ? item.label : undefined,
+      replyTo: undefined,
     });
     if ("error" in sendResult) {
       return {
