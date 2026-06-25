@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { orders, conversations, contacts } from "@/lib/db/schema";
 import type { CatalogProvider } from "@/lib/agent/integrations/catalog/types";
@@ -40,9 +40,15 @@ export type ResolvedOrderItem = {
 
 export type CreateOrderResult = {
   orderId: string;
+  numero: number;
   totalCop: number;
   items: ResolvedOrderItem[];
 };
+
+async function nextOrderNumber(db: DB, orgId: string): Promise<number> {
+  const [r] = await db.select({ max: sql<number>`coalesce(max(${orders.numero}), 0)` }).from(orders).where(eq(orders.orgId, orgId));
+  return (r?.max ?? 0) + 1;
+}
 
 export async function createOrder(
   db: DB,
@@ -89,8 +95,18 @@ export async function createOrder(
     totalCop += subtotal;
   }
 
-  // Crear el pedido
+  // Anti-duplicados: reusar el pedido pendiente de la conversación
+  if (input.conversationId) {
+    const latest = await getLatestOrderForConversation(db, input.orgId, input.conversationId);
+    if (latest && latest.status === "pendiente") {
+      await db.update(orders).set({ itemsJson: JSON.stringify(resolvedItems), totalCop }).where(eq(orders.id, latest.id));
+      return { orderId: latest.id, numero: latest.numero ?? 0, totalCop, items: resolvedItems };
+    }
+  }
+
+  // Crear nuevo pedido
   const orderId = randomUUID();
+  const numero = await nextOrderNumber(db, input.orgId);
   const now = new Date();
 
   await db.insert(orders).values({
@@ -100,11 +116,13 @@ export async function createOrder(
     contactId: input.contactId ?? null,
     itemsJson: JSON.stringify(resolvedItems),
     totalCop,
+    numero,
     createdAt: now,
   });
 
   return {
     orderId,
+    numero,
     totalCop,
     items: resolvedItems,
   };
