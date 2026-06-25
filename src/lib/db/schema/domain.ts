@@ -42,6 +42,7 @@ export const contacts = sqliteTable(
     notes: text("notes"),
     birthday: text("birthday"),
     city: text("city"),
+    dataJson: text("data_json").notNull().default("{}"),
     callPermissionStatus: text("call_permission_status", {
       enum: ["temporary", "permanent"],
     }),

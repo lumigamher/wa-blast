@@ -35,4 +35,33 @@ describe("context", () => {
     const s = buildSystemPrompt({ name: "Lula", systemPrompt: "Vendes cerveza." });
     expect(s).not.toContain("Información de la empresa");
   });
+
+  it("inyecta la ficha del cliente cuando se provee", () => {
+    const s = buildSystemPrompt({
+      name: "Lula",
+      systemPrompt: "Vendes cerveza.",
+      customerProfile: "Cliente: nombre: Ana · ciudad: Cali",
+    });
+    expect(s).toContain("Ficha del cliente");
+    expect(s).toContain("Ana");
+    expect(s).toContain("Cali");
+  });
+
+  it("sin customerProfile no añade el bloque de ficha", () => {
+    const s = buildSystemPrompt({ name: "Lula", systemPrompt: "Vendes cerveza." });
+    expect(s).not.toContain("Ficha del cliente");
+  });
+
+  it("ordena correctamente: base → ficha → knowledge", () => {
+    const s = buildSystemPrompt({
+      name: "Lula",
+      systemPrompt: "Vendes cerveza.",
+      customerProfile: "Cliente: Ana",
+      knowledge: "Envío gratis.",
+    });
+    const fichaIdx = s.indexOf("Ficha del cliente");
+    const knowledgeIdx = s.indexOf("Información de la empresa");
+    expect(fichaIdx).toBeGreaterThan(-1);
+    expect(knowledgeIdx).toBeGreaterThan(fichaIdx);
+  });
 });

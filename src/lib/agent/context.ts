@@ -9,12 +9,16 @@ export function buildSystemPrompt(config: {
   name: string;
   systemPrompt: string;
   knowledge?: string;
+  customerProfile?: string;
 }): string {
-  const base = `Eres ${config.name}, un asistente de WhatsApp.\n\n${config.systemPrompt}\n\n${GLOBAL_RULES}`;
-  if (config.knowledge && config.knowledge.trim()) {
-    return `${base}\n\nInformación de la empresa (úsala para responder; si la respuesta no está aquí, dilo o escala, no inventes):\n${config.knowledge.trim()}`;
+  let out = `Eres ${config.name}, un asistente de WhatsApp.\n\n${config.systemPrompt}\n\n${GLOBAL_RULES}`;
+  if (config.customerProfile && config.customerProfile.trim()) {
+    out += `\n\n## Ficha del cliente (lo que ya sabemos — úsala, no vuelvas a preguntar lo que ya está):\n${config.customerProfile.trim()}`;
   }
-  return base;
+  if (config.knowledge && config.knowledge.trim()) {
+    out += `\n\nInformación de la empresa (úsala para responder; si la respuesta no está aquí, dilo o escala, no inventes):\n${config.knowledge.trim()}`;
+  }
+  return out;
 }
 
 export function toLlmHistory(
