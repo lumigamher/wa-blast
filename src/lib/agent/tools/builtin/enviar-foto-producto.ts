@@ -8,6 +8,7 @@ import { uploadMedia, sendMedia } from "@/lib/meta/client";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getMediaAsset } from "@/lib/media/store";
 import { conversations } from "@/lib/db/schema";
+import { toJpeg, isWhatsAppImageMime } from "@/lib/media/transcode";
 import type { AgentTool } from "../types";
 
 const schema = z.object({
@@ -15,6 +16,19 @@ const schema = z.object({
   query: z.string().optional(),
   variantLabel: z.string().optional(),
 });
+
+/** Construye la caption de la imagen con nombre, variante, precio y descripción. */
+export function buildCaption(
+  p: { name: string; priceCop: number; description?: string | null },
+  variantLabel?: string,
+): string {
+  const price = `$${p.priceCop.toLocaleString("es-CO")}`;
+  const head = `${p.name}${variantLabel ? ` — ${variantLabel}` : ""} · ${price}`;
+  const desc = (p.description ?? "").trim();
+  const full = desc ? `${head}\n\n${desc}` : head;
+  // WhatsApp caption limit is 1024 characters
+  return full.length > 1024 ? full.slice(0, 1021) + "…" : full;
+}
 
 async function fetchImageBytes(
   db: DB,
@@ -124,7 +138,17 @@ export const enviarFotoProducto: AgentTool = {
     if (!imageBytesResult) {
       return { ok: false, error: "No pude obtener la imagen" };
     }
-    const { bytes, mime } = imageBytesResult;
+    let { bytes, mime } = imageBytesResult;
+
+    // 4a. Convert to JPEG if not JPEG/PNG (WhatsApp doesn't deliver WebP as image)
+    if (!isWhatsAppImageMime(mime)) {
+      try {
+        bytes = (await toJpeg(bytes)).buffer as ArrayBuffer;
+        mime = "image/jpeg";
+      } catch {
+        return { ok: false, error: "No pude preparar la imagen" };
+      }
+    }
 
     // 5. Load settings and get conversation phone
     const settings = await getOrgSettings(ctx.db, ctx.orgId);
@@ -144,8 +168,8 @@ export const enviarFotoProducto: AgentTool = {
       return { ok: false, error: uploadResult.error.message };
     }
 
-    // 7. Send media
-    const caption = product.name + (variantLabel ? ` — ${variantLabel}` : "");
+    // 7. Send media with caption including product info
+    const caption = buildCaption(product, variantLabel);
     const sendResult = await sendMedia(settings, {
       to: phone,
       kind: "image",

@@ -4,7 +4,60 @@ import { organization, conversations, products, organizationSettings } from "@/l
 import { encrypt } from "@/lib/crypto/encrypt";
 import { addImageUrl } from "../../catalog/images";
 import { saveCatalogConfig } from "../../integrations/catalog/config";
-import { enviarFotoProducto } from "./enviar-foto-producto";
+import { enviarFotoProducto, buildCaption } from "./enviar-foto-producto";
+
+describe("buildCaption", () => {
+  it("construye caption con nombre, variante y precio", () => {
+    const result = buildCaption(
+      { name: "Cerveza Aguila", priceCop: 2500, description: "Deliciosa cerveza" },
+      "Lata 350ml",
+    );
+    expect(result).toContain("Cerveza Aguila");
+    expect(result).toContain("Lata 350ml");
+    expect(result).toContain("$2.500");
+    expect(result).toContain("Deliciosa cerveza");
+  });
+
+  it("construye caption sin variante si no se proporciona", () => {
+    const result = buildCaption({
+      name: "Producto X",
+      priceCop: 5000,
+      description: "Descripción",
+    });
+    expect(result).toContain("Producto X");
+    expect(result).toContain("$5.000");
+    expect(result).toContain("Descripción");
+    expect(result).not.toContain("—");
+  });
+
+  it("construye caption sin descripción si es null", () => {
+    const result = buildCaption({
+      name: "Producto Y",
+      priceCop: 3000,
+      description: null,
+    });
+    expect(result).toBe("Producto Y · $3.000");
+  });
+
+  it("trunca descripción si caption exceede 1024 caracteres", () => {
+    const longDesc = "a".repeat(1000);
+    const result = buildCaption(
+      { name: "Producto", priceCop: 1000, description: longDesc },
+      "Variante",
+    );
+    expect(result.length).toBeLessThanOrEqual(1024);
+    expect(result.endsWith("…")).toBe(true);
+  });
+
+  it("formatea precio en formato colombiano (es-CO)", () => {
+    const result = buildCaption({
+      name: "Test",
+      priceCop: 1234567,
+      description: null,
+    });
+    expect(result).toContain("$1.234.567");
+  });
+});
 
 describe("enviar_foto_producto", () => {
   afterEach(() => {
@@ -205,6 +258,191 @@ describe("enviar_foto_producto", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.error).toContain("Catálogo");
+    }
+  });
+
+  it("maneja error si no puede preparar imagen WebP", async () => {
+    const { db } = makeTestDb();
+
+    await db.insert(organization).values({
+      id: "o4",
+      name: "o4",
+      slug: "o4",
+      createdAt: new Date(),
+    });
+
+    await db.insert(organizationSettings).values({
+      orgId: "o4",
+      metaPhoneId: "1234567890",
+      metaWabaId: "waba123",
+      metaAppId: "app123",
+      metaAccessTokenEnc: encrypt("test-token"),
+      metaAppSecretEnc: encrypt("test-secret"),
+      metaVerifyToken: "verify",
+      forwardUrl: null,
+      optoutKeywords: JSON.stringify(["STOP"]),
+      rateLimitMps: 20,
+      defaultCountry: "CO",
+      updatedAt: new Date(),
+    });
+
+    await db.insert(conversations).values({
+      id: "conv4",
+      orgId: "o4",
+      phone: "+57300000000",
+      contactId: null,
+      lastMessageAt: new Date(),
+      lastIncomingAt: null,
+      unreadCount: 0,
+      status: "open",
+      agentPaused: false,
+      createdAt: new Date(),
+    });
+
+    await db.insert(products).values({
+      id: "prod4",
+      orgId: "o4",
+      name: "Producto WebP Inválido",
+      priceCop: 5000,
+      description: "Producto con imagen WebP inválida",
+      available: true,
+      createdAt: new Date(),
+    });
+
+    // Add WebP image
+    await addImageUrl(db, "o4", "prod4", {
+      url: "https://example.com/image.webp",
+      label: null,
+      variantId: undefined,
+    });
+
+    await saveCatalogConfig(db, "o4", {
+      provider: "internal",
+      credentials: {},
+      config: {},
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const u = String(input);
+      if (u.includes("/media") && u.includes("graph.facebook.com")) {
+        return new Response(JSON.stringify({ id: "meta_media_webp" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (u.includes("/messages") && u.includes("graph.facebook.com")) {
+        return new Response(JSON.stringify({ messages: [{ id: "m1" }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      // External image URL - return WebP mime but with invalid bytes that sharp can't parse
+      return new Response(new Uint8Array([1, 2, 3, 4, 5]), {
+        status: 200,
+        headers: { "content-type": "image/webp" },
+      });
+    });
+
+    const r = await enviarFotoProducto.run(
+      { query: "inválido" },
+      { db, orgId: "o4", conversationId: "conv4" },
+    );
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toContain("imagen");
+    }
+  });
+
+  it("envía con caption completa (nombre, variante, precio, descripción)", async () => {
+    const { db } = makeTestDb();
+
+    await db.insert(organization).values({
+      id: "o5",
+      name: "o5",
+      slug: "o5",
+      createdAt: new Date(),
+    });
+
+    await db.insert(organizationSettings).values({
+      orgId: "o5",
+      metaPhoneId: "1234567890",
+      metaWabaId: "waba123",
+      metaAppId: "app123",
+      metaAccessTokenEnc: encrypt("test-token"),
+      metaAppSecretEnc: encrypt("test-secret"),
+      metaVerifyToken: "verify",
+      forwardUrl: null,
+      optoutKeywords: JSON.stringify(["STOP"]),
+      rateLimitMps: 20,
+      defaultCountry: "CO",
+      updatedAt: new Date(),
+    });
+
+    await db.insert(conversations).values({
+      id: "conv5",
+      orgId: "o5",
+      phone: "+57300000000",
+      contactId: null,
+      lastMessageAt: new Date(),
+      lastIncomingAt: null,
+      unreadCount: 0,
+      status: "open",
+      agentPaused: false,
+      createdAt: new Date(),
+    });
+
+    await db.insert(products).values({
+      id: "prod5",
+      orgId: "o5",
+      name: "Cerveza Premium",
+      priceCop: 8500,
+      description: "Cerveza artesanal de excelente calidad",
+      available: true,
+      createdAt: new Date(),
+    });
+
+    await addImageUrl(db, "o5", "prod5", {
+      url: "https://example.com/cerveza.jpg",
+      label: null,
+      variantId: undefined,
+    });
+
+    await saveCatalogConfig(db, "o5", {
+      provider: "internal",
+      credentials: {},
+      config: {},
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const u = String(input);
+      if (u.includes("/media") && u.includes("graph.facebook.com")) {
+        return new Response(JSON.stringify({ id: "meta_media_5" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (u.includes("/messages") && u.includes("graph.facebook.com")) {
+        return new Response(JSON.stringify({ messages: [{ id: "m1" }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(new Uint8Array([255, 216, 255, 224]), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
+    });
+
+    const r = await enviarFotoProducto.run(
+      { query: "cerveza", variantLabel: "Botella 350ml" },
+      { db, orgId: "o5", conversationId: "conv5" },
+    );
+
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      const data = r.data as { enviado: boolean };
+      expect(data.enviado).toBe(true);
     }
   });
 });
