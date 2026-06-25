@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getInboxData } from "@/app/(app)/inbox/actions";
-import { ContactAvatar } from "@/app/(app)/inbox/@detail/[id]/_components/contact-avatar";
+import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { AgentBadge } from "@/app/(app)/inbox/_components/agent-badge";
 import { LabelChips } from "@/app/(app)/inbox/_components/label-chips";
 

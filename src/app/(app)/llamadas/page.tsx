@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { requireOrg } from "@/lib/auth/session";
 import { listCalls } from "@/lib/calls/store";
 import { db } from "@/lib/db/client";
-import { ContactAvatar } from "../inbox/@detail/[id]/_components/contact-avatar";
+import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { NuevaLlamada } from "./_nueva-llamada";
 
 export const dynamic = "force-dynamic";

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { deleteNoteAction } from "../../../actions";
-import { ContactAvatar } from "./contact-avatar";
+import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { CallButton } from "@/app/(app)/_components/call-button";
 
 type Note = {

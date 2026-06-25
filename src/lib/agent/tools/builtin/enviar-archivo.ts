@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { uploadMedia, sendMedia } from "@/lib/meta/client";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getMediaAsset } from "@/lib/media/store";
@@ -78,7 +78,7 @@ export const enviarArchivo: AgentTool = {
     const [conv] = await ctx.db
       .select({ phone: conversations.phone })
       .from(conversations)
-      .where(eq(conversations.id, ctx.conversationId));
+      .where(and(eq(conversations.id, ctx.conversationId), eq(conversations.orgId, ctx.orgId)));
     if (!conv?.phone) {
       return {
         ok: false,
