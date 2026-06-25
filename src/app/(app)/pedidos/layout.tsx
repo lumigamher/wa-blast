@@ -1,4 +1,4 @@
-import { OrdersShell } from "./_components/orders-shell";
+import { MasterDetailShell } from "../_components/master-detail-shell";
 
 export default function PedidosLayout({
   list,
@@ -9,7 +9,7 @@ export default function PedidosLayout({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <OrdersShell list={list} detail={detail} />
+      <MasterDetailShell basePath="/pedidos" listWidthClass="md:w-[380px]" list={list} detail={detail} />
     </div>
   );
 }
