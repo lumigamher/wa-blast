@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { contacts, organization } from "@/lib/db/schema";
-import { saveContactFacts } from "./profile";
+import { contacts, conversations, orders, organization } from "@/lib/db/schema";
+import { saveContactFacts, buildCustomerProfile } from "./profile";
 
 async function seed(db: any) {
   await db
@@ -43,5 +43,66 @@ describe("saveContactFacts", () => {
     await saveContactFacts(db, "OTRA", "c1", { nombre: "X" });
     const [c] = await db.select().from(contacts).where(eq(contacts.id, "c1"));
     expect(c.name).toBeFalsy(); // org distinta no escribe
+  });
+});
+
+describe("buildCustomerProfile", () => {
+  it("arma la ficha desde contacto + pedidos", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await saveContactFacts(db, "o1", "c1", { nombre: "Ana", segmento: "mayorista" });
+    await db
+      .insert(conversations)
+      .values({
+        id: "cv1",
+        orgId: "o1",
+        phone: "57300",
+        status: "open",
+        unreadCount: 0,
+        lastMessageAt: new Date(),
+        createdAt: new Date(),
+        contactId: "c1",
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(orders)
+      .values({
+        id: "ord_ABC123",
+        orgId: "o1",
+        contactId: "c1",
+        itemsJson: "[]",
+        totalCop: 99000,
+        status: "pagado",
+        paymentMethod: "Nequi",
+        shippingAddressJson: JSON.stringify({ direccion: "Cl 1 #2-3", ciudad: "Cali" }),
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
+
+    const ficha = await buildCustomerProfile(db, "o1", "cv1");
+    expect(ficha).toContain("Ana");
+    expect(ficha).toContain("mayorista");
+    expect(ficha).toContain("Cali");
+    expect(ficha).toContain("Nequi");
+    expect(ficha.toUpperCase()).toContain("ABC123");
+  });
+
+  it("ficha vacía si la conversación no tiene contacto", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await db
+      .insert(conversations)
+      .values({
+        id: "cv2",
+        orgId: "o1",
+        phone: "57301",
+        status: "open",
+        unreadCount: 0,
+        lastMessageAt: new Date(),
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
+
+    expect(await buildCustomerProfile(db, "o1", "cv2")).toBe("");
   });
 });
