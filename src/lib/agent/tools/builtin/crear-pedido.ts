@@ -21,7 +21,7 @@ const schema = z.object({
 export const crearPedido: AgentTool = {
   name: "crear_pedido",
   description:
-    "Crea un pedido con los productos elegidos. Confirma con el cliente los productos y cantidades antes de usarla.",
+    "Crea un pedido con los productos que el cliente confirmó. Tras crearlo, CONFÍRMALE al cliente el número de pedido, el resumen de items y el total, y dile el siguiente paso (pago o envío).",
   paramsSchema: schema,
   jsonSchema: {
     type: "object",
@@ -74,7 +74,27 @@ export const crearPedido: AgentTool = {
         provider,
       );
 
-      return { ok: true, data: { orderId: result.orderId, totalCop: result.totalCop } };
+      // Generate short order number from the UUID (last 6 chars, uppercase)
+      const numeroCorto = result.orderId.slice(-6).toUpperCase();
+
+      // Build items summary from the resolved items
+      const itemsSummary = result.items.map((item) => ({
+        nombre: item.nombre,
+        ...(item.variantLabel ? { variante: item.variantLabel } : {}),
+        cantidad: item.cantidad,
+        subtotalCop: item.subtotal,
+      }));
+
+      return {
+        ok: true,
+        data: {
+          orderId: result.orderId,
+          numeroCorto,
+          items: itemsSummary,
+          totalCop: result.totalCop,
+          siguientePaso: "coordinar el pago y la entrega",
+        },
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return { ok: false, error: message };
