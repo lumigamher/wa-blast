@@ -38,7 +38,10 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
       totalCop={order.totalCop}
       paymentMethod={order.paymentMethod}
       comprobanteMediaId={order.comprobanteMediaId}
-      customer={order.contactName || order.phone || "Sin cliente"}
+      contactName={order.contactName}
+      phone={order.phone}
+      city={order.city}
+      conversationId={order.conversationId}
       items={items}
       address={address}
       quote={quote}

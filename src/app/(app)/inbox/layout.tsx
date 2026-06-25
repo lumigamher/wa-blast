@@ -1,4 +1,4 @@
-import { InboxShell } from "./_components/inbox-shell";
+import { MasterDetailShell } from "../_components/master-detail-shell";
 
 export default function InboxLayout({
   list,
@@ -9,7 +9,7 @@ export default function InboxLayout({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <InboxShell list={list} detail={detail} />
+      <MasterDetailShell basePath="/inbox" listWidthClass="md:w-[360px]" list={list} detail={detail} />
     </div>
   );
 }

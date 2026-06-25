@@ -3,8 +3,8 @@
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { FilterDialog } from "@/app/(app)/_components/filter-dialog";
 import { getOrdersData } from "../actions";
 import type { OrderListItem, OrderStatus } from "@/lib/agent/catalog/orders";
 
@@ -35,6 +35,9 @@ export function OrdersListPane() {
   const [data, setData] = useState<{ orders: OrderListItem[]; total: number; page: number; pageSize: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Draft state for filter dialog
+  const [draftStatus, setDraftStatus] = useState(currentStatus);
+
   // Load data on mount and when filters change
   useEffect(() => {
     let isMounted = true;
@@ -52,19 +55,36 @@ export function OrdersListPane() {
     };
   }, [currentStatus, currentPage]);
 
-  const handleFilterChange = useCallback(
-    (newStatus: OrderStatus | "") => {
-      startTransition(() => {
-        router.replace(`/pedidos?status=${newStatus}`, { scroll: false });
-      });
-    },
-    [router]
-  );
+  const handleFilterOpen = useCallback(() => {
+    setDraftStatus(currentStatus);
+  }, [currentStatus]);
+
+  const handleApplyFilters = useCallback(() => {
+    startTransition(() => {
+      const params = new URLSearchParams();
+      if (draftStatus) {
+        params.set("status", draftStatus);
+      }
+      router.replace(`/pedidos${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+    });
+  }, [draftStatus, router]);
+
+  const handleClearFilters = useCallback(() => {
+    setDraftStatus("");
+    startTransition(() => {
+      router.replace("/pedidos", { scroll: false });
+    });
+  }, [router]);
 
   const handlePageChange = useCallback(
     (newPage: number) => {
       startTransition(() => {
-        router.replace(`/pedidos?status=${currentStatus}&page=${newPage}`, { scroll: false });
+        const params = new URLSearchParams();
+        if (currentStatus) {
+          params.set("status", currentStatus);
+        }
+        params.set("page", newPage.toString());
+        router.replace(`/pedidos${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
       });
     },
     [router, currentStatus]
@@ -80,25 +100,37 @@ export function OrdersListPane() {
   // Extract the current open order id from pathname
   const openOrderId = pathname.match(/^\/pedidos\/([^/]+)$/)?.[1];
 
+  const activeFilterCount = currentStatus ? 1 : 0;
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden">
       <div className="flex-0 space-y-3 border-b p-4 overflow-y-auto">
-        <div>
-          <h2 className="text-sm font-semibold">Estado</h2>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {STATUSES.map((s) => (
-              <Button
-                key={s.value || "todos"}
-                size="sm"
-                variant={currentStatus === s.value ? "default" : "outline"}
-                onClick={() => handleFilterChange(s.value)}
-                disabled={isPending}
-              >
-                {s.label}
-              </Button>
-            ))}
+        <FilterDialog
+          activeCount={activeFilterCount}
+          onOpen={handleFilterOpen}
+          onApply={handleApplyFilters}
+          onClear={handleClearFilters}
+        >
+          {/* Estado */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Estado</label>
+            <div className="grid grid-cols-3 gap-2">
+              {STATUSES.map((s) => (
+                <button
+                  key={s.value || "todos"}
+                  onClick={() => setDraftStatus(s.value)}
+                  className={`text-xs py-2 px-3 rounded border transition-colors ${
+                    draftStatus === s.value
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </FilterDialog>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -151,22 +183,20 @@ export function OrdersListPane() {
 
           {!isLoading && total > pageSize && (
             <div className="flex items-center justify-between gap-2 pt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={currentPage <= 1 || isPending}
+              <button
                 onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 1 || isPending}
+                className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Anterior
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={currentPage >= totalPages || isPending}
+              </button>
+              <button
                 onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages || isPending}
+                className="text-xs px-3 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Siguiente
-              </Button>
+              </button>
             </div>
           )}
         </div>
