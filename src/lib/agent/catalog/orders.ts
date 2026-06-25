@@ -225,13 +225,14 @@ export async function getOrder(db: DB, orgId: string, id: string) {
       order: orders,
       phone: conversations.phone,
       contactName: contacts.name,
+      city: contacts.city,
     })
     .from(orders)
     .leftJoin(conversations, eq(orders.conversationId, conversations.id))
     .leftJoin(contacts, eq(orders.contactId, contacts.id))
     .where(and(eq(orders.id, id), eq(orders.orgId, orgId)));
   if (!row) return null;
-  return { ...row.order, phone: row.phone, contactName: row.contactName, numero: row.order.numero };
+  return { ...row.order, phone: row.phone, contactName: row.contactName, city: row.city, numero: row.order.numero };
 }
 
 export async function updateOrderStatus(db: DB, orgId: string, id: string, status: OrderStatus): Promise<void> {
