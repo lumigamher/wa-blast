@@ -49,18 +49,33 @@ describe("runAgentTurn", () => {
     expect(sender).not.toHaveBeenCalled();
   });
 
-  it("escalado: pausa y no envía", async () => {
+  it("escalado: envía mensaje amable + crea nota interna + pausa", async () => {
     const { db } = makeTestDb();
     await seed(db);
     await db.insert(agentTools).values({ id: randomUUID(), orgId: "o1", type: "builtin", key: "escalar_a_humano", enabled: true, configJson: "{}", createdAt: new Date() });
     const provider = makeFakeProvider([{ text: null, toolCalls: [{ id: "t1", name: "escalar_a_humano", argsJson: JSON.stringify({ motivo: "pide humano" }) }], usage: { promptTokens: 3, completionTokens: 1 } }]);
-    const sender = vi.fn(async () => ({ wamid: "x" }));
+    const sender = vi.fn(async () => ({ wamid: "handoff1" }));
     await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
-    expect(sender).not.toHaveBeenCalled();
+    // 1) Debe enviar el mensaje de handoff al cliente
+    expect(sender).toHaveBeenCalledWith({
+      to: "+57300",
+      body: "Permíteme un momento 🙏 Un compañero del equipo continúa contigo enseguida para ayudarte.",
+      replyTo: "w1",
+    });
+    // 2) Debe registrar el mensaje saliente
+    const msgs = await db.select().from(messages).where(eq(messages.conversationId, "c1"));
+    expect(msgs.some((m) => m.direction === "out" && m.body && m.body.includes("Permíteme un momento"))).toBe(true);
+    // 3) Debe pausar la conversación
     const [conv] = await db.select().from(conversations).where(eq(conversations.id, "c1"));
     expect(conv.agentPaused).toBe(true);
+    // 4) Debe registrar la run como escalated
     const runs = await db.select().from(agentRuns).where(eq(agentRuns.orgId, "o1"));
     expect(runs[0].status).toBe("escalated");
+    // 5) El escalated step tiene el contexto correctamente capturado
+    const stepsJson = JSON.parse(runs[0].stepsJson ?? "[]") as Array<{ tool: string; result: { data: { motivo: string } } }>;
+    const escalateStep = stepsJson.find((s) => s.tool === "escalar_a_humano");
+    expect(escalateStep).toBeDefined();
+    expect(escalateStep?.result.data.motivo).toBe("pide humano");
   });
 
   it("paso a paso agotado (capped): envía fallback y lo registra", async () => {
