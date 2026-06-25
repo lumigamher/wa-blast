@@ -115,10 +115,12 @@ export function OrdersListPane() {
 
           {!isLoading && orders.length > 0 && (
             <div className="space-y-2">
-              {orders.map((o) => (
+              {orders.map((o) => {
+                const qs = searchParams.toString();
+                return (
                 <Link
                   key={o.id}
-                  href={`/pedidos/${o.id}`}
+                  href={`/pedidos/${o.id}${qs ? `?${qs}` : ""}`}
                   className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors cursor-pointer ${
                     openOrderId === o.id
                       ? "border-primary bg-accent"
@@ -139,7 +141,8 @@ export function OrdersListPane() {
                     {o.shippingCity ? `${o.shippingCity} · ` : ""}{new Date(o.createdAt).toLocaleDateString("es-CO")}
                   </p>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           )}
 
