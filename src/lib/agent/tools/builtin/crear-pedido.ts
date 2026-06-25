@@ -74,9 +74,6 @@ export const crearPedido: AgentTool = {
         provider,
       );
 
-      // Generate short order number from the UUID (last 6 chars, uppercase)
-      const numeroCorto = result.orderId.slice(-6).toUpperCase();
-
       // Build items summary from the resolved items
       const itemsSummary = result.items.map((item) => ({
         nombre: item.nombre,
@@ -89,7 +86,7 @@ export const crearPedido: AgentTool = {
         ok: true,
         data: {
           orderId: result.orderId,
-          numeroCorto,
+          numero: result.numero,
           items: itemsSummary,
           totalCop: result.totalCop,
           siguientePaso: "coordinar el pago y la entrega",

@@ -129,13 +129,16 @@ export function OrdersListPane() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-xs font-medium truncate">{o.contactName || o.phone || "Sin cliente"}</span>
-                    <span className="text-xs font-mono whitespace-nowrap">{fmt(o.totalCop)}</span>
+                    <span className="text-xs font-mono whitespace-nowrap">#{o.numero ?? "—"}</span>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className={STATUS_CLS[o.status] ?? ""}>
-                      {o.status}
-                    </Badge>
-                    {o.dispatchedAt && <Badge variant="outline" className="text-emerald-600">Despachado</Badge>}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className={STATUS_CLS[o.status] ?? ""}>
+                        {o.status}
+                      </Badge>
+                      {o.dispatchedAt && <Badge variant="outline" className="text-emerald-600">Despachado</Badge>}
+                    </div>
+                    <span className="text-xs font-mono whitespace-nowrap">{fmt(o.totalCop)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {o.shippingCity ? `${o.shippingCity} · ` : ""}{new Date(o.createdAt).toLocaleDateString("es-CO")}

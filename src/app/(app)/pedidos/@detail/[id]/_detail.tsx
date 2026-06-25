@@ -16,8 +16,8 @@ type Address = { destinatario?: string; telefono?: string; departamento?: string
 type Quote = { carrier?: string; priceCop?: number | null; deliveryDays?: number | null };
 type Item = { nombre: string; cantidad: number; subtotal: number; precioUnitario: number; variantLabel?: string };
 
-export function OrderDetail({ id, status, dispatched, totalCop, paymentMethod, comprobanteMediaId, customer, items, address, quote, createdAt }: {
-  id: string; status: string; dispatched: boolean; totalCop: number; paymentMethod: string | null;
+export function OrderDetail({ id, numero, status, dispatched, totalCop, paymentMethod, comprobanteMediaId, customer, items, address, quote, createdAt }: {
+  id: string; numero: number | null; status: string; dispatched: boolean; totalCop: number; paymentMethod: string | null;
   comprobanteMediaId: string | null; customer: string; items: Item[]; address: Address | null; quote: Quote | null; createdAt: number;
 }) {
   const router = useRouter();
@@ -48,9 +48,12 @@ export function OrderDetail({ id, status, dispatched, totalCop, paymentMethod, c
           <ArrowLeftIcon className="inline size-3" /> Pedidos
         </Link>
       </div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{customer}</h1>
-        <span className="text-lg font-mono">{fmt(totalCop)}</span>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold">{customer}</h1>
+          <p className="text-xs text-muted-foreground">Pedido #{numero ?? "—"}</p>
+        </div>
+        <span className="text-lg font-mono text-right">{fmt(totalCop)}</span>
       </div>
       <p className="text-xs text-muted-foreground">{new Date(createdAt).toLocaleString("es-CO")}</p>
 

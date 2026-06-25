@@ -8,6 +8,7 @@ export type OrderStatus = "pendiente" | "confirmado" | "pagado" | "cancelado";
 
 export type OrderListItem = {
   id: string;
+  numero: number | null;
   totalCop: number;
   status: string;
   dispatchedAt: Date | null;
@@ -177,6 +178,7 @@ export async function listOrders(
   const base = db
     .select({
       id: orders.id,
+      numero: orders.numero,
       totalCop: orders.totalCop,
       status: orders.status,
       dispatchedAt: orders.dispatchedAt,
@@ -193,6 +195,7 @@ export async function listOrders(
   const rows = opts.limit != null ? await base.limit(opts.limit).offset(opts.offset ?? 0) : await base;
   return rows.map((r) => ({
     id: r.id,
+    numero: r.numero,
     totalCop: r.totalCop,
     status: r.status,
     dispatchedAt: r.dispatchedAt,
@@ -228,7 +231,7 @@ export async function getOrder(db: DB, orgId: string, id: string) {
     .leftJoin(contacts, eq(orders.contactId, contacts.id))
     .where(and(eq(orders.id, id), eq(orders.orgId, orgId)));
   if (!row) return null;
-  return { ...row.order, phone: row.phone, contactName: row.contactName };
+  return { ...row.order, phone: row.phone, contactName: row.contactName, numero: row.order.numero };
 }
 
 export async function updateOrderStatus(db: DB, orgId: string, id: string, status: OrderStatus): Promise<void> {
