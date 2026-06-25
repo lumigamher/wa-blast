@@ -2,18 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { SearchIcon, Check, SlidersHorizontal, Bot, User } from "lucide-react";
+import { SearchIcon, Check, Bot, User } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -21,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FilterDialog } from "@/app/(app)/_components/filter-dialog";
 import { getInboxData } from "@/app/(app)/inbox/actions";
 import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { AgentBadge } from "@/app/(app)/inbox/_components/agent-badge";
@@ -64,7 +57,6 @@ export function ConversationListPane() {
   const [data, setData] = useState<Awaited<ReturnType<typeof getInboxData>> | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isInitial, setIsInitial] = useState(true);
-  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
 
   // Extract current filter params
   const q = searchParams.get("q") ?? undefined;
@@ -80,12 +72,11 @@ export function ConversationListPane() {
   const [draftLabel, setDraftLabel] = useState(label || "");
 
   // Reset draft when dialog opens
-  const openDialog = () => {
+  const resetDraft = () => {
     setDraftStatus(status || "open");
     setDraftAgent(agent || "all");
     setDraftUnreadOnly(unreadOnly === "true");
     setDraftLabel(label || "");
-    setIsFilterDialogOpen(true);
   };
 
   // Extract current active conversation ID from pathname
@@ -141,12 +132,12 @@ export function ConversationListPane() {
     );
   }
 
-  // Count active filters
-  const hasActiveFilters =
-    status ||
-    (data?.agentEnabled && agent) ||
-    unreadOnly === "true" ||
-    label;
+  const activeFilterCount = [
+    status ? 1 : 0,
+    data?.agentEnabled && agent ? 1 : 0,
+    unreadOnly === "true" ? 1 : 0,
+    label ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
 
   // Apply filters to draft state and close dialog
   const applyFilters = () => {
@@ -175,7 +166,6 @@ export function ConversationListPane() {
 
     const newUrl = `/inbox${params.toString() ? `?${params.toString()}` : ""}`;
     router.replace(newUrl, { scroll: false });
-    setIsFilterDialogOpen(false);
   };
 
   const clearFilters = () => {
@@ -184,7 +174,6 @@ export function ConversationListPane() {
     setDraftUnreadOnly(false);
     setDraftLabel("");
     router.replace("/inbox", { scroll: false });
-    setIsFilterDialogOpen(false);
   };
 
   return (
@@ -213,132 +202,104 @@ export function ConversationListPane() {
 
       {/* Filters Button */}
       <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={openDialog}
-          className="w-full justify-start"
+        <FilterDialog
+          activeCount={activeFilterCount}
+          onOpen={resetDraft}
+          onApply={applyFilters}
+          onClear={clearFilters}
         >
-          <SlidersHorizontal className="size-4 mr-2" />
-          Filtros
-          {hasActiveFilters && (
-            <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground h-5 w-5 text-[10px] font-bold">
-              {[status, agent, label].filter(Boolean).length + (unreadOnly === "true" ? 1 : 0)}
-            </span>
-          )}
-        </Button>
-      </div>
+          {/* Estado */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Estado</label>
+            <div className="grid grid-cols-3 gap-2">
+              {["open", "resolved", "all"].map((value) => (
+                <button
+                  key={value}
+                  onClick={() => setDraftStatus(value)}
+                  className={`text-xs py-2 px-3 rounded border transition-colors ${
+                    draftStatus === value
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  {value === "open"
+                    ? "Abiertas"
+                    : value === "resolved"
+                      ? "Resueltas"
+                      : "Todas"}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* Filter Dialog */}
-      <Dialog open={isFilterDialogOpen} onOpenChange={setIsFilterDialogOpen}>
-        <DialogContent className="w-96">
-          <DialogHeader>
-            <DialogTitle>Filtros</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Estado */}
+          {/* Agent */}
+          {data?.agentEnabled && (
             <div className="space-y-2">
-              <label className="text-sm font-medium">Estado</label>
+              <label className="text-sm font-medium">Agente</label>
               <div className="grid grid-cols-3 gap-2">
-                {["open", "resolved", "all"].map((value) => (
+                {["all", "ia", "humano"].map((value) => (
                   <button
                     key={value}
-                    onClick={() => setDraftStatus(value)}
-                    className={`text-xs py-2 px-3 rounded border transition-colors ${
-                      draftStatus === value
+                    onClick={() => setDraftAgent(value)}
+                    className={`text-xs py-2 px-3 rounded border transition-colors flex items-center justify-center gap-1 ${
+                      draftAgent === value
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border hover:bg-muted"
                     }`}
                   >
-                    {value === "open"
-                      ? "Abiertas"
-                      : value === "resolved"
-                        ? "Resueltas"
-                        : "Todas"}
+                    {value === "ia" && <Bot className="size-3" />}
+                    {value === "humano" && <User className="size-3" />}
+                    {value === "all"
+                      ? "Todos"
+                      : value === "ia"
+                        ? "IA"
+                        : "Humano"}
                   </button>
                 ))}
               </div>
             </div>
+          )}
 
-            {/* Agent */}
-            {data?.agentEnabled && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Agente</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {["all", "ia", "humano"].map((value) => (
-                    <button
-                      key={value}
-                      onClick={() => setDraftAgent(value)}
-                      className={`text-xs py-2 px-3 rounded border transition-colors flex items-center justify-center gap-1 ${
-                        draftAgent === value
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border hover:bg-muted"
-                      }`}
-                    >
-                      {value === "ia" && <Bot className="size-3" />}
-                      {value === "humano" && <User className="size-3" />}
-                      {value === "all"
-                        ? "Todos"
-                        : value === "ia"
-                          ? "IA"
-                          : "Humano"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Unread Toggle */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Lectura</label>
-              <button
-                onClick={() => setDraftUnreadOnly(!draftUnreadOnly)}
-                className={`w-full text-xs py-2 px-3 rounded border transition-colors ${
-                  draftUnreadOnly
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border hover:bg-muted"
-                }`}
-              >
-                Solo sin leer
-              </button>
-            </div>
-
-            {/* Labels */}
-            {data?.allLabels && data.allLabels.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Etiqueta</label>
-                <Select value={draftLabel} onValueChange={(value) => setDraftLabel(value || "")}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecciona una etiqueta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
-                    {data.allLabels.map((lbl) => (
-                      <SelectItem key={lbl.id} value={lbl.id}>
-                        <span
-                          className="inline-block w-3 h-3 rounded-full mr-2"
-                          style={{ backgroundColor: lbl.color }}
-                        />
-                        {lbl.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+          {/* Unread Toggle */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Lectura</label>
+            <button
+              onClick={() => setDraftUnreadOnly(!draftUnreadOnly)}
+              className={`w-full text-xs py-2 px-3 rounded border transition-colors ${
+                draftUnreadOnly
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border hover:bg-muted"
+              }`}
+            >
+              Solo sin leer
+            </button>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={clearFilters}>
-              Limpiar
-            </Button>
-            <Button size="sm" onClick={applyFilters}>
-              Aplicar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* Labels */}
+          {data?.allLabels && data.allLabels.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Etiqueta</label>
+              <Select value={draftLabel} onValueChange={(value) => setDraftLabel(value || "")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecciona una etiqueta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas</SelectItem>
+                  {data.allLabels.map((lbl) => (
+                    <SelectItem key={lbl.id} value={lbl.id}>
+                      <span
+                        className="inline-block w-3 h-3 rounded-full mr-2"
+                        style={{ backgroundColor: lbl.color }}
+                      />
+                      {lbl.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </FilterDialog>
+      </div>
 
       {/* Conversations List */}
       <div className="space-y-1 flex-1 overflow-y-auto min-h-0">
