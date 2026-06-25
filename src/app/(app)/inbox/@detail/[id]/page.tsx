@@ -17,7 +17,7 @@ import { extractVariables } from "@/lib/templates";
 import { getAgentConfig } from "@/lib/agent/config";
 import { getConversationLabels, listLabels } from "@/lib/inbox/labels";
 import { Poller } from "../../_components/poller";
-import { ContactAvatar } from "./_components/contact-avatar";
+import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { ContactInfoToggle } from "./_components/contact-panel";
 import { ConversationSearch } from "./_components/conversation-search";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";

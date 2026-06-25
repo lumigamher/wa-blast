@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ContactAvatar } from "../inbox/@detail/[id]/_components/contact-avatar";
+import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { updateContactAction } from "./actions";
 
 type Row = {
