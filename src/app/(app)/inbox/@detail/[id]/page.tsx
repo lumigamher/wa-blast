@@ -78,6 +78,9 @@ export default async function InboxThreadPage({
 
   const windowOpen = isWindowOpen(thread.conversation.lastIncomingAt);
 
+  // Determine if agent is typing
+  const agentTyping = !!(thread.conversation.agentTypingUntil && new Date(thread.conversation.agentTypingUntil) > new Date());
+
   return (
     <div className="relative flex flex-1 min-h-0 flex-col border rounded-lg bg-card overflow-hidden m-3">
       {/* Header */}
@@ -184,6 +187,7 @@ export default async function InboxThreadPage({
         notes={thread.notes}
         quotes={thread.quotes}
         calls={thread.calls}
+        agentTyping={agentTyping}
       />
 
       <MarkReadOnOpen conversationId={conversationId} />

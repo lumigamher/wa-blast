@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Bot } from "lucide-react";
 import { messages as messagesSchema } from "@/lib/db/schema";
 import type { InferSelectModel } from "drizzle-orm";
 import { Thread, type ReplyTarget } from "./thread";
@@ -52,6 +53,7 @@ export function ThreadAndComposer({
   notes = [],
   quotes = {},
   calls = [],
+  agentTyping = false,
 }: {
   conversationId: string;
   messages: Message[];
@@ -63,6 +65,7 @@ export function ThreadAndComposer({
   notes?: Note[];
   quotes?: Record<string, { label: string; direction: "in" | "out" }>;
   calls?: Call[];
+  agentTyping?: boolean;
 }) {
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -75,6 +78,12 @@ export function ThreadAndComposer({
     <>
       <div className="flex-1 overflow-y-auto p-4">
         <Thread messages={messages} onReplyTo={setReplyTo} reactions={reactions} notes={notes} quotes={quotes} calls={calls} />
+        {agentTyping && (
+          <div className="flex items-center gap-2 px-1 py-2 text-xs text-muted-foreground">
+            <Bot className="size-3.5 animate-pulse" />
+            <span className="italic">escribiendo…</span>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
