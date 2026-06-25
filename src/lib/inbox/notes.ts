@@ -21,7 +21,7 @@ export async function addNote(
   orgId: string,
   input: {
     conversationId: string;
-    authorUserId: string;
+    authorUserId: string | null;
     authorName: string;
     body: string;
   },
