@@ -16,10 +16,11 @@ import { runAgentLoop } from "./runtime";
 import { resolveTools } from "./tools/registry";
 import type { EmbeddingProvider } from "./rag/embeddings/types";
 import { retrieveKnowledge } from "./rag";
+import { buildCustomerProfile } from "./customer/profile";
 
 export type AgentSender = (input: { to: string; body: string; replyTo?: string }) => Promise<{ wamid: string | null }>;
 
-const HISTORY_LIMIT = 20;
+const HISTORY_LIMIT = Number(process.env.AGENT_HISTORY_LIMIT ?? 10);
 
 export async function runAgentTurn(
   db: DB,
@@ -95,6 +96,14 @@ export async function runAgentTurn(
     }
   }
 
+  // Build customer profile from contact facts + orders
+  let customerProfile = "";
+  try {
+    customerProfile = await buildCustomerProfile(db, orgId, conversationId);
+  } catch {
+    customerProfile = "";
+  }
+
   if (await isOverCostCap(db, orgId, config.monthlyCostCapCop)) {
     await db.insert(agentRuns).values({
       id: randomUUID(), orgId, conversationId, stepsJson: "[]",
@@ -108,7 +117,7 @@ export async function runAgentTurn(
       provider: chatProvider,
       model: chatModel,
       temperature: config.temperature,
-      system: buildSystemPrompt({ name: config.name, systemPrompt: config.systemPrompt, knowledge }),
+      system: buildSystemPrompt({ name: config.name, systemPrompt: config.systemPrompt, customerProfile, knowledge }),
       history,
       tools,
       maxSteps: config.maxStepsPerTurn,
