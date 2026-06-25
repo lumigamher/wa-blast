@@ -56,7 +56,7 @@ export function FilterDialog({
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpen}>
-        <DialogContent className="w-96">
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Filtros</DialogTitle>
           </DialogHeader>
