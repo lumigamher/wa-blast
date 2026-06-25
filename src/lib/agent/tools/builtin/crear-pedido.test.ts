@@ -15,8 +15,22 @@ describe("crear_pedido", () => {
     const r = await crearPedido.run({ items: [{ productId: "p1", cantidad: 2 }] }, { db, orgId: "o1", conversationId: "c1" });
     expect(r.ok).toBe(true);
     if (r.ok) {
-      const data = r.data as { orderId: string; totalCop: number };
+      const data = r.data as {
+        orderId: string;
+        numeroCorto: string;
+        items: Array<{ nombre: string; cantidad: number; subtotalCop: number; variante?: string }>;
+        totalCop: number;
+        siguientePaso: string;
+      };
       expect(data.totalCop).toBe(5000);
+      expect(data.numeroCorto).toMatch(/^[A-F0-9]{6}$/);
+      expect(data.items).toHaveLength(1);
+      expect(data.items[0]).toEqual({
+        nombre: "Cerveza",
+        cantidad: 2,
+        subtotalCop: 5000,
+      });
+      expect(data.siguientePaso).toBe("coordinar el pago y la entrega");
     }
     const [order] = await db.select().from(orders).where(eq(orders.orgId, "o1"));
     expect(order.totalCop).toBe(5000);

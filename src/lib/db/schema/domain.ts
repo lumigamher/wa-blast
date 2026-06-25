@@ -529,9 +529,7 @@ export const conversationNotes = sqliteTable(
     conversationId: text("conversation_id")
       .notNull()
       .references(() => conversations.id, { onDelete: "cascade" }),
-    authorUserId: text("author_user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id").references(() => user.id, { onDelete: "set null" }),
     authorName: text("author_name").notNull(),
     body: text("body").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),

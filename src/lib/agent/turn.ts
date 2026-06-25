@@ -136,7 +136,7 @@ export async function runAgentTurn(
       if (motivo) {
         await addNote(db, orgId, {
           conversationId,
-          authorUserId: "system:agent",
+          authorUserId: null,
           authorName: config.name || "Asistente IA",
           body: `Escalado por la IA — contexto:\n${motivo}`,
         }).catch(() => {
