@@ -67,6 +67,22 @@ export async function setCallingSettings(
   return { ok: true };
 }
 
+/** Traduce errores de la Calling API de Meta a mensajes claros para el operador. */
+export function friendlyCallError(code: number | undefined, fallback: string): string {
+  switch (code) {
+    case 131044:
+      return "Las llamadas no están habilitadas en tu cuenta de WhatsApp: falta configurar el método de pago para llamadas en Meta Business Manager (error 131044).";
+    case 131042:
+      return "Hay un problema con el método de pago de tu cuenta de WhatsApp (error 131042).";
+    case 138018:
+      return "Las llamadas no están activadas en este número. Actívalas en Configuración › Llamadas (error 138018).";
+    case 138000:
+      return "Este número aún no es elegible para llamadas de WhatsApp (error 138000).";
+    default:
+      return fallback;
+  }
+}
+
 type CallActionBody = {
   call_id: string;
   action: "accept" | "reject" | "terminate";
@@ -89,8 +105,8 @@ export async function callAction(
     body: JSON.stringify({ messaging_product: "whatsapp", ...body }),
   });
   if (!res.ok) {
-    const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
-    return { error: j.error?.message ?? "Acción de llamada falló" };
+    const j = (await res.json().catch(() => ({}))) as { error?: { message?: string; code?: number } };
+    return { error: friendlyCallError(j.error?.code, j.error?.message ?? "Acción de llamada falló") };
   }
   return { ok: true };
 }
@@ -155,12 +171,12 @@ export async function placeCall(
   if (!res.ok) {
     const j = (() => {
       try {
-        return JSON.parse(rawRes) as { error?: { message?: string } };
+        return JSON.parse(rawRes) as { error?: { message?: string; code?: number } };
       } catch {
-        return {} as { error?: { message?: string } };
+        return {} as { error?: { message?: string; code?: number } };
       }
     })();
-    return { error: j.error?.message ?? "No se pudo iniciar la llamada" };
+    return { error: friendlyCallError(j.error?.code, j.error?.message ?? "No se pudo iniciar la llamada") };
   }
   const j = JSON.parse(rawRes) as { calls?: { id: string }[] };
   const callId = j.calls?.[0]?.id;

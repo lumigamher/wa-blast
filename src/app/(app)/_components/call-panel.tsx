@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PhoneIcon, PhoneOffIcon, MicIcon, MicOffIcon } from "lucide-react";
+import { toast } from "sonner";
 import { CallSession, type CallState } from "./call-session";
 import {
   pollRingingCallsAction,
@@ -122,6 +123,7 @@ export function CallPanel() {
         offerSdp = await cs.offer();
       } catch (err) {
         console.error("No se pudo iniciar el audio saliente", err);
+        toast.error("No se pudo acceder al micrófono. Revisa los permisos del navegador.");
         cs.hangup();
         reset();
         return;
@@ -129,6 +131,7 @@ export function CallPanel() {
       const res = await placeCallAction(detail.contactId, offerSdp);
       if ("error" in res) {
         console.error("placeCall falló", res.error);
+        toast.error(res.error);
         cs.hangup();
         reset();
         return;
@@ -144,6 +147,7 @@ export function CallPanel() {
             pollRef.current = null;
           }
           await terminateCallAction(res.callId).catch(() => {});
+          toast("La persona no contestó la llamada.");
           session.current?.hangup();
           reset();
           return;
@@ -158,6 +162,7 @@ export function CallPanel() {
             await session.current?.applyAnswer(ans.sdp);
           } catch (err) {
             console.error("applyAnswer falló", err);
+            toast.error("No se pudo establecer el audio de la llamada.");
             session.current?.hangup();
             reset();
             return;
@@ -182,6 +187,7 @@ export function CallPanel() {
     if (!incoming) return;
     const [ice, offer] = await Promise.all([getIceServersAction(), getCallOfferAction(incoming.id)]);
     if ("error" in offer) {
+      toast.error("No se pudo contestar la llamada (sin datos de la sesión).");
       reset();
       return;
     }
@@ -196,12 +202,14 @@ export function CallPanel() {
     } catch (err) {
       // Permiso de micrófono denegado o getUserMedia falló.
       console.error("No se pudo iniciar el audio de la llamada", err);
+      toast.error("No se pudo acceder al micrófono. Revisa los permisos del navegador.");
       cs.hangup();
       reset();
       return;
     }
     const res = await acceptCallAction(incoming.id, answerSdp);
     if ("error" in res) {
+      toast.error(res.error);
       cs.hangup();
       reset();
       return;
