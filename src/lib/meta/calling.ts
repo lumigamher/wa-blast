@@ -120,7 +120,11 @@ export async function requestCallPermission(
       recipient_type: "individual",
       to: toPhone,
       type: "interactive",
-      interactive: { type: "call_permission_request" },
+      interactive: {
+        type: "call_permission_request",
+        body: { text: "¿Nos autorizas a llamarte por WhatsApp para atenderte mejor?" },
+        action: { name: "call_permission_request" },
+      },
     }),
   });
   if (!res.ok) {
