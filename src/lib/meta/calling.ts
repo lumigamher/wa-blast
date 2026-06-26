@@ -86,7 +86,7 @@ export async function callAction(
       authorization: `Bearer ${s.metaAccessToken}`,
       "content-type": "application/json",
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ messaging_product: "whatsapp", ...body }),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -143,7 +143,12 @@ export async function placeCall(
   const res = await fetch(`${GRAPH_CALLS}/${s.metaPhoneId}/calls`, {
     method: "POST",
     headers: { authorization: `Bearer ${s.metaAccessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ to: toPhone, action: "connect", session: { sdp: offerSdp, sdp_type: "offer" } }),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: toPhone,
+      action: "connect",
+      session: { sdp: offerSdp, sdp_type: "offer" },
+    }),
   });
   const rawRes = await res.text();
   console.log(`[placeCall] status=${res.status} to=${toPhone} body=${rawRes.slice(0, 400)}`);
