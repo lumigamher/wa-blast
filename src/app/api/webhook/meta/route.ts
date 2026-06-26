@@ -28,6 +28,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
+  console.log("[wh] POST in len=" + rawBody.length);
   const sigHeader = req.headers.get("x-hub-signature-256");
 
   let parsed;
@@ -40,17 +41,21 @@ export async function POST(req: Request) {
 
   const firstChange = parsed.data.entry[0]?.changes[0]?.value;
   const phoneId = firstChange?.metadata?.phone_number_id;
+  console.log("[wh] phoneId=" + String(phoneId));
   if (!phoneId) return NextResponse.json({ ok: true });
 
   const settings = await resolveOrgByPhoneId(db, phoneId);
+  console.log("[wh] org=" + (settings?.orgId ?? "NONE") + " hasSecret=" + Boolean(settings?.metaAppSecret));
   if (!settings || !settings.metaAppSecret) {
     return NextResponse.json({ ok: true });
   }
 
   if (!verifyMetaSignature(rawBody, sigHeader, settings.metaAppSecret)) {
+    console.log("[wh] SIGNATURE FAIL");
     return new NextResponse("unauthorized", { status: 401 });
   }
 
+  console.log("[wh] signature ok, processing org=" + settings.orgId);
   logCallWebhook(rawBody); // TEMPORAL: observabilidad de llamadas/permiso (ver call-webhook-log.ts)
 
   for (const entry of parsed.data.entry) {
