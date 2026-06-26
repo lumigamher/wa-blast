@@ -114,3 +114,13 @@ export async function getCallAnswerAction(
   if (!call.answerSdp) return { pending: true };
   return { sdp: call.answerSdp };
 }
+
+/** Estado actual de la llamada (la otra parte que cuelga llega como terminate→status terminal). */
+export async function getCallStatusAction(
+  callId: string,
+): Promise<{ status: string } | { error: string }> {
+  const { orgId } = await requireOrg();
+  const call = await getCallById(db, orgId, callId);
+  if (!call) return { error: "Llamada no encontrada" };
+  return { status: call.status };
+}

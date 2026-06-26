@@ -13,7 +13,10 @@ import {
   terminateCallAction,
   placeCallAction,
   getCallAnswerAction,
+  getCallStatusAction,
 } from "../llamadas/actions";
+
+const TERMINAL_CALL_STATUS = new Set(["missed", "completed", "rejected", "failed"]);
 
 type Incoming = { id: string; phone: string; contactName: string | null; conversationId: string };
 
@@ -103,6 +106,27 @@ export function CallPanel() {
       audioEl.current.srcObject = session.current.remoteStream;
     }
   }, [state]);
+
+  // Cortar en Lula cuando la otra parte cuelga: el webhook marca la llamada como
+  // terminal en la DB (terminate), no esperamos al timeout de WebRTC.
+  useEffect(() => {
+    const callId = incoming?.id;
+    if (!callId || state === "ended") return;
+    const t = setInterval(async () => {
+      try {
+        const res = await getCallStatusAction(callId);
+        if ("status" in res && TERMINAL_CALL_STATUS.has(res.status)) {
+          clearInterval(t);
+          if (state === "connected") toast("El cliente colgó la llamada.");
+          session.current?.hangup();
+          reset();
+        }
+      } catch {
+        /* reintenta en el próximo tick */
+      }
+    }, 2000);
+    return () => clearInterval(t);
+  }, [incoming?.id, state]);
 
   // Inicio de llamada saliente disparado por los botones "Llamar"
   useEffect(() => {
