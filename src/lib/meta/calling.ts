@@ -145,11 +145,19 @@ export async function placeCall(
     headers: { authorization: `Bearer ${s.metaAccessToken}`, "content-type": "application/json" },
     body: JSON.stringify({ to: toPhone, action: "connect", session: { sdp: offerSdp, sdp_type: "offer" } }),
   });
+  const rawRes = await res.text();
+  console.log(`[placeCall] status=${res.status} to=${toPhone} body=${rawRes.slice(0, 400)}`);
   if (!res.ok) {
-    const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+    const j = (() => {
+      try {
+        return JSON.parse(rawRes) as { error?: { message?: string } };
+      } catch {
+        return {} as { error?: { message?: string } };
+      }
+    })();
     return { error: j.error?.message ?? "No se pudo iniciar la llamada" };
   }
-  const j = (await res.json()) as { calls?: { id: string }[] };
+  const j = JSON.parse(rawRes) as { calls?: { id: string }[] };
   const callId = j.calls?.[0]?.id;
   if (!callId) return { error: "Meta no devolvió id de llamada" };
   return { ok: true, callId };
