@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { eq } from "drizzle-orm";
-import { organization, organizationSettings, user } from "@/lib/db/schema";
-import type { OnboardingStatus } from "@/lib/onboarding/status";
+import { organizationSettings } from "@/lib/db/schema";
 
 // Lazy-load test DB to avoid better-sqlite3 at import time
 let testDbInstance: ReturnType<typeof import("@/lib/db/test-db")["makeTestDb"]> | null = null;
@@ -54,8 +53,6 @@ vi.mock("@/lib/org/settings", async () => {
     }),
   };
 });
-
-type FetchCall = [string, RequestInit];
 
 function mockFetchOk(responseBody: Record<string, unknown> = { success: true }) {
   const fn = vi.fn(async () => new Response(JSON.stringify(responseBody), { status: 200 }));

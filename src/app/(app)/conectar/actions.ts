@@ -109,7 +109,7 @@ export async function sendTestMessageAction(
 
     return {
       ok: true,
-      message: "Revisa tu WhatsApp 📱",
+      message: "Revisa tu WhatsApp",
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
