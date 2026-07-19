@@ -4,7 +4,6 @@ import { verifyMetaSignature, webhookPayloadSchema } from "@/lib/meta/webhook";
 import { handleInboundMessage, handleStatusEvent, handleCallEvent, handleCallPermissionReply } from "@/lib/meta/webhook-handlers";
 import { forwardWebhook } from "@/lib/meta/forward";
 import { resolveOrgByPhoneId } from "@/lib/org/resolve-by-phone-id";
-import { logCallWebhook, logInboundMessageRaw } from "@/lib/meta/call-webhook-log";
 
 export const runtime = "nodejs";
 
@@ -51,8 +50,6 @@ export async function POST(req: Request) {
     return new NextResponse("unauthorized", { status: 401 });
   }
 
-  logCallWebhook(rawBody); // TEMPORAL: observabilidad de llamadas/permiso (ver call-webhook-log.ts)
-
   for (const entry of parsed.data.entry) {
     for (const change of entry.changes) {
       const v = change.value;
@@ -62,7 +59,6 @@ export async function POST(req: Request) {
       if (v.messages) {
         const profileName = v.contacts?.[0]?.profile?.name ?? null;
         for (const m of v.messages) {
-          logInboundMessageRaw(m); // TEMPORAL: diagnóstico de media entrante
           // Reply al permiso de llamada (forma exacta a verificar contra doc Meta; parseo tolerante).
           const inter = (m as Record<string, unknown>).interactive as
             | { type?: string; call_permission_reply?: { response?: string; expiration_timestamp?: number } }
