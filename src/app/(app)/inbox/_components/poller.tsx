@@ -8,8 +8,8 @@ export function Poller() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      // Only refresh if page is visible
-      if (!document.hidden) {
+      // Only refresh if page is visible and online
+      if (!document.hidden && navigator.onLine) {
         router.refresh();
       }
     }, 5000);

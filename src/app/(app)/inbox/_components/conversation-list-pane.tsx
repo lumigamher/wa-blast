@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { SearchIcon, Check, Bot, User } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -49,10 +50,113 @@ function formatRelativeTime(date: Date): string {
   return "Hace unos segundos";
 }
 
+interface VirtualizedConversationListProps {
+  conversations: Awaited<ReturnType<typeof getInboxData>>["conversations"];
+  data: Awaited<ReturnType<typeof getInboxData>>;
+  activeConvId: string | null;
+  searchParams: ReturnType<typeof useSearchParams>;
+  parentRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function VirtualizedConversationList({
+  conversations,
+  data,
+  activeConvId,
+  searchParams,
+  parentRef,
+}: VirtualizedConversationListProps) {
+  const rowVirtualizer = useVirtualizer({
+    count: conversations.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 72,
+    overscan: 10,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const totalSize = rowVirtualizer.getTotalSize();
+
+  return (
+    <div ref={parentRef} className="flex-1 overflow-y-auto min-h-0">
+      <div style={{ height: totalSize, position: "relative" }}>
+        {virtualItems.map((virtualItem) => {
+          const conv = conversations[virtualItem.index];
+          const isActive = activeConvId === conv.id;
+
+          return (
+            <Link
+              key={conv.id}
+              href={`/inbox/${conv.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
+              scroll={false}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualItem.start}px)`,
+              }}
+              className={`block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors group ${
+                isActive ? "bg-accent border-primary" : ""
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                  <ContactAvatar
+                    seed={conv.phone}
+                    name={conv.contactName}
+                    size={40}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <div className="text-sm font-medium truncate">
+                        {conv.contactName || conv.phone}
+                      </div>
+                      {data.agentEnabled && (
+                        <AgentBadge
+                          agentEnabled={data.agentEnabled}
+                          agentPaused={conv.agentPaused}
+                        />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {conv.preview || "(sin mensaje)"}
+                    </div>
+                    {conv.labels.length > 0 && (
+                      <div className="mt-1.5">
+                        <LabelChips labels={conv.labels} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {conv.status === "resolved" && (
+                    <div title="Resuelta">
+                      <Check className="size-3 text-muted-foreground" />
+                    </div>
+                  )}
+                  {conv.unreadCount > 0 && (
+                    <div className="flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">
+                      {conv.unreadCount}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                {formatRelativeTime(conv.lastMessageAt)}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ConversationListPane() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const [data, setData] = useState<Awaited<ReturnType<typeof getInboxData>> | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -99,10 +203,10 @@ export function ConversationListPane() {
     });
   }, [q, unreadOnly, status, agent, label]);
 
-  // Polling effect: refresh list every 5 seconds when document is visible
+  // Polling effect: refresh list every 15 seconds when document is visible and online
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!document.hidden && !isPending && !isInitial) {
+      if (!document.hidden && navigator.onLine && !isPending && !isInitial) {
         startTransition(async () => {
           const newData = await getInboxData({
             q,
@@ -114,7 +218,7 @@ export function ConversationListPane() {
           setData(newData);
         });
       }
-    }, 5000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [q, unreadOnly, status, agent, label, isPending, isInitial]);
@@ -302,77 +406,23 @@ export function ConversationListPane() {
       </div>
 
       {/* Conversations List */}
-      <div className="space-y-1 flex-1 overflow-y-auto min-h-0">
-        {data.conversations.length === 0 ? (
+      {data.conversations.length === 0 ? (
+        <div className="flex-1 overflow-y-auto min-h-0">
           <Card className="p-3">
             <p className="text-xs text-muted-foreground text-center">
               {q ? "No hay conversaciones" : "Tu inbox está vacío"}
             </p>
           </Card>
-        ) : (
-          data.conversations.map((conv) => {
-            const isActive = activeConvId === conv.id;
-
-            return (
-              <Link
-                key={conv.id}
-                href={`/inbox/${conv.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
-                scroll={false}
-                className={`block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors group ${
-                  isActive ? "bg-accent border-primary" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                    <ContactAvatar
-                      seed={conv.phone}
-                      name={conv.contactName}
-                      size={40}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <div className="text-sm font-medium truncate">
-                          {conv.contactName || conv.phone}
-                        </div>
-                        {data.agentEnabled && (
-                          <AgentBadge
-                            agentEnabled={data.agentEnabled}
-                            agentPaused={conv.agentPaused}
-                          />
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {conv.preview || "(sin mensaje)"}
-                      </div>
-                      {conv.labels.length > 0 && (
-                        <div className="mt-1.5">
-                          <LabelChips labels={conv.labels} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {conv.status === "resolved" && (
-                      <div title="Resuelta">
-                        <Check className="size-3 text-muted-foreground" />
-                      </div>
-                    )}
-                    {conv.unreadCount > 0 && (
-                      <div className="flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">
-                        {conv.unreadCount}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="text-[10px] text-muted-foreground mt-1">
-                  {formatRelativeTime(conv.lastMessageAt)}
-                </div>
-              </Link>
-            );
-          })
-        )}
-      </div>
+        </div>
+      ) : (
+        <VirtualizedConversationList
+          conversations={data.conversations}
+          data={data}
+          activeConvId={activeConvId}
+          searchParams={searchParams}
+          parentRef={parentRef}
+        />
+      )}
     </div>
   );
 }
