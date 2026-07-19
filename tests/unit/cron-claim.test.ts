@@ -7,7 +7,7 @@ import {
   recoverStuckCampaigns,
 } from "@/app/api/cron/run-scheduled/route";
 
-async function setupTest(db: any) {
+async function setupTest(db: ReturnType<typeof makeTestDb>["db"]) {
   const orgId = "test-org";
   const userId = "test-user";
 

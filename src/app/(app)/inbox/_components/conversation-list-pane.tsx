@@ -68,8 +68,11 @@ function VirtualizedConversationList({
   const rowVirtualizer = useVirtualizer({
     count: conversations.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 72,
-    overscan: 10,
+    estimateSize: () => 80,
+    overscan: 15,
+    measureElement: typeof window !== 'undefined'
+      ? (element) => element?.getBoundingClientRect().height
+      : undefined,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -87,6 +90,12 @@ function VirtualizedConversationList({
               key={conv.id}
               href={`/inbox/${conv.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`}
               scroll={false}
+              ref={(el) => {
+                if (el) {
+                  rowVirtualizer.measureElement(el);
+                }
+              }}
+              data-index={virtualItem.index}
               style={{
                 position: "absolute",
                 top: 0,

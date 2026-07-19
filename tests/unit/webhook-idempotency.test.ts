@@ -4,7 +4,7 @@ import { makeTestDb } from "@/lib/db/test-db";
 import { campaigns, campaignRecipients, organization, user } from "@/lib/db/schema";
 import { handleStatusEvent, handleInboundMessage } from "@/lib/meta/webhook-handlers";
 
-async function setupTest(db: any) {
+async function setupTest(db: ReturnType<typeof makeTestDb>["db"]) {
   const orgId = "test-org";
   const userId = "test-user";
   const campaignId = "test-campaign";
