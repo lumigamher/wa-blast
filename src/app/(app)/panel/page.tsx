@@ -9,6 +9,7 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -24,11 +25,21 @@ import { db } from "@/lib/db/client";
 import { campaigns } from "@/lib/db/schema";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { getOrgSettings } from "@/lib/org/settings";
+import { getOnboardingStatus } from "@/lib/onboarding/status";
+import { OnboardingBanner } from "./_components/onboarding-banner";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const { orgId, session } = await requireOrg();
+
+  // Check onboarding status early, before heavy fetches
+  const onboardingStatus = await getOnboardingStatus(db, orgId);
+
+  // Redirect to setup if credentials not configured
+  if (!onboardingStatus.steps.creds) {
+    redirect("/conectar");
+  }
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
 
@@ -104,6 +115,8 @@ export default async function Home() {
           </Link>
         </div>
       </header>
+
+      <OnboardingBanner status={onboardingStatus} />
 
       {runningCamp && (
         <Card className="border-blue-300 bg-blue-50/50">
