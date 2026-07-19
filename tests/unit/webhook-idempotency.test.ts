@@ -120,17 +120,17 @@ describe("idempotencia de webhooks", () => {
 
     // Process sent event
     await handleStatusEvent(db, orgId, { ...baseStatus, status: "sent" as const });
-    let camp = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).then((r) => r[0]);
+    let camp = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).then((r: typeof campaigns.$inferSelect[]) => r[0]);
     expect(camp.delivered).toBe(0);
 
     // Process delivered event
     await handleStatusEvent(db, orgId, { ...baseStatus, status: "delivered" as const });
-    camp = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).then((r) => r[0]);
+    camp = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).then((r: typeof campaigns.$inferSelect[]) => r[0]);
     expect(camp.delivered).toBe(1);
 
     // Process read event
     await handleStatusEvent(db, orgId, { ...baseStatus, status: "read" as const });
-    camp = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).then((r) => r[0]);
+    camp = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).then((r: typeof campaigns.$inferSelect[]) => r[0]);
     expect(camp.read).toBe(1);
   });
 });
