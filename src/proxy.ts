@@ -3,13 +3,15 @@ import { getSessionCookie } from "better-auth/cookies";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/verify", "/reset-password", "/api/auth", "/api/webhook", "/api/cron", "/media", "/shots"];
 
+export function isPublicPath(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname === "/") {
-    return NextResponse.next();
-  }
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
   if (pathname.startsWith("/_next") || pathname === "/favicon.ico") {
