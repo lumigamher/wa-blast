@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOrg } from "@/lib/auth/session";
+import { checkModuleGate } from "@/lib/billing/access";
 import { db } from "@/lib/db/client";
 import { saveMediaAsset } from "@/lib/media/store";
 import { extractDocumentText } from "@/lib/agent/rag/extract";
@@ -9,6 +10,9 @@ import { RAG_LIMITS } from "@/lib/agent/rag/limits";
 
 export async function POST(req: Request): Promise<NextResponse> {
   const { orgId } = await requireOrg();
+  if (!(await checkModuleGate(db, orgId, "agente"))) {
+    return NextResponse.json({ error: "Tu plan no incluye el agente IA." }, { status: 403 });
+  }
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) {

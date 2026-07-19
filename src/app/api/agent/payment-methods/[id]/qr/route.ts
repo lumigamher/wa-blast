@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { checkModuleGate } from "@/lib/billing/access";
 import { setPaymentMethodQr } from "@/lib/agent/payments/methods";
 import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
@@ -14,6 +15,9 @@ export async function POST(
 ): Promise<NextResponse> {
 	const { id: methodId } = await params;
 	const { orgId } = await requireOrg();
+	if (!(await checkModuleGate(db, orgId, "agente"))) {
+		return NextResponse.json({ error: "Tu plan no incluye el agente IA." }, { status: 403 });
+	}
 
 	// Validate that payment method belongs to org
 	const [method] = await db

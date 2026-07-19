@@ -5,6 +5,7 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { MEDIA_LIMITS, MetaApiError, credsFromSettings, uploadMedia } from "@/lib/meta/graph";
 import type { MediaFormat } from "@/lib/meta/types";
 import { saveMediaAsset, publicMediaUrl } from "@/lib/media/store";
+import { matchesMagicBytes } from "@/lib/media/magic-bytes";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -50,6 +51,11 @@ export async function POST(req: Request) {
       { ok: false, error: `Archivo demasiado grande (${Math.round(file.size / 1024 / 1024)}MB, límite ${Math.round(limit.maxBytes / 1024 / 1024)}MB)` },
       { status: 400 },
     );
+  }
+
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  if (!matchesMagicBytes(file.type, head)) {
+    return NextResponse.json({ ok: false, error: "El contenido del archivo no coincide con su tipo." }, { status: 400 });
   }
 
   try {

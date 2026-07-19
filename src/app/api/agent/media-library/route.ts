@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOrg } from "@/lib/auth/session";
+import { checkModuleGate } from "@/lib/billing/access";
 import { db } from "@/lib/db/client";
 import { saveMediaAsset } from "@/lib/media/store";
 import { mimeToKind, addMedia, deleteMedia } from "@/lib/agent/media-library";
@@ -8,6 +9,9 @@ const MAX_BYTES = 16 * 1024 * 1024; // 16MB
 
 export async function POST(req: Request): Promise<NextResponse> {
   const { orgId } = await requireOrg();
+  if (!(await checkModuleGate(db, orgId, "agente"))) {
+    return NextResponse.json({ error: "Tu plan no incluye el agente IA." }, { status: 403 });
+  }
 
   const form = await req.formData();
   const file = form.get("file");
@@ -46,6 +50,9 @@ export async function POST(req: Request): Promise<NextResponse> {
 
 export async function DELETE(req: Request): Promise<NextResponse> {
   const { orgId } = await requireOrg();
+  if (!(await checkModuleGate(db, orgId, "agente"))) {
+    return NextResponse.json({ error: "Tu plan no incluye el agente IA." }, { status: 403 });
+  }
 
   let body: { id: string };
   try {
