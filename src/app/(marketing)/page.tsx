@@ -163,7 +163,7 @@ export default async function MarketingPage() {
                     ].map((bullet, idx) => (
                       <Reveal key={idx} delay={idx * 0.1}>
                         <div className="flex items-start gap-3 text-neutral-700">
-                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-500 shrink-0" />
                           {bullet}
                         </div>
                       </Reveal>
@@ -177,6 +177,7 @@ export default async function MarketingPage() {
                   <Shot
                     src="/shots/campanas.png"
                     alt="Tabla de campañas con estadísticas"
+                    priority
                   />
                 </div>
               </Reveal>
@@ -222,7 +223,7 @@ export default async function MarketingPage() {
                     ].map((bullet, idx) => (
                       <Reveal key={idx} delay={idx * 0.1}>
                         <div className="flex items-start gap-3 text-neutral-700">
-                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-400 shrink-0" />
+                          <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-neutral-500 shrink-0" />
                           {bullet}
                         </div>
                       </Reveal>

@@ -7,9 +7,10 @@ interface ShotProps {
   src: string;
   alt?: string;
   caption?: string;
+  priority?: boolean;
 }
 
-export function Shot({ src, alt = "Lula app screenshot", caption }: ShotProps) {
+export function Shot({ src, alt = "Lula app screenshot", caption, priority = false }: ShotProps) {
   const prefersReducedMotion = useReducedMotion();
 
   return (
@@ -25,7 +26,7 @@ export function Shot({ src, alt = "Lula app screenshot", caption }: ShotProps) {
 
         <div
           className={`rounded-3xl overflow-hidden ring-1 ring-neutral-200 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.18),0_8px_24px_-8px_rgba(0,0,0,0.12)] ${
-            !prefersReducedMotion ? "transition-transform duration-300 ease-out hover:scale-[1.02] hover:shadow-[0_25px_70px_-10px_rgba(0,0,0,0.22),0_12px_32px_-6px_rgba(0,0,0,0.14)]" : ""
+            !prefersReducedMotion ? "transition-transform duration-300 ease-out hover:scale-[1.02] hover:shadow-[0_25px_70px_-10px_rgba(0,0,0,0.22),0_12px_32px_-6px_rgba(0,0,0,0.14)] hover:will-change-transform" : ""
           }`}
           style={!prefersReducedMotion ? {
             perspective: "2000px",
@@ -57,7 +58,7 @@ export function Shot({ src, alt = "Lula app screenshot", caption }: ShotProps) {
             quality={90}
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 90vw, 1440px"
             className="w-full h-auto block"
-            priority={false}
+            priority={priority}
           />
         </div>
       </div>

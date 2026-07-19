@@ -46,7 +46,8 @@ export function FAQ() {
           >
             <h3 className="font-medium text-neutral-950 pr-4">{faq.question}</h3>
             <ChevronDown
-              className={`h-5 w-5 text-neutral-400 shrink-0 transition-transform duration-200 ${
+              aria-hidden="true"
+              className={`h-5 w-5 text-neutral-500 shrink-0 transition-transform duration-200 ${
                 open === idx ? "rotate-180" : ""
               }`}
             />
