@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOnboardingStatus } from "@/lib/onboarding/status";
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function ConectarPage() {
   const { orgId } = await requireOrg();
   const initialStatus = await getOnboardingStatus(db, orgId);
+  if (initialStatus.complete) redirect("/panel");
   const webhook = await ensureVerifyTokenAction();
   const settings = await getOrgSettings(db, orgId);
 

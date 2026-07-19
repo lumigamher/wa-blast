@@ -8,6 +8,7 @@ import { credsFromSettings, getPhoneHealth } from "@/lib/meta/graph";
 import { sendTemplate } from "@/lib/meta/client";
 import { getOnboardingStatus, type OnboardingStatus } from "@/lib/onboarding/status";
 import { requireOrg } from "@/lib/auth/session";
+import { env } from "@/lib/env";
 import { normalizePhone } from "@/lib/contacts/phone";
 import { eq } from "drizzle-orm";
 
@@ -138,7 +139,7 @@ export async function ensureVerifyTokenAction(): Promise<{ url: string; token: s
       .where(eq(organizationSettings.orgId, orgId));
   }
 
-  const baseUrl = process.env.BETTER_AUTH_URL ?? "https://luladev.com";
+  const baseUrl = env.PUBLIC_BASE_URL ?? env.BETTER_AUTH_URL;
   const url = `${baseUrl}/api/webhook/meta`;
 
   return { url, token };
