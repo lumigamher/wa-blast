@@ -6,7 +6,20 @@ import { isIP } from "node:net";
 function isPrivateIp(ip: string): boolean {
   if (ip.includes(":")) {
     const low = ip.toLowerCase();
-    return low === "::1" || low === "::" || low.startsWith("fc") || low.startsWith("fd") || low.startsWith("fe80") || low.startsWith("::ffff:127.") || low.startsWith("::ffff:10.") || low.startsWith("::ffff:192.168.");
+    // IPv6 mapeada en forma decimal: ::ffff:a.b.c.d
+    const decimalMapped = low.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (decimalMapped) return isPrivateIp(decimalMapped[1]);
+    // IPv6 mapeada en forma hexadecimal comprimida: ::ffff:xxxx:xxxx
+    const hexMapped = low.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (hexMapped) {
+      const a = parseInt(hexMapped[1], 16) >> 8; // primer byte de primer grupo
+      const b = parseInt(hexMapped[1], 16) & 0xff; // segundo byte de primer grupo
+      const c = parseInt(hexMapped[2], 16) >> 8; // primer byte de segundo grupo
+      const d = parseInt(hexMapped[2], 16) & 0xff; // segundo byte de segundo grupo
+      return isPrivateIp(`${a}.${b}.${c}.${d}`);
+    }
+    // IPv6 nativa
+    return low === "::1" || low === "::" || low.startsWith("fc") || low.startsWith("fd") || low.startsWith("fe80");
   }
   const parts = ip.split(".").map(Number);
   const [a, b] = parts;
