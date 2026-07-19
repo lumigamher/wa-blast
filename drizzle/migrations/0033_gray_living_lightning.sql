@@ -1,0 +1,1 @@
+ALTER TABLE `campaigns` ADD `status_changed_at` integer;

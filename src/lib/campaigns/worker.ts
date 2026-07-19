@@ -24,7 +24,7 @@ export class InProcessSenderWorker implements SenderWorker {
     const settings = await getOrgSettings(this.db, camp.orgId);
     const bucket = new TokenBucket(settings.rateLimitMps, settings.rateLimitMps);
 
-    await this.db.update(campaigns).set({ status: "sending" }).where(eq(campaigns.id, campaignId));
+    await this.db.update(campaigns).set({ status: "sending", statusChangedAt: new Date() }).where(eq(campaigns.id, campaignId));
 
     const pending = await this.db
       .select()
@@ -306,7 +306,7 @@ export class InProcessSenderWorker implements SenderWorker {
       }
     }
 
-    await this.db.update(campaigns).set({ status: "done" }).where(eq(campaigns.id, campaignId));
+    await this.db.update(campaigns).set({ status: "done", statusChangedAt: new Date() }).where(eq(campaigns.id, campaignId));
   }
 }
 

@@ -124,6 +124,7 @@ export const campaigns = sqliteTable(
     }),
     scheduledAt: integer("scheduled_at", { mode: "timestamp" }),
     status: text("status").notNull().default("draft"),
+    statusChangedAt: integer("status_changed_at", { mode: "timestamp" }),
     total: integer("total").notNull().default(0),
     sent: integer("sent").notNull().default(0),
     delivered: integer("delivered").notNull().default(0),

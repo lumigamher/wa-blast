@@ -232,6 +232,13 @@
       "when": 1784436951619,
       "tag": "0032_remarkable_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1784437614444,
+      "tag": "0033_gray_living_lightning",
+      "breakpoints": true
     }
   ]
 }
