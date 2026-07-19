@@ -1,7 +1,5 @@
 import { Check } from "lucide-react";
-import Link from "next/link";
 import { TextHoverEffect } from "@/components/ui/text-hover-effect";
-import { getSession } from "@/lib/auth/session";
 import { getPlanCatalog } from "@/lib/billing/config";
 import { MODULE_LABELS } from "@/lib/billing/plans";
 import { db } from "@/lib/db/client";
@@ -10,15 +8,18 @@ import { Nav } from "./_components/nav";
 import { Reveal } from "./_components/reveal";
 import { Shot } from "./_components/shot";
 import { UsecaseTabs } from "./_components/usecase-tabs";
+import { HeroCTA } from "./_components/hero-cta";
+import { PricingCTA } from "./_components/pricing-cta";
+import { FinalCTA } from "./_components/final-cta";
+
+export const revalidate = 3600;
 
 export default async function MarketingPage() {
-  const session = await getSession();
-  const loggedIn = !!session;
   const plans = await getPlanCatalog(db);
 
   return (
     <>
-      <Nav loggedIn={loggedIn} />
+      <Nav />
 
       <main className="w-full bg-white">
         {/* Hero Section */}
@@ -77,35 +78,7 @@ export default async function MarketingPage() {
                 </p>
 
                 {/* CTAs — reactivan los clics sobre el backdrop interactivo */}
-                <div className="pointer-events-auto flex flex-col sm:flex-row gap-3 justify-center pt-4">
-                  {!loggedIn && (
-                    <>
-                      <Link
-                        href="/signup"
-                        className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      >
-                        Crear cuenta gratis
-                      </Link>
-                      <a
-                        href="https://wa.me/573012463004"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-full border border-neutral-200 text-neutral-950 px-6 py-3 text-sm font-medium hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      >
-                        Escríbenos por WhatsApp
-                      </a>
-                      {/* TODO(luis): confirmar número WhatsApp comercial */}
-                    </>
-                  )}
-                  {loggedIn && (
-                    <Link
-                      href="/panel"
-                      className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      Ir al panel
-                    </Link>
-                  )}
-                </div>
+                <HeroCTA />
 
                 {/* Caption */}
                 <p className="text-xs text-neutral-500">
@@ -427,28 +400,7 @@ export default async function MarketingPage() {
                         ))}
                       </div>
 
-                      <div className="space-y-3 pt-2">
-                        {!loggedIn && (
-                          <Link
-                            href="/signup"
-                            className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                          >
-                            Empezar ahora
-                          </Link>
-                        )}
-                        {loggedIn && (
-                          <Link
-                            href="/panel"
-                            className="w-full block text-center rounded-full bg-neutral-950 text-white py-3 px-6 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                          >
-                            Ir al panel
-                          </Link>
-                        )}
-
-                        <p className="text-center text-xs text-neutral-500">
-                          Sin contrato. Cancela cuando quieras.
-                        </p>
-                      </div>
+                      <PricingCTA />
                     </div>
                   );
                 })}
@@ -494,34 +446,7 @@ export default async function MarketingPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                  {!loggedIn && (
-                    <>
-                      <Link
-                        href="/signup"
-                        className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      >
-                        Crear cuenta gratis
-                      </Link>
-                      <a
-                        href="https://wa.me/573012463004"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-full border border-neutral-200 text-neutral-950 px-6 py-3 text-sm font-medium hover:bg-neutral-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                      >
-                        Contactar por WhatsApp
-                      </a>
-                    </>
-                  )}
-                  {loggedIn && (
-                    <Link
-                      href="/panel"
-                      className="rounded-full bg-neutral-950 text-white px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
-                    >
-                      Ir al panel
-                    </Link>
-                  )}
-                </div>
+                <FinalCTA />
               </div>
             </Reveal>
           </div>

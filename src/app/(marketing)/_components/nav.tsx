@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useSession } from "@/lib/auth/client";
 
-interface NavProps {
-  loggedIn: boolean;
-}
-
-export function Nav({ loggedIn }: NavProps) {
+export function Nav() {
+  const { data: session } = useSession();
+  const loggedIn = !!session;
   return (
     <nav className="sticky top-0 z-40 w-full border-b border-neutral-200 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto max-w-6xl px-6 py-3 md:px-10 flex items-center justify-between h-14">
