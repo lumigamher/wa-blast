@@ -81,13 +81,6 @@ export async function handleInboundMessage(
 
   const body = msg.text?.body ?? "";
 
-  if (body && matchOptOut(body, optoutKeywords)) {
-    await db
-      .update(contacts)
-      .set({ optOutAt: ts })
-      .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone)));
-  }
-
   // Gate: insert replied event only if this is the first transmission
   const inserted = await db
     .insert(messageEvents)
@@ -100,6 +93,13 @@ export async function handleInboundMessage(
     .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
     .returning({ id: messageEvents.id });
   if (inserted.length === 0) return; // webhook retransmitido: ya procesado
+
+  if (body && matchOptOut(body, optoutKeywords)) {
+    await db
+      .update(contacts)
+      .set({ optOutAt: ts })
+      .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone)));
+  }
 
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
   const [recent] = await db
