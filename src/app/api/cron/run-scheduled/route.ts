@@ -40,17 +40,17 @@ export async function GET(req: Request) {
     return new NextResponse("forbidden", { status: 403 });
   }
 
+  // Recover stuck campaigns first, before selecting due campaigns
+  const recovered = await recoverStuckCampaigns(db);
+  if (recovered.length > 0) {
+    console.log("recovered stuck campaigns", recovered);
+  }
+
   const now = new Date();
   const due = await db
     .select()
     .from(campaigns)
     .where(and(eq(campaigns.status, "draft"), isNotNull(campaigns.scheduledAt), lte(campaigns.scheduledAt, now)));
-
-  // Recover stuck campaigns first
-  const recovered = await recoverStuckCampaigns(db);
-  if (recovered.length > 0) {
-    console.log("recovered stuck campaigns", recovered);
-  }
 
   const ids: string[] = [];
   for (const c of due) {
