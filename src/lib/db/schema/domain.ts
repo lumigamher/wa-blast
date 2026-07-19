@@ -175,6 +175,7 @@ export const messageEvents = sqliteTable(
   },
   (t) => ({
     wamidIdx: index("events_wamid_idx").on(t.wamid),
+    wamidEventUnique: uniqueIndex("events_wamid_event_unique").on(t.wamid, t.event),
   }),
 );
 

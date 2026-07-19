@@ -1,0 +1,2 @@
+DELETE FROM `message_events` WHERE `id` NOT IN (SELECT MIN(`id`) FROM `message_events` GROUP BY `wamid`, `event`);--> statement-breakpoint
+CREATE UNIQUE INDEX `events_wamid_event_unique` ON `message_events` (`wamid`,`event`);

@@ -16,12 +16,17 @@ export async function handleStatusEvent(
   status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id: string; errors?: Array<{ message?: string }> },
 ) {
   const ts = new Date(Number(status.timestamp) * 1000);
-  await db.insert(messageEvents).values({
-    wamid: status.id,
-    event: status.status,
-    timestamp: ts,
-    payload: JSON.stringify(status),
-  });
+  const inserted = await db
+    .insert(messageEvents)
+    .values({
+      wamid: status.id,
+      event: status.status,
+      timestamp: ts,
+      payload: JSON.stringify(status),
+    })
+    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
+    .returning({ id: messageEvents.id });
+  if (inserted.length === 0) return; // webhook retransmitido: ya procesado
 
   // Update inbox message status
   await updateMessageStatusByWamid(db, status.id, status.status, status.errors?.[0]?.message);
@@ -83,6 +88,19 @@ export async function handleInboundMessage(
       .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone)));
   }
 
+  // Gate: insert replied event only if this is the first transmission
+  const inserted = await db
+    .insert(messageEvents)
+    .values({
+      wamid: msg.id,
+      event: "replied",
+      timestamp: ts,
+      payload: JSON.stringify({ from: msg.from, preview: body.slice(0, 40) }),
+    })
+    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
+    .returning({ id: messageEvents.id });
+  if (inserted.length === 0) return; // webhook retransmitido: ya procesado
+
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
   const [recent] = await db
     .select()
@@ -97,13 +115,6 @@ export async function handleInboundMessage(
       .set({ replied: sql`${campaigns.replied} + 1` })
       .where(eq(campaigns.id, recent.campaignId));
   }
-
-  await db.insert(messageEvents).values({
-    wamid: msg.id,
-    event: "replied",
-    timestamp: ts,
-    payload: JSON.stringify({ from: msg.from, preview: body.slice(0, 40) }),
-  });
 
   // Parse message once and reuse
   const parsed = parseInboundMessage(msg);

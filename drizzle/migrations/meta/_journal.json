@@ -225,6 +225,13 @@
       "when": 1782398406245,
       "tag": "0031_solid_silver_surfer",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1784436951619,
+      "tag": "0032_remarkable_bloodstorm",
+      "breakpoints": true
     }
   ]
 }
