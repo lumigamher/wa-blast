@@ -1,5 +1,6 @@
 import type { DecryptedSettings } from "@/lib/org/settings";
 import { env } from "@/lib/env";
+import { GRAPH_TIMEOUT_MS } from "./client";
 
 // Settings de calling probado en v22 (Fase 1). Las acciones de llamada
 // (accept/reject/terminate) usan la versión configurable (default v24).
@@ -36,6 +37,7 @@ export async function getCallingSettings(
   }
   const res = await fetch(`${GRAPH}/${s.metaPhoneId}/settings`, {
     headers: { authorization: `Bearer ${s.metaAccessToken}` },
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -59,6 +61,7 @@ export async function setCallingSettings(
       "content-type": "application/json",
     },
     body: JSON.stringify({ calling: patch }),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -103,6 +106,7 @@ export async function callAction(
       "content-type": "application/json",
     },
     body: JSON.stringify({ messaging_product: "whatsapp", ...body }),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { message?: string; code?: number } };
@@ -142,6 +146,7 @@ export async function requestCallPermission(
         action: { name: "call_permission_request" },
       },
     }),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
@@ -165,6 +170,7 @@ export async function placeCall(
       action: "connect",
       session: { sdp: offerSdp, sdp_type: "offer" },
     }),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   const rawRes = await res.text();
   console.log(`[placeCall] status=${res.status} to=${toPhone} body=${rawRes.slice(0, 400)}`);

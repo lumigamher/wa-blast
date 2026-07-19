@@ -61,7 +61,7 @@ export class InProcessSenderWorker implements SenderWorker {
               (hdrFmt === "IMAGE" || hdrFmt === "VIDEO" || hdrFmt === "DOCUMENT")
             ) {
               try {
-                const r = await fetch(handle, { cache: "no-store" });
+                const r = await fetch(handle, { cache: "no-store", signal: AbortSignal.timeout(30_000) });
                 if (r.ok) {
                   const bytes = await r.arrayBuffer();
                   const mime =

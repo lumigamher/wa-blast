@@ -1,5 +1,7 @@
 import type { DecryptedSettings } from "@/lib/org/settings";
 
+export const GRAPH_TIMEOUT_MS = 15_000;
+
 export type SendTemplateParams = {
   to: string;
   templateName: string;
@@ -48,6 +50,7 @@ export async function sendText(
       "content-type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -82,6 +85,7 @@ export async function sendTemplate(
         components: p.components ?? [],
       },
     }),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -126,6 +130,7 @@ export async function sendFlow(
         },
       },
     }),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -148,6 +153,7 @@ export async function markRead(
     method: "POST",
     headers: { authorization: `Bearer ${settings.metaAccessToken}`, "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { code: number; message: string } };
@@ -170,6 +176,7 @@ export async function uploadMedia(
     method: "POST",
     headers: { authorization: `Bearer ${settings.metaAccessToken}` },
     body: form,
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { code: number; message: string } };
@@ -194,6 +201,7 @@ export async function sendMedia(
     method: "POST",
     headers: { authorization: `Bearer ${settings.metaAccessToken}`, "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { code: number; message: string } };
@@ -213,6 +221,7 @@ export async function sendReaction(
     method: "POST",
     headers: { authorization: `Bearer ${settings.metaAccessToken}`, "content-type": "application/json" },
     body: JSON.stringify({ messaging_product: "whatsapp", to: p.to.replace(/^\+/, ""), type: "reaction", reaction: { message_id: p.wamid, emoji: p.emoji } }),
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const j = (await res.json().catch(() => ({}))) as { error?: { code: number; message: string } };

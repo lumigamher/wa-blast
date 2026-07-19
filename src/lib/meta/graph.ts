@@ -1,4 +1,5 @@
 import type { ButtonSpec, CardInput, CreateTemplateInput, MediaFormat, WhatsAppTemplate } from "./types";
+import { GRAPH_TIMEOUT_MS } from "./client";
 
 const GRAPH_API = "https://graph.facebook.com/v22.0";
 
@@ -38,6 +39,7 @@ async function request<T>(creds: GraphCreds, path: string, init: RequestInit = {
       ...(init.headers ?? {}),
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   const text = await res.text();
   const body = text ? safeJson(text) : null;
@@ -224,7 +226,7 @@ export async function uploadMedia(
   startUrl.searchParams.set("file_type", opts.mimeType);
   startUrl.searchParams.set("access_token", creds.accessToken);
 
-  const startRes = await fetch(startUrl, { method: "POST", cache: "no-store" });
+  const startRes = await fetch(startUrl, { method: "POST", cache: "no-store", signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS) });
   const startText = await startRes.text();
   const startBody = startText ? safeJson(startText) : null;
   if (!startRes.ok) {
@@ -239,6 +241,7 @@ export async function uploadMedia(
     headers: { Authorization: `OAuth ${creds.accessToken}`, file_offset: "0" },
     body: bytes,
     cache: "no-store",
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   const uploadText = await uploadRes.text();
   const uploadBody = uploadText ? safeJson(uploadText) : null;
