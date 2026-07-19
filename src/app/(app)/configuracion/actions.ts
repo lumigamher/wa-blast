@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings, saveForwardUrl, saveMetaCreds, saveOptoutKeywords } from "@/lib/org/settings";
 import { credsFromSettings, getPhoneHealth } from "@/lib/meta/graph";
+import { validateForwardUrl } from "@/lib/security/validate-forward-url";
 
 const metaSchema = z.object({
   metaPhoneId: z.string().min(1),
@@ -37,6 +38,10 @@ export async function saveForwardUrlAction(formData: FormData): Promise<{ ok: bo
   try {
     const { orgId } = await requireOrg();
     const url = String(formData.get("forwardUrl") ?? "").trim();
+    if (url) {
+      const check = await validateForwardUrl(url);
+      if (!check.ok) return { ok: false, message: check.error };
+    }
     await saveForwardUrl(db, orgId, url || null);
     revalidatePath("/configuracion/meta");
     return { ok: true, message: "URL de reenvío guardada." };
