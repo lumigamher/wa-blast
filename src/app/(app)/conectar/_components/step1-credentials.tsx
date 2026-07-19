@@ -11,8 +11,16 @@ import { saveMetaCredsAction } from "@/app/(app)/configuracion/actions";
 import { ToastForm } from "@/components/toast-form";
 
 export function Step1Credentials({
+  savedCreds,
   onVerified,
 }: {
+  savedCreds: {
+    phoneId: string;
+    wabaId: string;
+    appId: string;
+    hasToken: boolean;
+    hasSecret: boolean;
+  };
   onVerified: () => void;
 }) {
   const [isVerifying, setIsVerifying] = useState(false);
@@ -77,25 +85,31 @@ export function Step1Credentials({
               label="Phone Number ID"
               name="metaPhoneId"
               placeholder="1234567890"
+              defaultValue={savedCreds.phoneId}
               hint="Lo encuentras en WhatsApp API → Phone Numbers"
               isCollapsed={collapsedFields.phoneId}
               onToggle={() => toggleField("phoneId")}
+              saved={Boolean(savedCreds.phoneId)}
             />
             <CredentialField
               label="WABA ID"
               name="metaWabaId"
               placeholder="5678901234"
+              defaultValue={savedCreds.wabaId}
               hint="WhatsApp Business Account ID en la sección Business Accounts"
               isCollapsed={collapsedFields.wabaId}
               onToggle={() => toggleField("wabaId")}
+              saved={Boolean(savedCreds.wabaId)}
             />
             <CredentialField
               label="App ID"
               name="metaAppId"
               placeholder="1122334455"
+              defaultValue={savedCreds.appId}
               hint="Meta App ID para carga de medios (en App Dashboard)"
               isCollapsed={collapsedFields.appId}
               onToggle={() => toggleField("appId")}
+              saved={Boolean(savedCreds.appId)}
             />
             <CredentialField
               label="Access Token"
@@ -105,6 +119,7 @@ export function Step1Credentials({
               hint="System User Token (token permanente sin expiración)"
               isCollapsed={collapsedFields.token}
               onToggle={() => toggleField("token")}
+              saved={savedCreds.hasToken}
             />
           </div>
 
@@ -117,7 +132,18 @@ export function Step1Credentials({
             isCollapsed={collapsedFields.secret}
             onToggle={() => toggleField("secret")}
             fullWidth
+            saved={savedCreds.hasSecret}
           />
+
+          {(savedCreds.hasToken || savedCreds.hasSecret) && (
+            <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-900 dark:bg-blue-900/10 dark:text-blue-100">
+              <p className="font-medium mb-1">Nota sobre cambios:</p>
+              <p>
+                Si quieres cambiar el Access Token o App Secret, debes reingresar ambos en los campos arriba.
+                Los campos con &quot;•••••••• guardado&quot; no se mostrarán, pero son obligatorios al guardar cambios.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-end">
             <Button type="submit">Guardar credenciales</Button>
@@ -179,33 +205,54 @@ function CredentialField({
   type = "text",
   placeholder,
   hint,
+  defaultValue = "",
   isCollapsed,
   onToggle,
   fullWidth = false,
+  saved = false,
 }: {
   label: string;
   name: string;
   type?: string;
   placeholder: string;
   hint: string;
+  defaultValue?: string;
   isCollapsed: boolean;
   onToggle: () => void;
   fullWidth?: boolean;
+  saved?: boolean;
 }) {
+  // Mostrar badge para tokens/secrets guardados; prefill para IDs
+  const isSecretField = name.includes("Token") || name.includes("Secret");
+  const displayDefaultValue = isSecretField ? "" : defaultValue; // No prefill tokens/secrets
+
   return (
     <div className={fullWidth ? "sm:col-span-2" : ""}>
       <div className="space-y-1.5">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-muted-foreground transition-colors"
-        >
-          <span>{label}</span>
-          <span className="text-xs text-muted-foreground">{isCollapsed ? "▸" : "▾"}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-muted-foreground transition-colors"
+          >
+            <span>{label}</span>
+            <span className="text-xs text-muted-foreground">{isCollapsed ? "▸" : "▾"}</span>
+          </button>
+          {saved && (
+            <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+              {isSecretField ? "•••••••• guardado" : "✓ guardado"}
+            </span>
+          )}
+        </div>
         {!isCollapsed && (
           <>
-            <Input id={name} name={name} type={type} placeholder={placeholder} />
+            <Input
+              id={name}
+              name={name}
+              type={type}
+              placeholder={placeholder}
+              defaultValue={displayDefaultValue}
+            />
             {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
           </>
         )}

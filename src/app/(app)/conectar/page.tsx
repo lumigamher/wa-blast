@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOnboardingStatus } from "@/lib/onboarding/status";
+import { getOrgSettings } from "@/lib/org/settings";
 import { Wizard } from "./_components/wizard";
 import { ensureVerifyTokenAction } from "./actions";
 
@@ -10,6 +11,16 @@ export default async function ConectarPage() {
   const { orgId } = await requireOrg();
   const initialStatus = await getOnboardingStatus(db, orgId);
   const webhook = await ensureVerifyTokenAction();
+  const settings = await getOrgSettings(db, orgId);
+
+  // Booleanos de credenciales guardadas (valores no sensibles)
+  const savedCreds = {
+    phoneId: settings.metaPhoneId ?? "",
+    wabaId: settings.metaWabaId ?? "",
+    appId: settings.metaAppId ?? "",
+    hasToken: Boolean(settings.metaAccessToken),
+    hasSecret: Boolean(settings.metaAppSecret),
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
@@ -20,7 +31,7 @@ export default async function ConectarPage() {
         </p>
       </header>
 
-      <Wizard initialStatus={initialStatus} webhook={webhook} />
+      <Wizard initialStatus={initialStatus} webhook={webhook} savedCreds={savedCreds} />
     </div>
   );
 }

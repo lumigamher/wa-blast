@@ -13,9 +13,17 @@ import { Step4Complete } from "./step4-complete";
 export function Wizard({
   initialStatus,
   webhook,
+  savedCreds,
 }: {
   initialStatus: OnboardingStatus;
   webhook: { url: string; token: string };
+  savedCreds: {
+    phoneId: string;
+    wabaId: string;
+    appId: string;
+    hasToken: boolean;
+    hasSecret: boolean;
+  };
 }) {
   const [step, setStep] = useState<number>(initialStatus.nextStep ?? 4);
   const [status, setStatus] = useState<OnboardingStatus>(initialStatus);
@@ -52,13 +60,6 @@ export function Wizard({
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [isPolling]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-  }, []);
 
   const canProceed = (targetStep: number): boolean => {
     if (targetStep <= step) return true; // Can always go back
@@ -110,6 +111,7 @@ export function Wizard({
       {/* Step 1: Credentials */}
       {step === 1 && (
         <Step1Credentials
+          savedCreds={savedCreds}
           onVerified={() => {
             setStatus((s) => ({
               ...s,
