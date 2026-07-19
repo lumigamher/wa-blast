@@ -578,7 +578,7 @@ export const calls = sqliteTable(
   (t) => ({
     orgIdx: index("calls_org_created").on(t.orgId, t.createdAt),
     convIdx: index("calls_conv").on(t.conversationId),
-    wacidUnique: uniqueIndex("calls_org_wacid").on(t.orgId, t.wacid),
+    wacidUnique: uniqueIndex("calls_org_wacid_unique").on(t.orgId, t.wacid),
   }),
 );
 

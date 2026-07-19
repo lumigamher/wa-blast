@@ -10,16 +10,15 @@ export class TokenBucket {
   }
 
   async take(n = 1): Promise<void> {
-    this.refill();
-    if (this.tokens >= n) {
-      this.tokens -= n;
-      return;
+    for (;;) {
+      this.refill();
+      if (this.tokens >= n) {
+        this.tokens -= n;
+        return;
+      }
+      const need = n - this.tokens;
+      await new Promise((r) => setTimeout(r, Math.ceil((need / this.refillPerSecond) * 1000)));
     }
-    const need = n - this.tokens;
-    const waitMs = Math.ceil((need / this.refillPerSecond) * 1000);
-    await new Promise((r) => setTimeout(r, waitMs));
-    this.refill();
-    this.tokens -= n;
   }
 
   private refill() {

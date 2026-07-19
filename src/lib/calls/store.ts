@@ -29,12 +29,42 @@ function statusFor(e: CallEvent): "ringing" | "missed" | "completed" | "rejected
 
 export async function recordCallEvent(db: DB, e: CallEvent): Promise<void> {
   const status = statusFor(e);
+  const id = randomUUID();
+
+  // Intentar INSERT primero con onConflictDoNothing para evitar duplicados
+  const inserted = await db
+    .insert(calls)
+    .values({
+      id,
+      orgId: e.orgId,
+      conversationId: e.conversationId,
+      phone: e.phone,
+      direction: e.direction,
+      status,
+      wacid: e.wacid,
+      durationSec: e.durationSec ?? null,
+      startedAt: e.event === "connect" ? e.ts : null,
+      endedAt: e.event === "terminate" ? e.ts : null,
+      sdp: e.sdp ?? null,
+      sdpType: e.sdpType ?? null,
+      createdAt: e.ts,
+    })
+    .onConflictDoNothing({ target: [calls.orgId, calls.wacid] })
+    .returning({ id: calls.id });
+
+  // Si insertó exitosamente, salir
+  if (inserted.length > 0) {
+    return;
+  }
+
+  // Si no insertó (ya existía), hacer UPDATE con la lógica actual
   const existing = (
     await db
       .select()
       .from(calls)
       .where(and(eq(calls.orgId, e.orgId), eq(calls.wacid, e.wacid)))
   )[0];
+
   if (existing) {
     await db
       .update(calls)
@@ -46,23 +76,7 @@ export async function recordCallEvent(db: DB, e: CallEvent): Promise<void> {
         sdpType: e.sdpType ?? existing.sdpType ?? null,
       })
       .where(eq(calls.id, existing.id));
-    return;
   }
-  await db.insert(calls).values({
-    id: randomUUID(),
-    orgId: e.orgId,
-    conversationId: e.conversationId,
-    phone: e.phone,
-    direction: e.direction,
-    status,
-    wacid: e.wacid,
-    durationSec: e.durationSec ?? null,
-    startedAt: e.event === "connect" ? e.ts : null,
-    endedAt: e.event === "terminate" ? e.ts : null,
-    sdp: e.sdp ?? null,
-    sdpType: e.sdpType ?? null,
-    createdAt: e.ts,
-  });
 }
 
 export type CallListItem = {
