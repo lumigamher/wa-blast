@@ -1,4 +1,5 @@
 import { MetaApiError, type GraphCreds } from "./graph";
+import { GRAPH_TIMEOUT_MS } from "./client";
 
 const GRAPH_API = "https://graph.facebook.com/v22.0";
 
@@ -17,6 +18,7 @@ async function flowRequest<T>(creds: GraphCreds, path: string, init: RequestInit
     ...init,
     headers: { authorization: `Bearer ${creds.accessToken}`, "content-type": "application/json", ...(init.headers ?? {}) },
     cache: "no-store",
+    signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   const text = await res.text();
   const body = text ? JSON.parse(text) : null;
