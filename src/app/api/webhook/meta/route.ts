@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
+import { verifyWebhookToken } from "@/lib/webhook/verify";
 import { verifyMetaSignature, webhookPayloadSchema } from "@/lib/meta/webhook";
 import { handleInboundMessage, handleStatusEvent, handleCallEvent, handleCallPermissionReply } from "@/lib/meta/webhook-handlers";
 import { forwardWebhook } from "@/lib/meta/forward";
@@ -17,11 +18,13 @@ export async function GET(req: Request) {
     return new NextResponse("bad request", { status: 400 });
   }
 
-  const settings = await db.query.organizationSettings.findFirst({
-    where: (t, { eq }) => eq(t.metaVerifyToken, token),
-  });
+  try {
+    // Verifica token y estampa webhookVerifiedAt pasivamente
+    await verifyWebhookToken(db, token);
+  } catch {
+    return new NextResponse("forbidden", { status: 403 });
+  }
 
-  if (!settings) return new NextResponse("forbidden", { status: 403 });
   return new NextResponse(challenge, { status: 200 });
 }
 
