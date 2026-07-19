@@ -12,6 +12,9 @@ export type DecryptedSettings = {
   metaAccessToken: string | null;
   metaAppSecret: string | null;
   metaVerifyToken: string | null;
+  metaVerifiedAt: Date | null;
+  webhookVerifiedAt: Date | null;
+  testMessageSentAt: Date | null;
   forwardUrl: string | null;
   optoutKeywords: string[];
   rateLimitMps: number;
@@ -29,6 +32,9 @@ export async function getOrgSettings(db: DB, orgId: string): Promise<DecryptedSe
     metaAccessToken: row.metaAccessTokenEnc ? decrypt(row.metaAccessTokenEnc) : null,
     metaAppSecret: row.metaAppSecretEnc ? decrypt(row.metaAppSecretEnc) : null,
     metaVerifyToken: row.metaVerifyToken,
+    metaVerifiedAt: row.metaVerifiedAt,
+    webhookVerifiedAt: row.webhookVerifiedAt,
+    testMessageSentAt: row.testMessageSentAt,
     forwardUrl: row.forwardUrl,
     optoutKeywords: JSON.parse(row.optoutKeywords) as string[],
     rateLimitMps: row.rateLimitMps,
@@ -54,6 +60,7 @@ export async function saveMetaCreds(
     metaAppId: input.metaAppId,
     metaAccessTokenEnc: encrypt(input.metaAccessToken),
     metaAppSecretEnc: encrypt(input.metaAppSecret),
+    metaVerifiedAt: null,
     updatedAt: new Date(),
   };
   if (input.metaVerifyToken) {

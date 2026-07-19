@@ -19,6 +19,9 @@ export const organizationSettings = sqliteTable("organization_settings", {
   metaAccessTokenEnc: text("meta_access_token_enc"),
   metaAppSecretEnc: text("meta_app_secret_enc"),
   metaVerifyToken: text("meta_verify_token"),
+  metaVerifiedAt: integer("meta_verified_at", { mode: "timestamp" }),
+  webhookVerifiedAt: integer("webhook_verified_at", { mode: "timestamp" }),
+  testMessageSentAt: integer("test_message_sent_at", { mode: "timestamp" }),
   forwardUrl: text("forward_url"),
   optoutKeywords: text("optout_keywords")
     .notNull()
