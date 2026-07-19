@@ -88,7 +88,7 @@ export class InProcessSenderWorker implements SenderWorker {
                 }
               } catch (e) {
                 // best-effort: si no se puede preparar la imagen, se envía sin header
-                console.warn("[campaign header media]", campaignId, (e as Error)?.message);
+                console.warn("[campaign header media]", campaignId, (e as Error)?.message ?? String(e));
               }
             }
 
@@ -116,7 +116,7 @@ export class InProcessSenderWorker implements SenderWorker {
         }
       } catch (e) {
         // Silently continue if template fetch fails; we'll use fallback body
-        console.warn("[campaign template metadata]", campaignId, (e as Error)?.message);
+        console.warn("[campaign template metadata]", campaignId, (e as Error)?.message ?? String(e));
       }
     }
 
@@ -295,7 +295,7 @@ export class InProcessSenderWorker implements SenderWorker {
           });
         } catch (e) {
           // Silently continue if inbox recording fails; campaign send already succeeded
-          console.warn("[campaign inbox recording]", campaignId, (e as Error)?.message);
+          console.warn("[campaign inbox recording]", campaignId, (e as Error)?.message ?? String(e));
         }
 
         await this.db

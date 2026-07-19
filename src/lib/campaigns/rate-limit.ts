@@ -5,6 +5,9 @@ export class TokenBucket {
     private capacity: number,
     private refillPerSecond: number,
   ) {
+    if (refillPerSecond <= 0 || capacity <= 0) {
+      throw new Error(`TokenBucket mal configurado: capacity=${capacity}, refillPerSecond=${refillPerSecond}`);
+    }
     this.tokens = capacity;
     this.last = Date.now();
   }
