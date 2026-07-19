@@ -26,6 +26,7 @@ describe("calling actions", () => {
     expect(JSON.parse(init.body as string)).toEqual({
       call_id: "CID",
       action: "accept",
+      messaging_product: "whatsapp",
       session: { sdp: "v=0 answer", sdp_type: "answer" },
     });
     expect((init.headers as Record<string, string>).authorization).toBe("Bearer TOK");
@@ -33,9 +34,9 @@ describe("calling actions", () => {
   it("rejectCall y terminateCall postean su action sin session", async () => {
     const fetchFn = mockFetchOk();
     await rejectCall(s, "CID");
-    expect(JSON.parse((fetchFn.mock.calls[0] as unknown as FetchCall)[1].body as string)).toEqual({ call_id: "CID", action: "reject" });
+    expect(JSON.parse((fetchFn.mock.calls[0] as unknown as FetchCall)[1].body as string)).toEqual({ call_id: "CID", action: "reject", messaging_product: "whatsapp" });
     await terminateCall(s, "CID");
-    expect(JSON.parse((fetchFn.mock.calls[1] as unknown as FetchCall)[1].body as string)).toEqual({ call_id: "CID", action: "terminate" });
+    expect(JSON.parse((fetchFn.mock.calls[1] as unknown as FetchCall)[1].body as string)).toEqual({ call_id: "CID", action: "terminate", messaging_product: "whatsapp" });
   });
   it("sin creds Meta devuelve error", async () => {
     const res = await acceptCall({ metaPhoneId: null, metaAccessToken: null } as DecryptedSettings, "CID", "x");
