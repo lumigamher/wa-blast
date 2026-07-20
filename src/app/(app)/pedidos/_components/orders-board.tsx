@@ -56,12 +56,20 @@ function OrderCard({
   isNew,
   onAdvance,
   advancing,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
+  isDragging = false,
 }: {
   order: OrderListItem;
   column: BoardColumnKey;
   isNew: boolean;
   onAdvance: (order: OrderListItem, column: BoardColumnKey) => void;
   advancing: boolean;
+  draggable?: boolean;
+  onDragStart?: (order: OrderListItem, column: BoardColumnKey) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
 }) {
   const mins = minutesSince(order.createdAt);
   const urgent = column === "nuevos" && mins >= 10;
@@ -73,7 +81,16 @@ function OrderCard({
 
   return (
     <div
+      draggable={draggable}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", order.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart?.(order, column);
+      }}
+      onDragEnd={() => onDragEnd?.()}
       className={`group relative rounded-lg border bg-card p-3 shadow-sm transition-colors hover:border-primary/40 ${
+        draggable ? "cursor-grab active:cursor-grabbing" : ""
+      } ${isDragging ? "opacity-40" : ""} ${
         critical
           ? "border-red-300 dark:border-red-900"
           : urgent
@@ -81,7 +98,12 @@ function OrderCard({
             : ""
       } ${isNew ? "animate-in fade-in slide-in-from-top-2 duration-500 ring-1 ring-emerald-400/60" : ""}`}
     >
-      <Link href={`/pedidos/${order.id}`} className="absolute inset-0" aria-label={`Ver pedido ${order.numero ?? ""}`} />
+      <Link
+        href={`/pedidos/${order.id}`}
+        draggable={false}
+        className="absolute inset-0"
+        aria-label={`Ver pedido ${order.numero ?? ""}`}
+      />
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-bold tabular-nums">#{order.numero ?? "—"}</span>
         <span
@@ -152,6 +174,8 @@ export function OrdersBoard({ initial }: { initial: OrdersBoardData }) {
   const [showHistory, setShowHistory] = useState(false);
   const [mobileTab, setMobileTab] = useState<BoardColumnKey>("nuevos");
   const [advancingId, setAdvancingId] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<{ id: string; from: BoardColumnKey } | null>(null);
+  const [dragOver, setDragOver] = useState<BoardColumnKey | null>(null);
   const [, startTransition] = useTransition();
   const knownIds = useRef<Set<string>>(new Set(initial.columns.nuevos.map((o) => o.id)));
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
@@ -201,6 +225,59 @@ export function OrdersBoard({ initial }: { initial: OrdersBoardData }) {
           : column === "confirmados"
             ? `Pedido #${order.numero ?? ""} marcado pagado`
             : `Pedido #${order.numero ?? ""} despachado`,
+      );
+      refresh();
+      router.refresh();
+    });
+  };
+
+  // Drop de una card en otra columna: traduce el movimiento a acciones de estado.
+  const moveTo = (to: BoardColumnKey) => {
+    if (!dragging) return;
+    const { id, from } = dragging;
+    setDragging(null);
+    setDragOver(null);
+    if (from === to) return;
+    const order = data.columns[from].find((o) => o.id === id);
+    if (!order) return;
+    setAdvancingId(id);
+    startTransition(async () => {
+      let res: { ok: true } | { error: string };
+      if (to === "despachados") {
+        // Despachar exige estar pagado: si viene de antes, avanza ambos pasos.
+        if (from !== "pagados") {
+          const r1 = await updateOrderStatusAction(id, "pagado");
+          if ("error" in r1) {
+            setAdvancingId(null);
+            toast.error(r1.error);
+            return;
+          }
+        }
+        res = await setOrderDispatchedAction(id, true);
+      } else if (from === "despachados") {
+        const r1 = await setOrderDispatchedAction(id, false);
+        if ("error" in r1) {
+          setAdvancingId(null);
+          toast.error(r1.error);
+          return;
+        }
+        res =
+          to === "pagados"
+            ? { ok: true }
+            : await updateOrderStatusAction(id, to === "confirmados" ? "confirmado" : "pendiente");
+      } else {
+        res = await updateOrderStatusAction(
+          id,
+          to === "nuevos" ? "pendiente" : to === "confirmados" ? "confirmado" : "pagado",
+        );
+      }
+      setAdvancingId(null);
+      if ("error" in res) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(
+        `Pedido #${order.numero ?? ""} → ${COLUMNS.find((c) => c.key === to)?.title ?? to}`,
       );
       refresh();
       router.refresh();
@@ -276,9 +353,24 @@ export function OrdersBoard({ initial }: { initial: OrdersBoardData }) {
                 return (
                   <div
                     key={c.key}
-                    className={`min-h-0 flex-col rounded-lg border bg-muted/20 ${
-                      mobileTab === c.key ? "flex" : "hidden md:flex"
-                    }`}
+                    onDragOver={(e) => {
+                      if (dragging && dragging.from !== c.key) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (dragOver !== c.key) setDragOver(c.key);
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                      setDragOver((v) => (v === c.key ? null : v));
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      moveTo(c.key);
+                    }}
+                    className={`min-h-0 flex-col rounded-lg border bg-muted/20 transition-shadow ${
+                      dragOver === c.key ? "bg-primary/5 ring-2 ring-primary/50" : ""
+                    } ${mobileTab === c.key ? "flex" : "hidden md:flex"}`}
                   >
                     <div className="flex items-center justify-between border-b px-3 py-2">
                       <div className="flex items-center gap-1.5 text-xs font-medium">
@@ -309,6 +401,13 @@ export function OrdersBoard({ initial }: { initial: OrdersBoardData }) {
                             isNew={newIds.has(o.id)}
                             onAdvance={advance}
                             advancing={advancingId === o.id}
+                            draggable
+                            isDragging={dragging?.id === o.id}
+                            onDragStart={(ord, col) => setDragging({ id: ord.id, from: col })}
+                            onDragEnd={() => {
+                              setDragging(null);
+                              setDragOver(null);
+                            }}
                           />
                         ))
                       )}
