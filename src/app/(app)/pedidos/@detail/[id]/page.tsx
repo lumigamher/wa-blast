@@ -3,6 +3,7 @@ import { requireOrg } from "@/lib/auth/session";
 import { requireModuleAccess } from "@/lib/billing/require-module";
 import { db } from "@/lib/db/client";
 import { getOrder } from "@/lib/agent/catalog/orders";
+import { OrderSheet } from "../../_components/order-sheet";
 import { OrderDetail } from "./_detail";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,8 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
   const quote = safeParse<{ carrier?: string; priceCop?: number | null; deliveryDays?: number | null } | null>(order.shippingQuoteJson, null);
 
   return (
-    <OrderDetail
+    <OrderSheet>
+      <OrderDetail
       id={order.id}
       numero={order.numero}
       status={order.status}
@@ -46,6 +48,7 @@ export default async function PedidoPage({ params }: { params: Promise<{ id: str
       address={address}
       quote={quote}
       createdAt={order.createdAt.getTime()}
-    />
+      />
+    </OrderSheet>
   );
 }

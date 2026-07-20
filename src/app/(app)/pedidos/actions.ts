@@ -4,6 +4,44 @@ import { requireOrg } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { listOrders, countOrders, updateOrderStatus, setOrderDispatched, type OrderStatus } from "@/lib/agent/catalog/orders";
 
+export type BoardColumnKey = "nuevos" | "confirmados" | "pagados" | "despachados";
+
+export type OrdersBoardData = {
+  columns: Record<BoardColumnKey, Awaited<ReturnType<typeof listOrders>>>;
+  cancelados: Awaited<ReturnType<typeof listOrders>>;
+  todayCount: number;
+  todayTotalCop: number;
+};
+
+const DISPATCHED_WINDOW_MS = 48 * 3600 * 1000;
+
+export async function getOrdersBoardData(): Promise<OrdersBoardData> {
+  const { orgId } = await requireOrg();
+  const all = await listOrders(db, orgId, { limit: 200 });
+
+  const columns: OrdersBoardData["columns"] = { nuevos: [], confirmados: [], pagados: [], despachados: [] };
+  const cancelados: OrdersBoardData["cancelados"] = [];
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  let todayCount = 0;
+  let todayTotalCop = 0;
+
+  for (const o of all) {
+    if (o.createdAt >= startOfToday && o.status !== "cancelado") {
+      todayCount++;
+      todayTotalCop += o.totalCop;
+    }
+    if (o.status === "cancelado") cancelados.push(o);
+    else if (o.status === "pendiente") columns.nuevos.push(o);
+    else if (o.status === "confirmado") columns.confirmados.push(o);
+    else if (o.status === "pagado" && !o.dispatchedAt) columns.pagados.push(o);
+    else if (o.dispatchedAt && Date.now() - o.dispatchedAt.getTime() < DISPATCHED_WINDOW_MS) {
+      columns.despachados.push(o);
+    }
+  }
+  return { columns, cancelados, todayCount, todayTotalCop };
+}
+
 export async function getOrdersData(filters: { status?: OrderStatus; page?: number }) {
   const { orgId } = await requireOrg();
   const page = Math.max(1, filters.page ?? 1);

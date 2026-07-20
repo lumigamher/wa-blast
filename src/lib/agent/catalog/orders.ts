@@ -16,6 +16,9 @@ export type OrderListItem = {
   phone: string | null;
   contactName: string | null;
   shippingCity: string | null;
+  shippingBarrio: string | null;
+  paymentMethod: string | null;
+  items: { nombre: string; cantidad: number }[];
 };
 
 export type CreateOrderInput = {
@@ -187,6 +190,8 @@ export async function listOrders(
       dispatchedAt: orders.dispatchedAt,
       createdAt: orders.createdAt,
       shippingAddressJson: orders.shippingAddressJson,
+      itemsJson: orders.itemsJson,
+      paymentMethod: orders.paymentMethod,
       phone: conversations.phone,
       contactName: contacts.name,
     })
@@ -206,7 +211,31 @@ export async function listOrders(
     phone: r.phone,
     contactName: r.contactName,
     shippingCity: parseShippingCity(r.shippingAddressJson),
+    shippingBarrio: parseShippingBarrio(r.shippingAddressJson),
+    paymentMethod: r.paymentMethod,
+    items: parseItemsSummary(r.itemsJson),
   }));
+}
+
+function parseShippingBarrio(json: string | null): string | null {
+  if (!json) return null;
+  try {
+    const a = JSON.parse(json) as { barrio?: string };
+    return a.barrio ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function parseItemsSummary(json: string): { nombre: string; cantidad: number }[] {
+  try {
+    const items = JSON.parse(json) as { nombre?: string; cantidad?: number }[];
+    return items
+      .filter((i) => i.nombre)
+      .map((i) => ({ nombre: i.nombre as string, cantidad: i.cantidad ?? 1 }));
+  } catch {
+    return [];
+  }
 }
 
 export async function countOrders(

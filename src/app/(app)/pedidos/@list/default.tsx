@@ -1,5 +1,7 @@
-import { OrdersListPane } from "../_components/orders-list-pane";
+import { OrdersBoard } from "../_components/orders-board";
+import { getOrdersBoardData } from "../actions";
 
-export default function ListSlot() {
-  return <OrdersListPane />;
+export default async function ListSlot() {
+  const initial = await getOrdersBoardData();
+  return <OrdersBoard initial={initial} />;
 }
