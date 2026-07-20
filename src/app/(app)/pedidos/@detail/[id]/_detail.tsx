@@ -289,7 +289,9 @@ export function OrderDetail({
                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">
                   <TruckIcon className="size-3.5" />
                   {quote.carrier ? `Envío · ${quote.carrier}` : "Envío cotizado"}
-                  {quote.deliveryDays != null ? ` · ${quote.deliveryDays} días` : ""}
+                  {quote.deliveryDays != null
+                    ? ` · ${quote.deliveryDays} ${quote.deliveryDays === 1 ? "día" : "días"}`
+                    : ""}
                 </span>
                 <span className="font-medium tabular-nums">
                   {quote.priceCop != null ? fmt(quote.priceCop) : "por definir"}
