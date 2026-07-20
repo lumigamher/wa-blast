@@ -5,7 +5,7 @@ import { getShippingConfig } from "@/lib/agent/integrations/shipping/config";
 import { getShippingProvider } from "@/lib/agent/integrations/shipping/index";
 import type { CarrierQuote } from "@/lib/agent/integrations/shipping/types";
 import { computePackage, type ComputedPackage, type PackageItem } from "@/lib/agent/shipping/package";
-import { getLatestOrderForConversation } from "@/lib/agent/catalog/orders";
+import { getLatestOrderForConversation, setOrderShipping } from "@/lib/agent/catalog/orders";
 import type { AgentTool } from "../types";
 
 const schema = z.object({
@@ -156,6 +156,19 @@ export const cotizarEnvio: AgentTool = {
       barata,
       ...(rapida.carrier !== barata.carrier || rapida.service !== barata.service ? [rapida] : []),
     ];
+
+    // Persistir la cotización ofertada en el pedido (la más barata como referencia):
+    // así el tablero y el detalle muestran el costo de envío aunque el flujo no
+    // vuelva a pasar por guardar_direccion_envio.
+    await setOrderShipping(ctx.db, ctx.orgId, order.id, {
+      quoteJson: JSON.stringify({
+        carrier: barata.carrier,
+        service: barata.service,
+        priceCop: barata.priceCop,
+        deliveryDays: barata.deliveryDays ?? null,
+        ciudadDestino,
+      }),
+    });
     return {
       ok: true,
       data: {

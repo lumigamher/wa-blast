@@ -13,11 +13,14 @@ export function CallButton({
   name,
   phone,
   className,
+  iconOnly = false,
 }: {
   contactId: string;
   name?: string | null;
   phone?: string;
   className?: string;
+  /** Solo el ícono (para headers compactos); conserva title accesible */
+  iconOnly?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -52,12 +55,15 @@ export function CallButton({
       type="button"
       onClick={onClick}
       disabled={busy}
+      title="Llamar"
+      aria-label="Llamar"
       className={
         className ??
         "inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
       }
     >
-      <PhoneIcon className="size-4" /> Llamar
+      <PhoneIcon className="size-4" />
+      {!iconOnly && " Llamar"}
     </button>
   );
 }

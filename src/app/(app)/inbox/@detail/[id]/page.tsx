@@ -17,6 +17,7 @@ import { extractVariables } from "@/lib/templates";
 import { getAgentConfig } from "@/lib/agent/config";
 import { getConversationLabels, listLabels } from "@/lib/inbox/labels";
 import { Poller } from "../../_components/poller";
+import { CallButton } from "@/app/(app)/_components/call-button";
 import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { ContactInfoToggle } from "./_components/contact-panel";
 import { ConversationSearch } from "./_components/conversation-search";
@@ -115,6 +116,15 @@ export default async function InboxThreadPage({
           </div>
           <div className="hidden md:flex items-center gap-2 ml-2 flex-shrink-0">
             <ConversationSearch />
+            {thread.contact?.id && (
+              <CallButton
+                iconOnly
+                contactId={thread.contact.id}
+                name={thread.contact?.name}
+                phone={thread.conversation.phone}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+              />
+            )}
             <div className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-xs whitespace-nowrap">
               <span
                 className={`size-1.5 rounded-full ${
@@ -161,6 +171,15 @@ export default async function InboxThreadPage({
             />
           </div>
           <div className="md:hidden flex items-center gap-2 ml-2 flex-shrink-0">
+            {thread.contact?.id && (
+              <CallButton
+                iconOnly
+                contactId={thread.contact.id}
+                name={thread.contact?.name}
+                phone={thread.conversation.phone}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+              />
+            )}
             <ResolveButton
               conversationId={conversationId}
               resolved={thread.conversation.status === "resolved"}

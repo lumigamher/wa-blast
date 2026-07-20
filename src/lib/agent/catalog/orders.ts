@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { orders, conversations, contacts } from "@/lib/db/schema";
 import type { CatalogProvider } from "@/lib/agent/integrations/catalog/types";
@@ -17,6 +17,7 @@ export type OrderListItem = {
   contactName: string | null;
   shippingCity: string | null;
   shippingBarrio: string | null;
+  shippingQuoteCop: number | null;
   paymentMethod: string | null;
   items: { nombre: string; cantidad: number }[];
 };
@@ -116,6 +117,25 @@ export async function createOrder(
   const numero = await nextOrderNumber(db, input.orgId);
   const now = new Date();
 
+  // Herencia de dirección: si el contacto ya dio dirección en un pedido anterior,
+  // el pedido nuevo nace con ella (el cliente puede corregirla con guardar_direccion_envio).
+  let inheritedAddressJson: string | null = null;
+  if (input.contactId) {
+    const [prev] = await db
+      .select({ addr: orders.shippingAddressJson })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.orgId, input.orgId),
+          eq(orders.contactId, input.contactId),
+          isNotNull(orders.shippingAddressJson),
+        ),
+      )
+      .orderBy(desc(orders.createdAt))
+      .limit(1);
+    inheritedAddressJson = prev?.addr ?? null;
+  }
+
   await db.insert(orders).values({
     id: orderId,
     orgId: input.orgId,
@@ -125,6 +145,7 @@ export async function createOrder(
     totalCop,
     numero,
     createdAt: now,
+    ...(inheritedAddressJson ? { shippingAddressJson: inheritedAddressJson } : {}),
   });
 
   return {
@@ -190,6 +211,7 @@ export async function listOrders(
       dispatchedAt: orders.dispatchedAt,
       createdAt: orders.createdAt,
       shippingAddressJson: orders.shippingAddressJson,
+      shippingQuoteJson: orders.shippingQuoteJson,
       itemsJson: orders.itemsJson,
       paymentMethod: orders.paymentMethod,
       phone: conversations.phone,
@@ -212,9 +234,20 @@ export async function listOrders(
     contactName: r.contactName,
     shippingCity: parseShippingCity(r.shippingAddressJson),
     shippingBarrio: parseShippingBarrio(r.shippingAddressJson),
+    shippingQuoteCop: parseQuotePrice(r.shippingQuoteJson),
     paymentMethod: r.paymentMethod,
     items: parseItemsSummary(r.itemsJson),
   }));
+}
+
+function parseQuotePrice(json: string | null): number | null {
+  if (!json) return null;
+  try {
+    const q = JSON.parse(json) as { priceCop?: number | null };
+    return typeof q.priceCop === "number" ? q.priceCop : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseShippingBarrio(json: string | null): string | null {

@@ -114,6 +114,12 @@ function OrderCard({
               <BanknoteIcon className="size-3" /> Efectivo
             </span>
           ) : null}
+          {order.shippingQuoteCop != null && (
+            <span className="inline-flex items-center gap-1" title="Envío cotizado">
+              <TruckIcon className="size-3" />
+              {formatCop(order.shippingQuoteCop)}
+            </span>
+          )}
           {order.shippingBarrio && (
             <span className="inline-flex max-w-24 items-center gap-0.5 truncate" title={order.shippingBarrio}>
               <MapPinIcon className="size-3 shrink-0" />

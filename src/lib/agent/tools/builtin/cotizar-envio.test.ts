@@ -63,6 +63,31 @@ describe("cotizar_envio", () => {
     }
   });
 
+  it("persiste la cotización ofertada en el pedido", async () => {
+    await saveShippingConfig(db, "o1", {
+      provider: "manual",
+      credentials: {},
+      config: {
+        originCityName: "Medellín",
+        volumetricFactor: 2500,
+        rates: [{ maxWeightKg: 5, priceCop: 12000, deliveryDays: 3 }],
+      },
+    });
+    const res = await cotizarEnvio.run(
+      { ciudadDestino: "Bogotá" },
+      { db, orgId: "o1", conversationId: "c1" }
+    );
+    expect(res.ok).toBe(true);
+    const [row] = await db.select().from(orders).where(eq(orders.orgId, "o1"));
+    expect(row.shippingQuoteJson).toBeTruthy();
+    const q = JSON.parse(row.shippingQuoteJson as string) as {
+      priceCop: number;
+      ciudadDestino: string;
+    };
+    expect(q.priceCop).toBe(12000);
+    expect(q.ciudadDestino).toBe("Bogotá");
+  });
+
   it("falta peso/dims → error claro", async () => {
     await db.update(products).set({ weightGrams: null }).where(eq(products.id, "p1"));
     await saveShippingConfig(db, "o1", {

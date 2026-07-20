@@ -284,13 +284,16 @@ export function OrderDetail({
                 </button>
               )}
             </div>
-            {quote?.carrier && (
-              <div className="flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <TruckIcon className="size-3.5" /> {quote.carrier}
+            {quote && (quote.carrier || quote.priceCop != null) && (
+              <div className="flex items-center justify-between border-t pt-2 text-xs">
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <TruckIcon className="size-3.5" />
+                  {quote.carrier ? `Envío · ${quote.carrier}` : "Envío cotizado"}
                   {quote.deliveryDays != null ? ` · ${quote.deliveryDays} días` : ""}
                 </span>
-                <span className="tabular-nums">{quote.priceCop != null ? fmt(quote.priceCop) : ""}</span>
+                <span className="font-medium tabular-nums">
+                  {quote.priceCop != null ? fmt(quote.priceCop) : "por definir"}
+                </span>
               </div>
             )}
           </div>

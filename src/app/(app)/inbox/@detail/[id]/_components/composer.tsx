@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, PaperclipIcon, SendIcon, XIcon } from "lucide-react";
+import { PaperclipIcon, SendIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -625,6 +625,13 @@ function TemplateComposer({
       ? state.error
       : null;
 
+  const [templateQuery, setTemplateQuery] = useState("");
+  const visibleTemplates = templateQuery.trim()
+    ? templates.filter((t) =>
+        `${t.name} ${t.bodyText}`.toLowerCase().includes(templateQuery.trim().toLowerCase()),
+      )
+    : templates;
+
   return (
     <div className="border-t p-4 bg-card space-y-3">
       {!windowOpen && (
@@ -635,28 +642,83 @@ function TemplateComposer({
       )}
 
       <div className="space-y-2">
-        <label className="text-xs font-medium">Plantilla</label>
-        <div className="relative">
-          <select
-            value={selectedTemplate ? JSON.stringify(selectedTemplate) : ""}
-            onChange={(e) => {
-              if (e.target.value) {
-                const t = JSON.parse(e.target.value);
-                setSelectedTemplate(t);
-                setTemplateVars(Array(t.varCount).fill(""));
-              }
-            }}
-            className="w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary appearance-none pr-8"
-          >
-            <option value="">Elige una plantilla…</option>
-            {templates.map((t) => (
-              <option key={`${t.name}|${t.language}`} value={JSON.stringify(t)}>
-                {t.name} ({t.language})
-              </option>
-            ))}
-          </select>
-          <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">Plantilla</label>
+          {selectedTemplate && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTemplate(null);
+                setTemplateVars([]);
+              }}
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Cambiar plantilla
+            </button>
+          )}
         </div>
+
+        {selectedTemplate ? (
+          <div className="rounded-lg border border-primary/40 bg-muted/20 p-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-xs font-medium">{selectedTemplate.name}</span>
+              <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                {selectedTemplate.language}
+              </span>
+            </div>
+            <div className="mt-1.5 rounded-md rounded-tl-none bg-emerald-50 px-2.5 py-2 text-xs leading-snug text-foreground/90 dark:bg-emerald-950/40">
+              {selectedTemplate.bodyText || "(sin vista previa)"}
+            </div>
+          </div>
+        ) : (
+          <>
+            {templates.length > 4 && (
+              <input
+                type="text"
+                value={templateQuery}
+                onChange={(e) => setTemplateQuery(e.target.value)}
+                placeholder="Buscar plantilla…"
+                className="w-full rounded-md border bg-background px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            )}
+            {visibleTemplates.length === 0 ? (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                {templates.length === 0
+                  ? "No tienes plantillas aprobadas todavía."
+                  : "Ninguna plantilla coincide con la búsqueda."}
+              </p>
+            ) : (
+              <div className="grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                {visibleTemplates.map((t) => (
+                  <button
+                    key={`${t.name}|${t.language}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplate(t);
+                      setTemplateVars(Array(t.varCount).fill(""));
+                    }}
+                    className="rounded-lg border p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-xs font-medium">{t.name}</span>
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {t.language}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 line-clamp-3 rounded-md rounded-tl-none bg-emerald-50 px-2 py-1.5 text-[11px] leading-snug text-foreground/80 dark:bg-emerald-950/40">
+                      {t.bodyText || "(sin vista previa)"}
+                    </div>
+                    {t.varCount > 0 && (
+                      <div className="mt-1 text-[10px] text-muted-foreground">
+                        {t.varCount} variable{t.varCount === 1 ? "" : "s"} para completar
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {selectedTemplate && selectedTemplate.varCount > 0 && (

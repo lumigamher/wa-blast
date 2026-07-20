@@ -114,6 +114,36 @@ describe("createOrder", () => {
   });
 });
 
+describe("createOrder herencia de dirección", () => {
+  it("un pedido nuevo hereda la dirección del último pedido del contacto", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(contacts).values({ id: "ct1", orgId: "o1", phone: "+57300", createdAt: new Date(), updatedAt: new Date() });
+    await db.insert(conversations).values({ id: "cv1", orgId: "o1", phone: "+57300", contactId: "ct1", lastMessageAt: new Date(), createdAt: new Date() });
+
+    const r1 = await createOrder(db, { orgId: "o1", conversationId: "cv1", contactId: "ct1", items: [{ productId: "p1", cantidad: 1 }] }, fakeProvider);
+    const addr = JSON.stringify({ direccion: "Calle 1 #2-3", ciudad: "Bogotá" });
+    await setOrderShipping(db, "o1", r1.orderId, { addressJson: addr });
+    await updateOrderStatus(db, "o1", r1.orderId, "pagado");
+
+    const r2 = await createOrder(db, { orgId: "o1", conversationId: "cv1", contactId: "ct1", items: [{ productId: "p2", cantidad: 2 }] }, fakeProvider);
+    expect(r2.orderId).not.toBe(r1.orderId);
+    const nuevo = await getOrder(db, "o1", r2.orderId);
+    expect(nuevo?.shippingAddressJson).toBe(addr);
+  });
+
+  it("sin pedidos previos con dirección, el pedido nace sin dirección", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await db.insert(contacts).values({ id: "ct1", orgId: "o1", phone: "+57300", createdAt: new Date(), updatedAt: new Date() });
+    await db.insert(conversations).values({ id: "cv1", orgId: "o1", phone: "+57300", contactId: "ct1", lastMessageAt: new Date(), createdAt: new Date() });
+
+    const r = await createOrder(db, { orgId: "o1", conversationId: "cv1", contactId: "ct1", items: [{ productId: "p1", cantidad: 1 }] }, fakeProvider);
+    const nuevo = await getOrder(db, "o1", r.orderId);
+    expect(nuevo?.shippingAddressJson).toBeNull();
+  });
+});
+
 describe("orders shipping helpers", () => {
   it("recupera el último pedido de la conversación y guarda envío", async () => {
     const { db } = makeTestDb();
