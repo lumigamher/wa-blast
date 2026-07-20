@@ -23,31 +23,16 @@ import { LabelChips } from "@/app/(app)/inbox/_components/label-chips";
 function formatRelativeTime(date: Date): string {
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  const intervals = {
-    year: 31536000,
-    month: 2592000,
-    week: 604800,
-    day: 86400,
-    hour: 3600,
-    minute: 60,
-  };
-
-  for (const [key, secondsInUnit] of Object.entries(intervals)) {
-    const interval = Math.floor(seconds / secondsInUnit);
-    if (interval >= 1) {
-      if (interval === 1) return `Hace 1 ${key}`;
-      if (
-        key === "year" ||
-        key === "month" ||
-        key === "week" ||
-        key === "day"
-      ) {
-        return `Hace ${interval} ${key}s`;
-      }
-      return `Hace ${interval} ${key}s`;
-    }
-  }
-  return "Hace unos segundos";
+  if (seconds < 60) return "ahora";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysAgo = Math.ceil((startOfToday.getTime() - date.getTime()) / 86_400_000);
+  if (daysAgo <= 1) return "ayer";
+  if (daysAgo < 7) return `${daysAgo} d`;
+  return date.toLocaleDateString("es-CO", { day: "numeric", month: "short" });
 }
 
 interface VirtualizedConversationListProps {
@@ -107,51 +92,68 @@ function VirtualizedConversationList({
                 isActive ? "bg-accent border-primary" : ""
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                  <ContactAvatar
-                    seed={conv.phone}
-                    name={conv.contactName}
-                    size={40}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <div className="text-sm font-medium truncate">
-                        {conv.contactName || conv.phone}
-                      </div>
-                      {data.agentEnabled && (
-                        <AgentBadge
-                          agentEnabled={data.agentEnabled}
-                          agentPaused={conv.agentPaused}
-                        />
-                      )}
+              <div className="flex items-start gap-2.5">
+                <ContactAvatar
+                  seed={conv.phone}
+                  name={conv.contactName}
+                  size={40}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <div
+                      className={`flex-1 truncate text-sm ${
+                        conv.unreadCount > 0 ? "font-semibold" : "font-medium"
+                      }`}
+                    >
+                      {conv.contactName || conv.phone}
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">
+                    {data.agentEnabled && (
+                      <AgentBadge
+                        agentEnabled={data.agentEnabled}
+                        agentPaused={conv.agentPaused}
+                      />
+                    )}
+                    <span
+                      className={`shrink-0 text-[11px] tabular-nums ${
+                        conv.unreadCount > 0
+                          ? "font-medium text-emerald-600"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {formatRelativeTime(conv.lastMessageAt)}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <div
+                      className={`flex-1 truncate text-xs ${
+                        conv.unreadCount > 0
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {conv.previewDirection === "out" && conv.preview && (
+                        <span className="text-muted-foreground">Tú: </span>
+                      )}
                       {conv.preview || "(sin mensaje)"}
                     </div>
-                    {conv.labels.length > 0 && (
-                      <div className="mt-1.5">
-                        <LabelChips labels={conv.labels} />
+                    {conv.status === "resolved" && (
+                      <div className="shrink-0" title="Resuelta">
+                        <Check className="size-3 text-muted-foreground" />
+                      </div>
+                    )}
+                    {conv.unreadCount > 0 && (
+                      <div className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
+                        {conv.unreadCount}
                       </div>
                     )}
                   </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {conv.status === "resolved" && (
-                    <div title="Resuelta">
-                      <Check className="size-3 text-muted-foreground" />
-                    </div>
-                  )}
-                  {conv.unreadCount > 0 && (
-                    <div className="flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">
-                      {conv.unreadCount}
+                  {conv.labels.length > 0 && (
+                    <div className="mt-1">
+                      <LabelChips labels={conv.labels} />
                     </div>
                   )}
                 </div>
-              </div>
-              <div className="text-[10px] text-muted-foreground mt-1">
-                {formatRelativeTime(conv.lastMessageAt)}
               </div>
             </Link>
           );
@@ -178,18 +180,24 @@ export function ConversationListPane() {
   const agent = searchParams.get("agent") ?? undefined;
   const label = searchParams.get("label") ?? undefined;
 
-  // Draft state for filter modal
-  const [draftStatus, setDraftStatus] = useState(status || "open");
+  // Draft state for filter modal (estado vive fuera, en los tabs)
   const [draftAgent, setDraftAgent] = useState(agent || "all");
   const [draftUnreadOnly, setDraftUnreadOnly] = useState(unreadOnly === "true");
   const [draftLabel, setDraftLabel] = useState(label || "");
 
   // Reset draft when dialog opens
   const resetDraft = () => {
-    setDraftStatus(status || "open");
     setDraftAgent(agent || "all");
     setDraftUnreadOnly(unreadOnly === "true");
     setDraftLabel(label || "");
+  };
+
+  // Cambio de estado instantáneo desde los tabs (conserva el resto de filtros)
+  const setStatusFilter = (value: "open" | "resolved" | "all") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "open") params.delete("status");
+    else params.set("status", value);
+    router.replace(`/inbox${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
   };
 
   // Extract current active conversation ID from pathname
@@ -246,7 +254,6 @@ export function ConversationListPane() {
   }
 
   const activeFilterCount = [
-    status ? 1 : 0,
     data?.agentEnabled && agent ? 1 : 0,
     unreadOnly === "true" ? 1 : 0,
     label ? 1 : 0,
@@ -257,9 +264,9 @@ export function ConversationListPane() {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
 
-    // Status: only set if not the default "open"
-    if (draftStatus && draftStatus !== "open") {
-      params.set("status", draftStatus);
+    // Status: lo controlan los tabs; se conserva tal cual está en la URL
+    if (status && status !== "open") {
+      params.set("status", status);
     }
 
     // Agent: only set if not "all"
@@ -282,11 +289,13 @@ export function ConversationListPane() {
   };
 
   const clearFilters = () => {
-    setDraftStatus("open");
     setDraftAgent("all");
     setDraftUnreadOnly(false);
     setDraftLabel("");
-    router.replace("/inbox", { scroll: false });
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (status && status !== "open") params.set("status", status);
+    router.replace(`/inbox${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
   };
 
   return (
@@ -313,38 +322,40 @@ export function ConversationListPane() {
         />
       </form>
 
-      {/* Filters Button */}
-      <div className="flex gap-2">
+      {/* Estado (tabs, aplican al instante) + Filtros */}
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 rounded-lg border bg-muted/40 p-0.5">
+          {(
+            [
+              ["open", "Abiertas"],
+              ["resolved", "Resueltas"],
+              ["all", "Todas"],
+            ] as const
+          ).map(([value, text]) => {
+            const current = status ?? "open";
+            const active = current === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setStatusFilter(value)}
+                className={`flex-1 rounded-md py-1.5 text-xs transition-colors ${
+                  active
+                    ? "bg-background font-medium shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {text}
+              </button>
+            );
+          })}
+        </div>
         <FilterDialog
+          compact
           activeCount={activeFilterCount}
           onOpen={resetDraft}
           onApply={applyFilters}
           onClear={clearFilters}
         >
-          {/* Estado */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Estado</label>
-            <div className="grid grid-cols-3 gap-2">
-              {["open", "resolved", "all"].map((value) => (
-                <button
-                  key={value}
-                  onClick={() => setDraftStatus(value)}
-                  className={`text-xs py-2 px-3 rounded border transition-colors ${
-                    draftStatus === value
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border hover:bg-muted"
-                  }`}
-                >
-                  {value === "open"
-                    ? "Abiertas"
-                    : value === "resolved"
-                      ? "Resueltas"
-                      : "Todas"}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Agent */}
           {data?.agentEnabled && (
             <div className="space-y-2">

@@ -16,12 +16,15 @@ export function FilterDialog({
   onOpen,
   onApply,
   onClear,
+  compact = false,
   children,
 }: {
   activeCount: number;
   onOpen?: () => void;
   onApply: () => void;
   onClear: () => void;
+  /** Trigger solo-ícono para caber junto a otros controles */
+  compact?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -40,20 +43,38 @@ export function FilterDialog({
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleOpen(true)}
-        className="w-full justify-start"
-      >
-        <SlidersHorizontal className="size-4 mr-2" />
-        Filtros
-        {activeCount > 0 && (
-          <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground h-5 w-5 text-[10px] font-bold">
-            {activeCount}
-          </span>
-        )}
-      </Button>
+      {compact ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleOpen(true)}
+          className="relative h-[34px] w-[34px] shrink-0 p-0"
+          aria-label="Más filtros"
+          title="Más filtros"
+        >
+          <SlidersHorizontal className="size-4" />
+          {activeCount > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+              {activeCount}
+            </span>
+          )}
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleOpen(true)}
+          className="w-full justify-start"
+        >
+          <SlidersHorizontal className="size-4 mr-2" />
+          Filtros
+          {activeCount > 0 && (
+            <span className="ml-auto inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground h-5 w-5 text-[10px] font-bold">
+              {activeCount}
+            </span>
+          )}
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={handleOpen}>
         <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">

@@ -9,7 +9,7 @@ import {
   getThread,
   markConversationRead,
 } from "@/lib/inbox/store";
-import { isWindowOpen } from "@/lib/inbox/window";
+import { isWindowOpen, windowHoursLeft } from "@/lib/inbox/window";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
 import { getOrgSettings } from "@/lib/org/settings";
@@ -21,7 +21,6 @@ import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { ContactInfoToggle } from "./_components/contact-panel";
 import { ConversationSearch } from "./_components/conversation-search";
 import { MarkReadOnOpen } from "./_components/mark-read-on-open";
-import { MobileBackButton } from "./_components/mobile-back-button";
 import { ResolveButton } from "./_components/resolve-button";
 import { ThreadAndComposer } from "./_components/thread-and-composer";
 import { AgentBadge } from "../../_components/agent-badge";
@@ -87,7 +86,6 @@ export default async function InboxThreadPage({
       <div className="px-4 py-3 border-b bg-card space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <MobileBackButton />
             <ContactAvatar
               seed={thread.conversation.phone}
               name={thread.contact?.name}
@@ -131,7 +129,11 @@ export default async function InboxThreadPage({
                     : "text-amber-700 dark:text-amber-400"
                 }
               >
-                {windowOpen ? "Ventana abierta" : "Ventana cerrada"}
+                {windowOpen && thread.conversation.lastIncomingAt
+                  ? `Ventana abierta · ${windowHoursLeft(thread.conversation.lastIncomingAt)} h`
+                  : windowOpen
+                    ? "Ventana abierta"
+                    : "Ventana cerrada"}
               </span>
             </div>
             {agentConfig.enabled && (

@@ -32,6 +32,7 @@ import { db } from "@/lib/db/client";
 import { CallPanel } from "./_components/call-panel";
 import { NavGroup, NavLink, NavSection } from "./_components/nav-link";
 import { AppContent } from "./_components/app-content";
+import { MobileSidebar } from "./_components/mobile-sidebar";
 
 type NavItem = {
   href: string;
@@ -122,10 +123,9 @@ export default async function AppLayout({
   const sectionHrefs = navSections.flatMap((s) => s.items.map((n) => n.href));
   const hrefs = [...standaloneHrefs, ...sectionHrefs];
 
-  return (
-    <div className="flex h-dvh bg-muted/30">
-      <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-        <div className="flex items-center gap-3 border-b px-5 py-4">
+  const sidebarInner = (
+    <>
+      <div className="flex items-center gap-3 border-b px-5 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-bold shadow-sm">
             L
           </div>
@@ -200,7 +200,16 @@ export default async function AppLayout({
             </form>
           </div>
         </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-dvh flex-col bg-muted/30 md:flex-row">
+      <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground md:flex">
+        {sidebarInner}
       </aside>
+
+      <MobileSidebar>{sidebarInner}</MobileSidebar>
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <AppContent>{children}</AppContent>

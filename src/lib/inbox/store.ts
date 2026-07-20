@@ -259,6 +259,7 @@ export type ConversationListItem = {
   phone: string;
   contactName: string | null;
   preview: string | null;
+  previewDirection: "in" | "out" | null;
   lastMessageAt: Date;
   lastIncomingAt: Date | null;
   unreadCount: number;
@@ -324,6 +325,9 @@ export async function listConversations(
       preview: sql<
         string | null
       >`(SELECT ${messages.body} FROM ${messages} WHERE ${messages.conversationId} = ${conversations.id} ORDER BY ${messages.createdAt} DESC LIMIT 1)`,
+      previewDirection: sql<
+        "in" | "out" | null
+      >`(SELECT ${messages.direction} FROM ${messages} WHERE ${messages.conversationId} = ${conversations.id} ORDER BY ${messages.createdAt} DESC LIMIT 1)`,
     })
     .from(conversations)
     .leftJoin(contacts, eq(conversations.contactId, contacts.id))
