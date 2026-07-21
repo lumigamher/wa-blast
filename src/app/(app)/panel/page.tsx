@@ -1,10 +1,15 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, or, sql } from "drizzle-orm";
 import {
   ArrowRight,
+  BotIcon,
   CheckCircle2Icon,
   FileTextIcon,
+  InboxIcon,
+  MailOpenIcon,
+  MessageSquareIcon,
   PlusIcon,
   SendIcon,
+  ShoppingBagIcon,
   TrendingUpIcon,
   XCircleIcon,
 } from "lucide-react";
@@ -21,14 +26,27 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { requireOrg } from "@/lib/auth/session";
+import { getOrgAccess } from "@/lib/billing/access";
 import { db } from "@/lib/db/client";
-import { campaigns } from "@/lib/db/schema";
+import { campaigns, conversations, orders } from "@/lib/db/schema";
+import { getAgentConfig } from "@/lib/agent/config";
 import { credsFromSettings, listTemplates } from "@/lib/meta/graph";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getOnboardingStatus } from "@/lib/onboarding/status";
 import { OnboardingBanner } from "./_components/onboarding-banner";
 
 export const dynamic = "force-dynamic";
+
+const CAMPAIGN_STATUS_LABEL: Record<string, string> = {
+  draft: "Borrador",
+  queued: "En cola",
+  sending: "Enviando",
+  done: "Enviada",
+};
+
+function campaignStatusLabel(status: string): string {
+  return CAMPAIGN_STATUS_LABEL[status] ?? status;
+}
 
 export default async function Home() {
   const { orgId, session } = await requireOrg();
@@ -40,13 +58,51 @@ export default async function Home() {
   if (!onboardingStatus.steps.creds) {
     redirect("/conectar");
   }
-  const settings = await getOrgSettings(db, orgId);
-  const creds = credsFromSettings(settings);
+  // getOrgSettings puede lanzar si un valor cifrado está corrupto; no debe tumbar la home.
+  let creds: ReturnType<typeof credsFromSettings> = null;
+  try {
+    creds = credsFromSettings(await getOrgSettings(db, orgId));
+  } catch {
+    creds = null;
+  }
 
+  const access = await getOrgAccess(db, orgId);
+  const agentConfig = access.modules.has("agente")
+    ? await getAgentConfig(db, orgId)
+    : { enabled: false };
+
+  const now = new Date();
   const startOfMonthTs = Math.floor(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime() /
-      1000,
+    new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000,
   );
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Pulso operativo de HOY (gateado por módulo al renderizar)
+  const [todayConvs, unread, pendingOrders] = await Promise.all([
+    db
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(conversations)
+      .where(and(eq(conversations.orgId, orgId), gte(conversations.lastIncomingAt, startOfDay))),
+    db
+      .select({ n: sql<number>`COALESCE(SUM(${conversations.unreadCount}), 0)` })
+      .from(conversations)
+      .where(eq(conversations.orgId, orgId)),
+    db
+      .select({ n: sql<number>`COUNT(*)` })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.orgId, orgId),
+          or(
+            sql`${orders.status} IN ('pendiente','confirmado')`,
+            and(eq(orders.status, "pagado"), isNull(orders.dispatchedAt)),
+          ),
+        ),
+      ),
+  ]);
+  const conversationsToday = Number(todayConvs[0]?.n ?? 0);
+  const unreadCount = Number(unread[0]?.n ?? 0);
+  const ordersToAttend = Number(pendingOrders[0]?.n ?? 0);
 
   const [recent, running, monthStats, templates] = await Promise.all([
     db
@@ -95,7 +151,7 @@ export default async function Home() {
             Hola {firstName}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Tu panel de envíos masivos de WhatsApp.
+            Tu WhatsApp de hoy, de un vistazo.
           </p>
         </div>
         <div className="flex gap-2">
@@ -117,6 +173,50 @@ export default async function Home() {
       </header>
 
       <OnboardingBanner status={onboardingStatus} />
+
+      {/* Pulso operativo de hoy */}
+      {(access.modules.has("inbox") || access.modules.has("agente")) && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {access.modules.has("inbox") && (
+            <OpCard
+              href="/inbox"
+              label="Conversaciones hoy"
+              value={conversationsToday.toLocaleString("es-CO")}
+              icon={MessageSquareIcon}
+              color="text-emerald-600"
+            />
+          )}
+          {access.modules.has("inbox") && (
+            <OpCard
+              href="/inbox"
+              label="Sin leer"
+              value={unreadCount.toLocaleString("es-CO")}
+              icon={unreadCount > 0 ? InboxIcon : MailOpenIcon}
+              color={unreadCount > 0 ? "text-blue-600" : "text-muted-foreground"}
+              cta={unreadCount > 0 ? "Responder" : undefined}
+            />
+          )}
+          {access.modules.has("agente") && (
+            <OpCard
+              href="/pedidos"
+              label="Pedidos por atender"
+              value={ordersToAttend.toLocaleString("es-CO")}
+              icon={ShoppingBagIcon}
+              color={ordersToAttend > 0 ? "text-amber-600" : "text-muted-foreground"}
+              cta={ordersToAttend > 0 ? "Ver tablero" : undefined}
+            />
+          )}
+          {access.modules.has("agente") && (
+            <OpCard
+              href="/configuracion/agente"
+              label="Agente IA"
+              value={agentConfig.enabled ? "Activo" : "Inactivo"}
+              icon={BotIcon}
+              color={agentConfig.enabled ? "text-emerald-600" : "text-muted-foreground"}
+            />
+          )}
+        </div>
+      )}
 
       {runningCamp && (
         <Card className="border-blue-300 bg-blue-50/50">
@@ -154,6 +254,12 @@ export default async function Home() {
           </CardContent>
         </Card>
       )}
+
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold text-muted-foreground">
+          Campañas masivas · este mes
+        </h2>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
@@ -236,7 +342,7 @@ export default async function Home() {
                       <Badge
                         variant={c.status === "done" ? "default" : "secondary"}
                       >
-                        {c.status}
+                        {campaignStatusLabel(c.status)}
                       </Badge>
                     </div>
                     <div className="mt-2 flex items-center gap-3">
@@ -253,6 +359,47 @@ export default async function Home() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function OpCard({
+  href,
+  label,
+  value,
+  icon: Icon,
+  color,
+  cta,
+}: {
+  href: string;
+  label: string;
+  value: string;
+  icon: typeof SendIcon;
+  color: string;
+  cta?: string;
+}) {
+  return (
+    <Link href={href} className="group">
+      <Card className="gap-2 py-5 transition-colors group-hover:border-primary/40">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 pb-0">
+          <CardDescription className="text-[11px] uppercase tracking-wider">
+            {label}
+          </CardDescription>
+          <Icon className={`size-4 ${color}`} />
+        </CardHeader>
+        <CardContent className="space-y-0.5 pt-0">
+          <div className={`text-3xl font-semibold tabular-nums ${color}`}>
+            {value}
+          </div>
+          <div className="flex h-4 items-center text-[11px] text-primary opacity-0 transition-opacity group-hover:opacity-100">
+            {cta && (
+              <span className="inline-flex items-center gap-0.5">
+                {cta} <ArrowRight className="size-3" />
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
