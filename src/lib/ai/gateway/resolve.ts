@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import type { DB } from "@/lib/db/client";
 import { makeAnthropicProvider } from "@/lib/agent/providers/anthropic";
+import { makeGoogleProvider } from "@/lib/agent/providers/google";
 import { makeOpenAiProvider } from "@/lib/agent/providers/openai";
 import type { LlmProvider } from "@/lib/agent/providers/types";
 import { makeOpenAiEmbeddingProvider } from "@/lib/agent/rag/embeddings/openai";
@@ -21,6 +22,20 @@ export async function resolveChatProvider(db: DB, orgId: string): Promise<ChatRe
     return {
       ok: true,
       provider: makeAnthropicProvider(new Anthropic({ apiKey: cfg.anthropicKey })),
+      model: cfg.chatModel,
+    };
+  }
+  if (cfg.chatProvider === "google") {
+    if (!cfg.googleKey)
+      return { ok: false, error: "Falta tu API key de Google. Agrégala en Configuración › IA." };
+    return { ok: true, provider: makeGoogleProvider(cfg.googleKey), model: cfg.chatModel };
+  }
+  if (cfg.chatProvider === "custom") {
+    if (!cfg.customKey || !cfg.customBaseUrl)
+      return { ok: false, error: "Falta la URL base o la API key de tu proveedor. Agrégalas en Configuración › IA." };
+    return {
+      ok: true,
+      provider: makeOpenAiProvider(new OpenAI({ apiKey: cfg.customKey, baseURL: cfg.customBaseUrl })),
       model: cfg.chatModel,
     };
   }

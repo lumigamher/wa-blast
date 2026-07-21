@@ -52,7 +52,7 @@ export async function runAgentTurn(
   // Resolve chat provider: from deps (test injection) or from gateway (org BYO key)
   let chatProvider: LlmProvider;
   let chatModel: string;
-  let chatProviderKind: "openai" | "anthropic";
+  let chatProviderKind: "openai" | "anthropic" | "google" | "custom";
 
   if (deps.provider) {
     // Test injection

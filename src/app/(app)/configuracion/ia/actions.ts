@@ -2,7 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
-import { saveGatewayConfig, type GatewayPatch } from "@/lib/ai/gateway/config";
+import { getGatewayConfig, saveGatewayConfig, type GatewayPatch, type GatewayProvider } from "@/lib/ai/gateway/config";
+import { listProviderModels, type ListModelsResult } from "@/lib/ai/gateway/list-models";
 import { resolveChatProvider, resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 
 export async function saveGatewayAction(patch: GatewayPatch): Promise<{ ok: true } | { error: string }> {
@@ -14,6 +15,27 @@ export async function saveGatewayAction(patch: GatewayPatch): Promise<{ ok: true
   }
   revalidatePath("/configuracion/ia");
   return { ok: true };
+}
+
+/**
+ * Lista los modelos disponibles del proveedor usando la key YA guardada de la org
+ * (la key nunca viaja de vuelta al navegador).
+ */
+export async function listModelsAction(provider: GatewayProvider): Promise<ListModelsResult> {
+  const { orgId } = await requireOrg();
+  const cfg = await getGatewayConfig(db, orgId);
+  const key =
+    provider === "openai"
+      ? cfg?.openaiKey
+      : provider === "anthropic"
+        ? cfg?.anthropicKey
+        : provider === "google"
+          ? cfg?.googleKey
+          : cfg?.customKey;
+  if (!key) return { ok: false, error: "Primero guarda la API key de este proveedor." };
+  if (provider === "custom" && !cfg?.customBaseUrl)
+    return { ok: false, error: "Primero guarda la URL base de tu proveedor." };
+  return listProviderModels(provider, key, cfg?.customBaseUrl);
 }
 
 export async function testGatewayAction(

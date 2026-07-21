@@ -19,8 +19,13 @@ export default async function Page() {
       <GatewayForm
         chatProvider={cfg?.chatProvider ?? "openai"}
         chatModel={cfg?.chatModel ?? "gpt-5-mini"}
-        hasOpenaiKey={!!cfg?.openaiKey}
-        hasAnthropicKey={!!cfg?.anthropicKey}
+        hasKey={{
+          openai: !!cfg?.openaiKey,
+          anthropic: !!cfg?.anthropicKey,
+          google: !!cfg?.googleKey,
+          custom: !!cfg?.customKey,
+        }}
+        customBaseUrl={cfg?.customBaseUrl ?? ""}
       />
     </div>
   );

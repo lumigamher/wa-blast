@@ -340,12 +340,15 @@ export const aiGateway = sqliteTable("ai_gateway", {
   orgId: text("org_id")
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
-  chatProvider: text("chat_provider", { enum: ["openai", "anthropic"] })
+  chatProvider: text("chat_provider", { enum: ["openai", "anthropic", "google", "custom"] })
     .notNull()
     .default("openai"),
   chatModel: text("chat_model").notNull().default("gpt-5-mini"),
   openaiKeyEnc: text("openai_key_enc"),
   anthropicKeyEnc: text("anthropic_key_enc"),
+  googleKeyEnc: text("google_key_enc"),
+  customKeyEnc: text("custom_key_enc"),
+  customBaseUrl: text("custom_base_url"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
