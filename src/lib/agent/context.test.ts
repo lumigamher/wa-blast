@@ -12,6 +12,39 @@ describe("context", () => {
     expect(s.toLowerCase()).toContain("herramienta");
   });
 
+  it("con crear_pedido inyecta el flujo de pedidos con dirección obligatoria", () => {
+    const out = buildSystemPrompt({
+      name: "Andrés",
+      systemPrompt: "Vendes hamburguesas.",
+      toolNames: ["crear_pedido", "guardar_direccion_envio", "cotizar_envio", "medios_de_pago"],
+    });
+    expect(out).toContain("## Flujo de pedidos");
+    expect(out).toContain("dirección de entrega");
+    expect(out).toContain("cotizar_envio");
+    expect(out).toContain("Nunca des un pedido por cerrado sin dirección de entrega confirmada");
+    expect(out).toContain("costo de envío");
+  });
+
+  it("sin cotizar_envio el flujo omite la cotización pero exige dirección", () => {
+    const out = buildSystemPrompt({
+      name: "Andrés",
+      systemPrompt: "x",
+      toolNames: ["crear_pedido", "guardar_direccion_envio"],
+    });
+    expect(out).toContain("## Flujo de pedidos");
+    expect(out).not.toContain("cotizar_envio");
+    expect(out).toContain("guardar_direccion_envio");
+  });
+
+  it("sin crear_pedido no inyecta flujo de pedidos", () => {
+    const out = buildSystemPrompt({
+      name: "Andrés",
+      systemPrompt: "x",
+      toolNames: ["agendar_cita", "escalar_a_humano"],
+    });
+    expect(out).not.toContain("## Flujo de pedidos");
+  });
+
   it("convierte mensajes del hilo a LlmMessage (in=user, out=assistant)", () => {
     const msgs = toLlmHistory([
       { direction: "in", body: "hola" },

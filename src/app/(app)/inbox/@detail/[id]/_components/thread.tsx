@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import type { messages as messagesSchema } from "@/lib/db/schema";
 import { sendReactionAction } from "../../../actions";
 import { AudioPlayer } from "./audio-player";
+import { explainMetaError } from "@/lib/meta/error-explain";
 import { CallEntry } from "./call-entry";
 import { EmojiPicker } from "./emoji-picker";
 import { MediaImage } from "./media-image";
@@ -564,10 +565,14 @@ function MessageBubble({
         </div>
       </div>
 
-      {isOutbound && message.status === "failed" && message.errorMessage && (
-        <div className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1 mt-0.5">
-          <span title={message.errorMessage}>
-            <AlertCircleIcon className="size-3" />
+      {isOutbound && message.status === "failed" && (
+        <div
+          className="mt-0.5 flex items-start justify-end gap-1 text-xs text-red-600 dark:text-red-400"
+          title={message.errorMessage ?? undefined}
+        >
+          <AlertCircleIcon className="mt-0.5 size-3 shrink-0" />
+          <span className="max-w-[280px] text-right leading-snug">
+            {explainMetaError(message.errorMessage)}
           </span>
         </div>
       )}
@@ -621,7 +626,9 @@ function StatusIcon({
 }) {
   if (status === "failed") {
     return (
-      <span title={errorMessage || "Error al enviar"}>
+      <span
+        title={`${explainMetaError(errorMessage)}${errorMessage ? `\n\nDetalle técnico: ${errorMessage}` : ""}`}
+      >
         <AlertCircleIcon className="size-3.5 text-red-600 dark:text-red-400" />
       </span>
     );
