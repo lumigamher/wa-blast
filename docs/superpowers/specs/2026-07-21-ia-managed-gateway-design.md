@@ -11,7 +11,8 @@ Hoy el agente usa **BYOK**: cada org pega su propia API key de OpenAI/Anthropic 
 Lula pasa a **revender la IA incluida en el plan**. El cliente no ve modelos ni API keys: recibe un asistente que "simplemente funciona", con una cuota mensual justa.
 
 - **Nivel de calidad fijo por plan:** Esencial y Pro → **Estándar**; Premium → **Premium**.
-- **Estándar = Gemini 2.5 Flash** (económico, buena calidad, provider nuevo). **Premium = Claude Sonnet 4.6** (ya implementado).
+- **Estándar = Gemini 2.5 Flash**. **Premium = Claude Haiku 4.5** (CORREGIDO tras auditoría 2026-07-21: Sonnet incluido es financieramente inviable — a tope de cuota costaría ~12× el precio del plan Premium; Sonnet queda disponible solo vía BYOK).
+- **Prompt caching OBLIGATORIO** en ambos providers (Anthropic `cache_control` en system+tools; Gemini usa caching implícito): reduce el costo de input ~75% y es lo que hace viables las cuotas.
 - **Cuota = conversaciones atendidas por la IA al mes** (una conversación distinta con ≥1 turno del agente cuenta 1). Entendible para el cliente.
 - **Al agotar la cuota:** el agente se pausa (las conversaciones caen a atención humana en el inbox, como ya ocurre hoy cuando el agente no responde), se avisa en el panel y se ofrece subir de plan. Cero riesgo de sobrecosto para Lula.
 
@@ -31,6 +32,12 @@ Lula pasa a **revender la IA incluida en el plan**. El cliente no ve modelos ni 
 - **BYOK (avanzado / legacy):** la org tiene su propia key configurada → sigue usándola con el modelo que eligió. **Sin cuota** (paga el cliente). Preserva la única org que hoy tiene key en prod y da salida a power-users.
 
 `resolveChatProvider` decide el modo: si hay `openaiKeyEnc`/`anthropicKeyEnc` de la org → BYOK; si no → managed (resuelve provider+modelo desde el plan y las keys de env).
+
+Hallazgos de auditoría que la implementación DEBE cubrir:
+- **Org sin fila en `ai_gateway`** (todas las nuevas): hoy `resolveChatProvider` retorna error y el turno manda el fallbackMessage. En managed, la ausencia de fila (o de keys de org) resuelve al tier del plan — sin configuración previa.
+- **RAG en managed:** `resolveEmbeddingProvider` hoy exige la `openaiKey` de la ORG → en managed el conocimiento (RAG) moriría en silencio. Debe caer a `LULA_OPENAI_KEY` cuando la org no tenga key propia.
+- **Tope de costo por defecto en managed:** `monthlyCostCapCop` default es null (sin freno). En managed se aplica un tope interno automático = 3× el costo esperado de la cuota del plan (cinturón contra loops/abusos), además de la cuota de conversaciones.
+- **`cost.ts`:** añadir tarifas por `provider:model` para google y diferenciar haiku/sonnet en anthropic — hoy google caería a la tarifa de openai y subestimaría el output.
 
 ### 2. Keys maestras (env, validadas con zod en `src/lib/env.ts`)
 
@@ -54,12 +61,16 @@ type IaTier = "estandar" | "premium";
 PLAN_IA_TIER: Record<PlanId, IaTier> = { esencial: "estandar", pro: "estandar", premium: "premium" };
 
 IA_TIER_MODEL: Record<IaTier, { provider: "google" | "anthropic"; model: string }> = {
-  estandar: { provider: "google",    model: "gemini-2.5-flash" },
-  premium:  { provider: "anthropic", model: "claude-sonnet-4-6" },
+  estandar: { provider: "google",    model: "gemini-2.5-flash" },   // verificar id con llamada real al implementar
+  premium:  { provider: "anthropic", model: "claude-haiku-4-5-20251001" },
 };
 
-// Conversaciones IA/mes incluidas (defaults de arranque, editables desde /admin vía appConfig)
-PLAN_IA_QUOTA: Record<PlanId, number> = { esencial: 500, pro: 1500, premium: 5000 };
+// Conversaciones IA/mes incluidas (defaults de arranque, editables desde /admin vía appConfig).
+// Derivadas de costo real por conversación CON caching (~15 COP Flash, ~36 COP Haiku)
+// y exposición máxima ≤ ~55% del precio del plan a tope de cuota:
+PLAN_IA_QUOTA: Record<PlanId, number> = { esencial: 500, pro: 1500, premium: 1500 };
+// esencial: 500×15 ≈ 7.500 COP (15% del plan) · pro: 1500×15 ≈ 22.500 (32%) · premium: 1500×36 ≈ 54.000 (54%)
+// Recalibrar con telemetría real (agent_runs ya guarda tokens) a las 2-4 semanas.
 ```
 
 ### 5. Medición y enforcement de cuota
