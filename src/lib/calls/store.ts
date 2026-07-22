@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, like, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, like, or, sql, type SQL } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import type { DB } from "@/lib/db/client";
 import { calls, contacts, conversations } from "@/lib/db/schema";
@@ -94,7 +94,7 @@ export type CallListItem = {
 export async function listCalls(
   db: DB,
   orgId: string,
-  opts: { status?: string; direction?: string; q?: string } = {},
+  opts: { status?: string; direction?: string; q?: string; limit?: number } = {},
 ): Promise<CallListItem[]> {
   const conds: SQL<unknown>[] = [eq(calls.orgId, orgId)];
   if (opts.status) conds.push(eq(calls.status, opts.status as never));
@@ -107,7 +107,7 @@ export async function listCalls(
     );
     if (o) conds.push(o);
   }
-  return db
+  const base = db
     .select({
       id: calls.id,
       phone: calls.phone,
@@ -124,6 +124,21 @@ export async function listCalls(
     .leftJoin(contacts, eq(conversations.contactId, contacts.id))
     .where(and(...conds))
     .orderBy(desc(calls.createdAt));
+  return opts.limit != null ? base.limit(opts.limit) : base;
+}
+
+/** Conteo barato de llamadas perdidas/rechazadas/fallidas (para el badge). */
+export async function countMissedCalls(db: DB, orgId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(calls)
+    .where(
+      and(
+        eq(calls.orgId, orgId),
+        sql`${calls.status} IN ('missed','rejected','failed')`,
+      ),
+    );
+  return Number(row?.n ?? 0);
 }
 
 export async function getCallsForConversation(db: DB, orgId: string, conversationId: string) {

@@ -10,7 +10,7 @@ import { LocalDateTime } from "@/components/local-datetime";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { requireOrg } from "@/lib/auth/session";
-import { listCalls } from "@/lib/calls/store";
+import { countMissedCalls, listCalls } from "@/lib/calls/store";
 import { db } from "@/lib/db/client";
 import { ContactAvatar } from "@/app/(app)/inbox/_components/contact-avatar";
 import { NuevaLlamada } from "./_nueva-llamada";
@@ -26,11 +26,10 @@ export default async function LlamadasPage({
   const { status, direction, q } = await searchParams;
   const { orgId } = await requireOrg();
 
-  const calls = await listCalls(db, orgId, { status, direction, q });
-  const missedCount =
-    status === "missed" && !direction && !q
-      ? calls.length
-      : (await listCalls(db, orgId, { status: "missed" })).length;
+  const [calls, missedCount] = await Promise.all([
+    listCalls(db, orgId, { status, direction, q, limit: 300 }),
+    countMissedCalls(db, orgId),
+  ]);
 
   function dayLabel(d: Date): string {
     const now = new Date();
