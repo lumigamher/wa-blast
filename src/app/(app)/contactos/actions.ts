@@ -27,9 +27,17 @@ export type ContactWithTags = {
 	tagList: { id: string; name: string; color: string }[];
 };
 
+export type ContactFilters = {
+	q?: string;
+	status?: "activos" | "optout";
+	tagId?: string;
+};
+
 export async function listContactsAction(
-	q?: string,
+	filters?: ContactFilters | string,
 ): Promise<ContactWithTags[]> {
+	// Retrocompat: acepta un string suelto como búsqueda.
+	const f: ContactFilters = typeof filters === "string" ? { q: filters } : (filters ?? {});
 	const { orgId } = await requireOrg();
 	const rows = await db
 		.select()
@@ -37,8 +45,13 @@ export async function listContactsAction(
 		.where(
 			and(
 				eq(contacts.orgId, orgId),
-				q
-					? sql`(${contacts.name} LIKE ${"%" + q + "%"} OR ${contacts.phone} LIKE ${"%" + q + "%"})`
+				f.q
+					? sql`(${contacts.name} LIKE ${"%" + f.q + "%"} OR ${contacts.phone} LIKE ${"%" + f.q + "%"})`
+					: sql`1=1`,
+				f.status === "activos" ? sql`${contacts.optOutAt} IS NULL` : sql`1=1`,
+				f.status === "optout" ? sql`${contacts.optOutAt} IS NOT NULL` : sql`1=1`,
+				f.tagId
+					? sql`EXISTS (SELECT 1 FROM ${contactTags} WHERE ${contactTags.contactId} = ${contacts.id} AND ${contactTags.tagId} = ${f.tagId})`
 					: sql`1=1`,
 			),
 		)
