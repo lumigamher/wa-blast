@@ -193,43 +193,39 @@ export default async function LlamadasPage({
                   <Link
                     key={call.id}
                     href={`/inbox/${call.conversationId}`}
-                    className="block p-3 rounded-md hover:bg-muted/50 border border-transparent hover:border-border transition-colors"
+                    className="block rounded-md border border-transparent p-3 transition-colors hover:border-border hover:bg-muted/50"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <ContactAvatar
-                          seed={call.phone}
-                          name={call.contactName}
-                          size={40}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium">
-                            {call.contactName || call.phone}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {call.phone}
-                          </div>
+                    <div className="flex items-center gap-3">
+                      <ContactAvatar seed={call.phone} name={call.contactName} size={40} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">
+                          {call.contactName || call.phone}
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <div className="flex items-center gap-1.5 text-xs">
+                        {/* Estado + duración: en móvil van bajo el nombre; en desktop pasan a la derecha */}
+                        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                           {getStatusIcon(call)}
                           <span>{getStatusLabel(call)}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {getDurationLabel(call.durationSec)}
-                        </div>
-                        {call.recordingMediaId && (
-                          <audio
-                            controls
-                            preload="none"
-                            src={`/media/${call.recordingMediaId}`}
-                            className="h-8 max-w-[180px]"
+                          {call.durationSec ? (
+                            <>
+                              <span aria-hidden>·</span>
+                              <span className="tabular-nums">{getDurationLabel(call.durationSec)}</span>
+                            </>
+                          ) : null}
+                          <span aria-hidden>·</span>
+                          <LocalDateTime
+                            iso={new Date(call.createdAt).toISOString()}
+                            opts={{ timeStyle: "short" }}
                           />
-                        )}
-                        <LocalDateTime iso={String(call.createdAt)} />
+                        </div>
                       </div>
+                      {call.recordingMediaId && (
+                        <audio
+                          controls
+                          preload="none"
+                          src={`/media/${call.recordingMediaId}`}
+                          className="hidden h-8 max-w-[180px] shrink-0 sm:block"
+                        />
+                      )}
                     </div>
                   </Link>
                 ))}
