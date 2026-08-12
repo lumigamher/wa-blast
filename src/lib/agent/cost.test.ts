@@ -11,6 +11,22 @@ describe("estimateCostCop", () => {
     expect(estimateCostCop({ promptTokens: 0, completionTokens: 0 }, "anthropic", "x")).toBe(0);
   });
 
+  it("un modelo :free de OpenRouter no cuesta nada", () => {
+    expect(
+      estimateCostCop(
+        { promptTokens: 50_000, completionTokens: 20_000 },
+        "openrouter",
+        "nvidia/nemotron-3.5-lightning:free",
+      ),
+    ).toBe(0);
+  });
+
+  it("un modelo de pago de OpenRouter sí suma", () => {
+    expect(
+      estimateCostCop({ promptTokens: 50_000, completionTokens: 20_000 }, "openrouter", "anthropic/claude-haiku-4.5"),
+    ).toBeGreaterThan(0);
+  });
+
   it("estima el costo de embeddings (COP por 1k tokens)", () => {
     const cop = estimateEmbeddingCostCop(1000);
     expect(cop).toBeGreaterThanOrEqual(0);

@@ -9,6 +9,7 @@ import { buildSystemPrompt, toLlmHistory } from "./context";
 import { estimateCostCop, estimateEmbeddingCostCop } from "./cost";
 import { isOverCostCap } from "./guardrails";
 import { isPaused, pauseAgent } from "./pause";
+import type { GatewayProvider } from "@/lib/ai/gateway/config";
 import { resolveChatProvider, resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 import { getGatewayConfig } from "@/lib/ai/gateway/config";
 import type { LlmProvider } from "./providers/types";
@@ -52,7 +53,7 @@ export async function runAgentTurn(
   // Resolve chat provider: from deps (test injection) or from gateway (org BYO key)
   let chatProvider: LlmProvider;
   let chatModel: string;
-  let chatProviderKind: "openai" | "anthropic" | "google" | "custom";
+  let chatProviderKind: GatewayProvider;
 
   if (deps.provider) {
     // Test injection

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { LlmProvider, LlmResponse } from "@/lib/agent/providers/types";
 import { withFallbackModel } from "./with-fallback";
 
@@ -80,10 +80,9 @@ describe("withFallbackModel", () => {
   });
 
   it("no toca la llamada cuando el modelo primario responde bien", async () => {
-    const chat = vi.fn(async () => OK);
-    const p = withFallbackModel({ chat }, "respaldo");
+    const inner = providerThatFails("ninguno", httpError(429));
+    const p = withFallbackModel(inner, "respaldo");
     await p.chat(INPUT);
-    expect(chat).toHaveBeenCalledTimes(1);
-    expect(chat.mock.calls[0]?.[0]).toMatchObject({ model: INPUT.model });
+    expect(inner.calls).toEqual([INPUT.model]);
   });
 });
