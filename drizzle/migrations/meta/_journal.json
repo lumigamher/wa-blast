@@ -260,6 +260,20 @@
       "when": 1784644409847,
       "tag": "0036_absent_nightmare",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1786563304483,
+      "tag": "0037_married_senator_kelly",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1786563737053,
+      "tag": "0038_cultured_puck",
+      "breakpoints": true
     }
   ]
 }

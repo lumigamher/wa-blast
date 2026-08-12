@@ -1,0 +1,1 @@
+ALTER TABLE `ai_gateway` ADD `openrouter_key_enc` text;

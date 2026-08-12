@@ -8,28 +8,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GatewayProvider } from "@/lib/ai/gateway/config";
-import type { ListedModel } from "@/lib/ai/gateway/list-models";
+import { formatContext, type ListedModel } from "@/lib/ai/gateway/list-models";
 import { listModelsAction, saveGatewayAction, testGatewayAction } from "./actions";
 
 const PROVIDERS: { id: GatewayProvider; name: string; keyHint: string }[] = [
   { id: "openai", name: "OpenAI", keyHint: "sk-…" },
   { id: "anthropic", name: "Anthropic", keyHint: "sk-ant-…" },
   { id: "google", name: "Google Gemini", keyHint: "AIza…" },
-  { id: "custom", name: "Compatible OpenAI", keyHint: "key de OpenRouter, Groq, etc." },
+  { id: "openrouter", name: "OpenRouter", keyHint: "sk-or-v1-…" },
+  { id: "custom", name: "Compatible OpenAI", keyHint: "key de Groq, Together, etc." },
 ];
+
+const EMPTY_KEYS: Record<GatewayProvider, string> = {
+  openai: "",
+  anthropic: "",
+  google: "",
+  openrouter: "",
+  custom: "",
+};
 
 export function GatewayForm(props: {
   chatProvider: GatewayProvider;
   chatModel: string;
   hasKey: Record<GatewayProvider, boolean>;
   customBaseUrl: string;
+  fallbackModel: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [provider, setProvider] = useState<GatewayProvider>(props.chatProvider);
   const [model, setModel] = useState(props.chatModel);
-  const [keys, setKeys] = useState<Record<GatewayProvider, string>>({ openai: "", anthropic: "", google: "", custom: "" });
+  const [keys, setKeys] = useState<Record<GatewayProvider, string>>(EMPTY_KEYS);
   const [baseUrl, setBaseUrl] = useState(props.customBaseUrl);
+  const [fallbackModel, setFallbackModel] = useState(props.fallbackModel);
+  const [onlyFree, setOnlyFree] = useState(false);
   const [models, setModels] = useState<ListedModel[] | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -58,6 +70,7 @@ export function GatewayForm(props: {
     setModels(null);
     setModelsError(null);
     setQuery("");
+    setOnlyFree(false);
     if (props.hasKey[provider] && (provider !== "custom" || props.customBaseUrl)) {
       loadModels(provider);
     }
@@ -72,15 +85,17 @@ export function GatewayForm(props: {
         openaiKey: keys.openai || undefined,
         anthropicKey: keys.anthropic || undefined,
         googleKey: keys.google || undefined,
+        openrouterKey: keys.openrouter || undefined,
         customKey: keys.custom || undefined,
         customBaseUrl: provider === "custom" ? baseUrl : undefined,
+        fallbackModel,
       });
       if ("error" in r) {
         toast.error(r.error);
         return;
       }
       toast.success("Configuración de IA guardada");
-      setKeys({ openai: "", anthropic: "", google: "", custom: "" });
+      setKeys(EMPTY_KEYS);
       router.refresh();
       if (opts?.thenLoadModels) loadModels(provider);
     });
@@ -99,10 +114,16 @@ export function GatewayForm(props: {
 
   const q = query.trim().toLowerCase();
   const visibleModels = (models ?? []).filter(
-    (m) => !q || m.id.toLowerCase().includes(q) || m.label.toLowerCase().includes(q),
+    (m) =>
+      (!q || m.id.toLowerCase().includes(q) || m.label.toLowerCase().includes(q)) &&
+      (!onlyFree || m.free),
   );
-  const recommended = visibleModels.filter((m) => m.recommended);
-  const others = visibleModels.filter((m) => !m.recommended);
+  // En OpenRouter la sección destacada son los gratuitos; en el resto, los curados.
+  const isOpenRouter = provider === "openrouter";
+  const featuredLabel = isOpenRouter ? "Gratuitos" : "Recomendados";
+  const featured = visibleModels.filter((m) => (isOpenRouter ? m.free : m.recommended));
+  const others = visibleModels.filter((m) => (isOpenRouter ? !m.free : !m.recommended));
+  const freeCount = (models ?? []).filter((m) => m.free).length;
 
   return (
     <div className="space-y-4">
@@ -178,7 +199,21 @@ export function GatewayForm(props: {
                 placeholder={PROVIDERS.find((p) => p.id === provider)?.keyHint}
               />
             </div>
-            {(keyTyped || (provider === "custom" && baseUrl !== props.customBaseUrl)) && (
+            {isOpenRouter && (
+              <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                <p>
+                  <strong>Cupo de los modelos gratuitos:</strong> 20 mensajes por minuto y 50 al día. Sube a 1.000 al día si
+                  compras al menos 10 USD de créditos en OpenRouter (una sola vez). Cada respuesta del agente puede gastar
+                  varios de esos mensajes cuando consulta el menú o arma un pedido.
+                </p>
+                <p>
+                  <strong>Privacidad:</strong> los modelos gratuitos corren en proveedores externos que suelen usar las
+                  conversaciones para entrenar. No los uses con clientes cuyos datos no puedas compartir.
+                </p>
+              </div>
+            )}
+            {(keyTyped ||
+              (provider === "custom" && baseUrl !== props.customBaseUrl)) && (
               <Button size="sm" disabled={isPending} onClick={() => save({ thenLoadModels: true })}>
                 Guardar y cargar modelos
               </Button>
@@ -229,12 +264,28 @@ export function GatewayForm(props: {
               <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar modelo…" className="pl-8" />
             </div>
           )}
+          {isOpenRouter && models && (
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={onlyFree}
+                  onChange={(e) => setOnlyFree(e.target.checked)}
+                  className="size-3.5 accent-primary"
+                />
+                Solo modelos gratuitos ({freeCount})
+              </label>
+              <span className="text-[11px] text-muted-foreground">
+                Solo mostramos modelos que soportan herramientas; el agente las necesita para tomar pedidos.
+              </span>
+            </div>
+          )}
           {models && (
             <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
-              {recommended.length > 0 && (
-                <p className="pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Recomendados</p>
+              {featured.length > 0 && (
+                <p className="pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{featuredLabel}</p>
               )}
-              {recommended.map((m) => (
+              {featured.map((m) => (
                 <ModelRow key={m.id} m={m} selected={model === m.id} onSelect={() => setModel(m.id)} />
               ))}
               {others.length > 0 && (
@@ -253,6 +304,21 @@ export function GatewayForm(props: {
               Modelo seleccionado (puedes escribir un id manualmente)
             </Label>
             <Input id="modelId" value={model} onChange={(e) => setModel(e.target.value)} />
+          </div>
+          <div className="space-y-1.5 border-t pt-3">
+            <Label htmlFor="fallbackModel" className="text-xs text-muted-foreground">
+              Modelo de respaldo (opcional)
+            </Label>
+            <Input
+              id="fallbackModel"
+              value={fallbackModel}
+              onChange={(e) => setFallbackModel(e.target.value)}
+              placeholder={isOpenRouter ? "nvidia/nemotron-3.5-lightning" : "gpt-5-mini"}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Si el modelo principal se queda sin cupo o falla, el agente reintenta una vez con este. Déjalo vacío para no
+              usar respaldo.
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button disabled={isPending || !model.trim()} onClick={() => save()}>
@@ -291,7 +357,17 @@ function ModelRow({ m, selected, onSelect }: { m: ListedModel; selected: boolean
           {selected && <CheckCircle2Icon className="size-3.5 shrink-0 text-primary" />}
         </div>
         {m.hint && <p className="truncate text-xs text-muted-foreground">{m.hint}</p>}
+        {m.contextLength && (
+          <p className="truncate text-xs text-muted-foreground">
+            {m.id} · {formatContext(m.contextLength)} de contexto
+          </p>
+        )}
       </div>
+      {m.free && (
+        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+          Gratis
+        </span>
+      )}
       {m.cost && (
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{m.cost}</span>
       )}

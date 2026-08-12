@@ -31,7 +31,9 @@ export async function listModelsAction(provider: GatewayProvider): Promise<ListM
         ? cfg?.anthropicKey
         : provider === "google"
           ? cfg?.googleKey
-          : cfg?.customKey;
+          : provider === "openrouter"
+            ? cfg?.openrouterKey
+            : cfg?.customKey;
   if (!key) return { ok: false, error: "Primero guarda la API key de este proveedor." };
   if (provider === "custom" && !cfg?.customBaseUrl)
     return { ok: false, error: "Primero guarda la URL base de tu proveedor." };

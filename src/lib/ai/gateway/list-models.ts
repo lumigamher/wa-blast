@@ -10,6 +10,9 @@ export type ListedModel = {
   hint?: string;
   cost?: "económico" | "equilibrado" | "premium";
   recommended?: boolean;
+  /** Solo OpenRouter: el modelo no cobra por tokens (variante `:free`). */
+  free?: boolean;
+  contextLength?: number;
 };
 
 export type ListModelsResult =
@@ -32,6 +35,7 @@ const CHAT_FILTERS: Record<GatewayProvider, (id: string) => boolean> = {
     !/(embedding|tts|whisper|audio|realtime|image|dall-e|moderation|transcribe|search)/.test(id),
   anthropic: (id) => id.startsWith("claude-"),
   google: (id) => id.startsWith("gemini-") && !/(embedding|imagen|veo|tts|image)/.test(id),
+  openrouter: () => true,
   custom: () => true,
 };
 
@@ -43,6 +47,44 @@ function enrich(provider: GatewayProvider, ids: string[]): ListedModel[] {
   });
   return models.sort((a, b) => {
     if (!!a.recommended !== !!b.recommended) return a.recommended ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
+/** "1M tokens" / "262K tokens" — para mostrar el contexto sin ruido. */
+export function formatContext(tokens: number): string {
+  if (tokens >= 1_000_000) return `${Math.round(tokens / 1_000_000)}M tokens`;
+  if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}K tokens`;
+  return `${tokens} tokens`;
+}
+
+type OpenRouterModel = {
+  id: string;
+  name?: string;
+  context_length?: number;
+  pricing?: { prompt?: string; completion?: string };
+  supported_parameters?: string[];
+};
+
+/**
+ * OpenRouter publica ~400 modelos de todo tipo. Nos quedamos SOLO con los que
+ * declaran `tools` en `supported_parameters`: el agente de Lula depende de tool
+ * calling (pedidos, catálogo, media) y un modelo sin herramientas se queda mudo.
+ * Los gratuitos (`pricing` en cero) van primero y quedan marcados para la UI.
+ */
+function enrichOpenRouter(raw: OpenRouterModel[]): ListedModel[] {
+  const isFree = (m: OpenRouterModel): boolean =>
+    Number(m.pricing?.prompt ?? "1") === 0 && Number(m.pricing?.completion ?? "1") === 0;
+  const models = raw
+    .filter((m) => (m.supported_parameters ?? []).includes("tools"))
+    .map((m) => ({
+      id: m.id,
+      label: m.name ?? m.id,
+      free: isFree(m),
+      ...(m.context_length ? { contextLength: m.context_length } : {}),
+    }));
+  return models.sort((a, b) => {
+    if (a.free !== b.free) return a.free ? -1 : 1;
     return a.label.localeCompare(b.label);
   });
 }
@@ -70,6 +112,9 @@ export async function listProviderModels(
     headers = { "x-api-key": key, "anthropic-version": "2023-06-01" };
   } else if (provider === "google") {
     url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=100`;
+  } else if (provider === "openrouter") {
+    url = "https://openrouter.ai/api/v1/models";
+    headers = { authorization: `Bearer ${key}` };
   } else {
     const base = provider === "custom" ? (baseUrl ?? "").replace(/\/+$/, "") : "https://api.openai.com/v1";
     if (!base) return { ok: false, error: "Falta la URL base del proveedor." };
@@ -87,9 +132,18 @@ export async function listProviderModels(
 
   try {
     const data = (await res.json()) as {
-      data?: { id: string }[];
+      data?: OpenRouterModel[];
       models?: { name?: string; supportedGenerationMethods?: string[] }[];
     };
+    if (provider === "openrouter") {
+      const models = enrichOpenRouter(data.data ?? []);
+      if (models.length === 0)
+        return {
+          ok: false,
+          error: "No encontramos modelos con soporte de herramientas en OpenRouter. El agente los necesita para tomar pedidos.",
+        };
+      return { ok: true, models };
+    }
     let ids: string[];
     if (provider === "google") {
       ids = (data.models ?? [])
