@@ -4,8 +4,11 @@ import type { LlmProvider, LlmResponse } from "./types";
 // Los modelos de razonamiento de OpenAI (gpt-5*, o1/o3/o4*) SOLO aceptan
 // temperature=1 (el default). Pasar otro valor → 400 "unsupported_value".
 // Para esos modelos omitimos el parámetro y dejamos el default de OpenAI.
+// Vía OpenRouter el id llega con prefijo de vendor ("openai/gpt-5-mini") y a
+// veces con sufijo de variante (":free"), así que normalizamos antes de decidir.
 function supportsCustomTemperature(model: string): boolean {
-  return !/^(gpt-5|o1|o3|o4)/i.test(model);
+  const bare = model.replace(/^[^/]+\//, "").replace(/:.*$/, "");
+  return !/^(gpt-5|o1|o3|o4)/i.test(bare);
 }
 
 export function makeOpenAiProvider(client: OpenAI): LlmProvider {

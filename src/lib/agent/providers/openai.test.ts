@@ -42,6 +42,26 @@ describe("openai provider", () => {
     expect(create.mock.calls[0][0]).not.toHaveProperty("temperature");
   });
 
+  it("omite temperature aunque el id venga con prefijo de OpenRouter", async () => {
+    const create = vi.fn().mockResolvedValue({ choices: [{ message: { content: "ok" } }], usage: {} });
+    const provider = makeOpenAiProvider({ chat: { completions: { create } } } as never);
+    await provider.chat({ system: "s", messages: [{ role: "user", content: "h" }], tools: [], temperature: 0.2, model: "openai/gpt-5-mini" });
+    expect(create.mock.calls[0][0]).not.toHaveProperty("temperature");
+  });
+
+  it("envía temperature a un modelo de OpenRouter que sí la soporta", async () => {
+    const create = vi.fn().mockResolvedValue({ choices: [{ message: { content: "ok" } }], usage: {} });
+    const provider = makeOpenAiProvider({ chat: { completions: { create } } } as never);
+    await provider.chat({
+      system: "s",
+      messages: [{ role: "user", content: "h" }],
+      tools: [],
+      temperature: 0.2,
+      model: "nvidia/nemotron-3.5-lightning:free",
+    });
+    expect(create.mock.calls[0][0]).toMatchObject({ temperature: 0.2 });
+  });
+
   it("envía temperature en modelos que la soportan (gpt-4o-mini)", async () => {
     const create = vi.fn().mockResolvedValue({ choices: [{ message: { content: "ok" } }], usage: {} });
     const provider = makeOpenAiProvider({ chat: { completions: { create } } } as never);

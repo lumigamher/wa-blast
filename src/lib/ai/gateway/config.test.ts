@@ -34,4 +34,38 @@ describe("gateway config", () => {
     const { db } = makeTestDb();
     expect(await getGatewayConfig(db, "nope")).toBeNull();
   });
+  it("guarda y descifra la key de OpenRouter con su provider/modelo", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await saveGatewayConfig(db, "o1", {
+      chatProvider: "openrouter",
+      chatModel: "nvidia/nemotron-3.5-lightning:free",
+      openrouterKey: "sk-or-v1-abc",
+    });
+    const cfg = await getGatewayConfig(db, "o1");
+    expect(cfg).toMatchObject({
+      chatProvider: "openrouter",
+      chatModel: "nvidia/nemotron-3.5-lightning:free",
+      openrouterKey: "sk-or-v1-abc",
+    });
+  });
+  it("guarda el modelo de respaldo y lo limpia con cadena vacía", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await saveGatewayConfig(db, "o1", {
+      chatProvider: "openrouter",
+      chatModel: "nvidia/nemotron-3.5-lightning:free",
+      fallbackModel: "nvidia/nemotron-3.5-lightning",
+    });
+    expect((await getGatewayConfig(db, "o1"))?.fallbackModel).toBe("nvidia/nemotron-3.5-lightning");
+    await saveGatewayConfig(db, "o1", { fallbackModel: "" });
+    expect((await getGatewayConfig(db, "o1"))?.fallbackModel).toBeNull();
+  });
+  it("conserva la key de OpenRouter si el patch la trae vacía", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
+    await saveGatewayConfig(db, "o1", { openrouterKey: "sk-or-keep" });
+    await saveGatewayConfig(db, "o1", { chatProvider: "openrouter", openrouterKey: "" });
+    expect((await getGatewayConfig(db, "o1"))?.openrouterKey).toBe("sk-or-keep");
+  });
 });

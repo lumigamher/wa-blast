@@ -1,0 +1,1 @@
+ALTER TABLE `ai_gateway` ADD `fallback_model` text;

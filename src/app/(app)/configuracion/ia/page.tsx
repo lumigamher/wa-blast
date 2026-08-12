@@ -23,9 +23,11 @@ export default async function Page() {
           openai: !!cfg?.openaiKey,
           anthropic: !!cfg?.anthropicKey,
           google: !!cfg?.googleKey,
+          openrouter: !!cfg?.openrouterKey,
           custom: !!cfg?.customKey,
         }}
         customBaseUrl={cfg?.customBaseUrl ?? ""}
+        fallbackModel={cfg?.fallbackModel ?? ""}
       />
     </div>
   );

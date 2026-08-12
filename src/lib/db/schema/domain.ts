@@ -340,13 +340,16 @@ export const aiGateway = sqliteTable("ai_gateway", {
   orgId: text("org_id")
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
-  chatProvider: text("chat_provider", { enum: ["openai", "anthropic", "google", "custom"] })
+  chatProvider: text("chat_provider", { enum: ["openai", "anthropic", "google", "openrouter", "custom"] })
     .notNull()
     .default("openai"),
   chatModel: text("chat_model").notNull().default("gpt-5-mini"),
+  /** Modelo de respaldo si el primario se rate-limitea o falla (típico con los :free de OpenRouter). */
+  fallbackModel: text("fallback_model"),
   openaiKeyEnc: text("openai_key_enc"),
   anthropicKeyEnc: text("anthropic_key_enc"),
   googleKeyEnc: text("google_key_enc"),
+  openrouterKeyEnc: text("openrouter_key_enc"),
   customKeyEnc: text("custom_key_enc"),
   customBaseUrl: text("custom_base_url"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),

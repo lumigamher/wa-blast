@@ -3,14 +3,16 @@ import { decrypt, encrypt } from "@/lib/crypto/encrypt";
 import type { DB } from "@/lib/db/client";
 import { aiGateway } from "@/lib/db/schema";
 
-export type GatewayProvider = "openai" | "anthropic" | "google" | "custom";
+export type GatewayProvider = "openai" | "anthropic" | "google" | "openrouter" | "custom";
 
 export type GatewayConfig = {
   chatProvider: GatewayProvider;
   chatModel: string;
+  fallbackModel: string | null;
   openaiKey: string | null;
   anthropicKey: string | null;
   googleKey: string | null;
+  openrouterKey: string | null;
   customKey: string | null;
   customBaseUrl: string | null;
 };
@@ -18,9 +20,11 @@ export type GatewayConfig = {
 export type GatewayPatch = {
   chatProvider?: GatewayProvider;
   chatModel?: string;
+  fallbackModel?: string;
   openaiKey?: string;
   anthropicKey?: string;
   googleKey?: string;
+  openrouterKey?: string;
   customKey?: string;
   customBaseUrl?: string;
 };
@@ -39,9 +43,11 @@ export async function getGatewayConfig(db: DB, orgId: string): Promise<GatewayCo
   return {
     chatProvider: row.chatProvider,
     chatModel: row.chatModel,
+    fallbackModel: row.fallbackModel,
     openaiKey: dec(row.openaiKeyEnc),
     anthropicKey: dec(row.anthropicKeyEnc),
     googleKey: dec(row.googleKeyEnc),
+    openrouterKey: dec(row.openrouterKeyEnc),
     customKey: dec(row.customKeyEnc),
     customBaseUrl: row.customBaseUrl,
   };
@@ -56,9 +62,14 @@ export async function saveGatewayConfig(db: DB, orgId: string, patch: GatewayPat
   };
   const chatProvider = patch.chatProvider ?? existing?.chatProvider ?? "openai";
   const chatModel = patch.chatModel ?? existing?.chatModel ?? "gpt-5-mini";
+  const fallbackModel =
+    patch.fallbackModel !== undefined
+      ? patch.fallbackModel.trim() || null
+      : (existing?.fallbackModel ?? null);
   const openaiKeyEnc = encOrKeep(patch.openaiKey, existing?.openaiKeyEnc);
   const anthropicKeyEnc = encOrKeep(patch.anthropicKey, existing?.anthropicKeyEnc);
   const googleKeyEnc = encOrKeep(patch.googleKey, existing?.googleKeyEnc);
+  const openrouterKeyEnc = encOrKeep(patch.openrouterKey, existing?.openrouterKeyEnc);
   const customKeyEnc = encOrKeep(patch.customKey, existing?.customKeyEnc);
   const customBaseUrl =
     patch.customBaseUrl !== undefined
@@ -67,9 +78,9 @@ export async function saveGatewayConfig(db: DB, orgId: string, patch: GatewayPat
   const updatedAt = now;
   await db
     .insert(aiGateway)
-    .values({ orgId, chatProvider, chatModel, openaiKeyEnc, anthropicKeyEnc, googleKeyEnc, customKeyEnc, customBaseUrl, updatedAt })
+    .values({ orgId, chatProvider, chatModel, fallbackModel, openaiKeyEnc, anthropicKeyEnc, googleKeyEnc, openrouterKeyEnc, customKeyEnc, customBaseUrl, updatedAt })
     .onConflictDoUpdate({
       target: aiGateway.orgId,
-      set: { chatProvider, chatModel, openaiKeyEnc, anthropicKeyEnc, googleKeyEnc, customKeyEnc, customBaseUrl, updatedAt },
+      set: { chatProvider, chatModel, fallbackModel, openaiKeyEnc, anthropicKeyEnc, googleKeyEnc, openrouterKeyEnc, customKeyEnc, customBaseUrl, updatedAt },
     });
 }
