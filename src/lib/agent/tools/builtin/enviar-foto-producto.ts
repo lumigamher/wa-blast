@@ -10,6 +10,7 @@ import { getMediaAsset } from "@/lib/media/store";
 import { conversations } from "@/lib/db/schema";
 import { toJpeg, isWhatsAppImageMime } from "@/lib/media/transcode";
 import type { AgentTool } from "../types";
+import { recordOutboundMedia } from "./_record-outbound";
 
 const schema = z.object({
   productId: z.string().optional(),
@@ -179,6 +180,16 @@ export const enviarFotoProducto: AgentTool = {
     if ("error" in sendResult) {
       return { ok: false, error: sendResult.error.message };
     }
+
+    await recordOutboundMedia(ctx.db, {
+      orgId: ctx.orgId,
+      conversationId: ctx.conversationId,
+      wamid: sendResult.wamid,
+      bytes,
+      mime,
+      kind: "image",
+      caption,
+    });
 
     return { ok: true, data: { enviado: true } };
   },

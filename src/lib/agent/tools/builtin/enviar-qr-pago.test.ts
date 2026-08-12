@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { organization, conversations, organizationSettings } from "@/lib/db/schema";
+import { organization, conversations, messages, organizationSettings } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto/encrypt";
 import { addPaymentMethod, setPaymentMethodQr, listPaymentMethods } from "../../payments/methods";
 import { saveMediaAsset } from "@/lib/media/store";
@@ -99,6 +100,13 @@ describe("enviar_qr_pago", () => {
       const data = r.data as { enviado: boolean };
       expect(data.enviado).toBe(true);
     }
+
+    // El QR debe quedar visible en el inbox para el equipo
+    const out = await db.select().from(messages).where(eq(messages.conversationId, "conv1"));
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe("image");
+    expect(out[0].mediaId).toMatch(/^media_/);
+    expect(out[0].body).toContain("QR");
   });
 
   it("falla si no hay método con QR", async () => {

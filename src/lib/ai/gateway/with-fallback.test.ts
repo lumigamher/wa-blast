@@ -42,6 +42,13 @@ describe("withFallbackModel", () => {
     expect(inner.calls).toEqual([INPUT.model, "nvidia/nemotron-3.5-lightning"]);
   });
 
+  it("reintenta ante el 404 'Provider returned error' de OpenRouter", async () => {
+    const inner = providerThatFails(INPUT.model, httpError(404));
+    const p = withFallbackModel(inner, "respaldo");
+    await p.chat(INPUT);
+    expect(inner.calls).toEqual([INPUT.model, "respaldo"]);
+  });
+
   it("reintenta cuando el proveedor devuelve un 5xx", async () => {
     const inner = providerThatFails(INPUT.model, httpError(503));
     const p = withFallbackModel(inner, "respaldo");

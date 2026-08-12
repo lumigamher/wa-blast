@@ -12,7 +12,10 @@ import type { LlmProvider } from "@/lib/agent/providers/types";
 function isTransient(e: unknown): boolean {
   const status = (e as { status?: number })?.status;
   if (status == null) return true; // red caída / timeout
-  return status === 429 || status >= 500;
+  // 404 "Provider returned error": OpenRouter saca de circulación el proveedor
+  // upstream de un modelo :free cuando se satura. También cubre un id de modelo
+  // que dejó de existir — en ambos casos, cambiar de modelo es la salida.
+  return status === 404 || status === 429 || status >= 500;
 }
 
 export function withFallbackModel(provider: LlmProvider, fallbackModel: string | null): LlmProvider {

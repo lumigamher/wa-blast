@@ -1,11 +1,13 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import * as fs from "node:fs/promises";
+import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
 import {
   organization,
   conversations,
   agentMediaLibrary,
   mediaAssets,
+  messages,
   organizationSettings,
 } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto/encrypt";
@@ -124,6 +126,13 @@ describe("enviar_archivo", () => {
       const data = r.data as { sent: string };
       expect(data.sent).toBe("Catálogo PDF");
     }
+
+    // El archivo debe quedar visible en el inbox
+    const out = await db.select().from(messages).where(eq(messages.conversationId, "conv1"));
+    expect(out).toHaveLength(1);
+    expect(out[0].direction).toBe("out");
+    expect(out[0].mediaId).toMatch(/^media_/);
+    expect(out[0].body).toBe("Catálogo PDF");
   });
 
   it("por mediaId: envía archivo específico", async () => {

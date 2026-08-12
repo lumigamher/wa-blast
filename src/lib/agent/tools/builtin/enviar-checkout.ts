@@ -6,6 +6,7 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { sendText, sendFlow } from "@/lib/meta/client";
 import { buildOrderSummaryText } from "@/lib/agent/payments/summary";
 import type { AgentTool } from "../types";
+import { recordOutboundText } from "./_record-outbound";
 
 const schema = z.object({
   orderId: z.string().optional(),
@@ -80,6 +81,14 @@ export const enviarCheckout: AgentTool = {
       return { ok: false, error: textResult.error.message };
     }
 
+    const resumen = buildOrderSummaryText(order);
+    await recordOutboundText(ctx.db, {
+      orgId: ctx.orgId,
+      conversationId: ctx.conversationId,
+      wamid: textResult.wamid,
+      body: resumen,
+    });
+
     // Send flow
     const flowResult = await sendFlow(settings, {
       to: conv.phone,
@@ -91,6 +100,14 @@ export const enviarCheckout: AgentTool = {
     if ("error" in flowResult) {
       return { ok: false, error: flowResult.error.message };
     }
+
+    await recordOutboundText(ctx.db, {
+      orgId: ctx.orgId,
+      conversationId: ctx.conversationId,
+      wamid: flowResult.wamid,
+      body: "Completa tu compra",
+      type: "interactive",
+    });
 
     return { ok: true, data: { enviado: true, orderId: order.id } };
   },

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { conversations } from "@/lib/db/schema";
 import { getMediaAsset } from "@/lib/media/store";
 import { sendMedia, uploadMedia } from "@/lib/meta/client";
+import { recordOutboundMedia } from "./_record-outbound";
 import { getOrgSettings } from "@/lib/org/settings";
 import { listPaymentMethods } from "../../payments/methods";
 import type { AgentTool } from "../types";
@@ -105,6 +106,16 @@ export const enviarQrPago: AgentTool = {
 		if ("error" in sendResult) {
 			return { ok: false, error: sendResult.error.message };
 		}
+
+		await recordOutboundMedia(ctx.db, {
+			orgId: ctx.orgId,
+			conversationId: ctx.conversationId,
+			wamid: sendResult.wamid,
+			bytes,
+			mime: asset.mime,
+			kind: "image",
+			caption: `QR - ${selectedMethod.label}`,
+		});
 
 		return { ok: true, data: { enviado: true } };
 	},

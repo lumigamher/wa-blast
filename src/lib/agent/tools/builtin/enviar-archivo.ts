@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { uploadMedia, sendMedia } from "@/lib/meta/client";
+import { recordOutboundMedia } from "./_record-outbound";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getMediaAsset } from "@/lib/media/store";
 import { conversations } from "@/lib/db/schema";
@@ -147,6 +148,16 @@ export const enviarArchivo: AgentTool = {
         error: "No pude enviar el archivo.",
       };
     }
+
+    await recordOutboundMedia(ctx.db, {
+      orgId: ctx.orgId,
+      conversationId: ctx.conversationId,
+      wamid: sendResult.wamid,
+      bytes,
+      mime,
+      kind,
+      caption: item.label,
+    });
 
     return { ok: true, data: { sent: item.label } };
   },

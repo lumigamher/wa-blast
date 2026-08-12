@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
-import { agentConfigs, agentRuns, agentTools, conversations, messages, organization } from "@/lib/db/schema";
+import { agentConfigs, agentRuns, agentTools, conversationNotes, conversations, messages, organization } from "@/lib/db/schema";
 import { ingestDocument } from "./rag";
 import { makeFakeEmbeddings } from "./rag/testing/fake-embeddings";
 import { makeFakeProvider } from "./testing/fake-provider";
@@ -114,6 +114,71 @@ describe("runAgentTurn", () => {
       .from(agentRuns)
       .where(eq(agentRuns.orgId, "o1"));
     expect(runs[0].status).toBe("capped");
+  });
+
+  it("provider caído: avisa al cliente, deja nota interna con el motivo y pausa", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const provider = {
+      chat: async () => {
+        throw Object.assign(new Error("404 Provider returned error"), { status: 404 });
+      },
+    };
+    const sender = vi.fn(async () => ({ wamid: "aviso1" }));
+    await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
+
+    // 1) El cliente NO queda en visto: recibe el fallback configurado
+    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden", replyTo: "w1" });
+
+    // 2) Queda nota interna con el motivo técnico real
+    const notes = await db.select().from(conversationNotes).where(eq(conversationNotes.conversationId, "c1"));
+    expect(notes).toHaveLength(1);
+    expect(notes[0].body).toContain("404 Provider returned error");
+
+    // 3) La IA queda pausada para que un humano continúe
+    const [conv] = await db.select().from(conversations).where(eq(conversations.id, "c1"));
+    expect(conv.agentPaused).toBe(true);
+
+    // 4) Y sigue quedando el run de error para observabilidad
+    const runs = await db.select().from(agentRuns).where(eq(agentRuns.orgId, "o1"));
+    expect(runs[0].status).toBe("error");
+  });
+
+  it("provider caído: la nota queda aunque el envío al cliente también falle", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const provider = {
+      chat: async () => {
+        throw new Error("404 Provider returned error");
+      },
+    };
+    const sender = vi.fn(async () => {
+      throw new Error("Meta 500");
+    });
+    await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
+
+    const notes = await db.select().from(conversationNotes).where(eq(conversationNotes.conversationId, "c1"));
+    expect(notes).toHaveLength(1);
+    const runs = await db.select().from(agentRuns).where(eq(agentRuns.orgId, "o1"));
+    expect(runs[0].status).toBe("error");
+  });
+
+  it("tope de costo alcanzado: avisa al cliente y deja nota, no lo deja en visto", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await db.update(agentConfigs).set({ monthlyCostCapCop: 1 }).where(eq(agentConfigs.orgId, "o1"));
+    await db.insert(agentRuns).values({
+      id: randomUUID(), orgId: "o1", conversationId: "c1", stepsJson: "[]",
+      promptTokens: 0, completionTokens: 0, costCop: 9999, status: "ok", createdAt: new Date(),
+    });
+    const provider = makeFakeProvider([{ text: "no deberia usarse", toolCalls: [], usage: { promptTokens: 1, completionTokens: 1 } }]);
+    const sender = vi.fn(async () => ({ wamid: "cap1" }));
+    await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
+
+    expect(sender).toHaveBeenCalledWith({ to: "+57300", body: "ya te atienden", replyTo: "w1" });
+    const notes = await db.select().from(conversationNotes).where(eq(conversationNotes.conversationId, "c1"));
+    expect(notes).toHaveLength(1);
+    expect(notes[0].body).toMatch(/tope de costo/i);
   });
 
   it("auto-RAG: inyecta knowledge cuando hay documentos relevantes", async () => {

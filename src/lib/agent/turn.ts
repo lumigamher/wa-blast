@@ -23,6 +23,42 @@ export type AgentSender = (input: { to: string; body: string; replyTo?: string }
 
 const HISTORY_LIMIT = Number(process.env.AGENT_HISTORY_LIMIT ?? 10);
 
+/**
+ * Ningún camino de falla puede dejar al cliente en visto.
+ *
+ * Hace lo mismo que el escalado: nota interna con el motivo REAL (para que
+ * quien entre a la conversación no tenga que adivinar), aviso al cliente y
+ * handoff a un humano. La nota va PRIMERO a propósito: el envío a Meta también
+ * puede fallar y el motivo es lo único que no se puede perder.
+ */
+async function handoffOnFailure(
+  db: DB,
+  orgId: string,
+  conversationId: string,
+  opts: { reason: string; agentName: string; fallbackMessage: string; sender: AgentSender; to: string; replyTo?: string },
+): Promise<void> {
+  await addNote(db, orgId, {
+    conversationId,
+    authorUserId: null,
+    authorName: opts.agentName || "Asistente IA",
+    body: opts.reason,
+  }).catch(() => {
+    // Una nota que no se pudo crear no debe impedir el aviso ni la pausa.
+  });
+
+  try {
+    const sent = await opts.sender({ to: opts.to, body: opts.fallbackMessage, replyTo: opts.replyTo });
+    await recordOutboundMessage(db, {
+      orgId, conversationId, wamid: sent.wamid, type: "text", body: opts.fallbackMessage,
+      status: sent.wamid ? "sent" : "failed",
+    });
+  } catch {
+    // Si Meta también está caído, la nota ya quedó y la IA igual se pausa.
+  }
+
+  await pauseAgent(db, conversationId).catch(() => {});
+}
+
 export async function runAgentTurn(
   db: DB,
   orgId: string,
@@ -110,6 +146,14 @@ export async function runAgentTurn(
       id: randomUUID(), orgId, conversationId, stepsJson: "[]",
       promptTokens: 0, completionTokens: 0, costCop: 0, status: "capped", createdAt: new Date(),
     });
+    await handoffOnFailure(db, orgId, conversationId, {
+      reason: `La IA no respondió: se alcanzó el tope de costo mensual configurado (${config.monthlyCostCapCop} COP). Súbelo en Configuración › Agente o reactiva la IA cuando se resuelva.`,
+      agentName: config.name,
+      fallbackMessage: config.fallbackMessage,
+      sender: deps.sender,
+      to: deps.to,
+      replyTo: lastInboundWamid,
+    });
     return;
   }
 
@@ -182,11 +226,20 @@ export async function runAgentTurn(
     });
   } catch (e) {
     // Falla del provider/Meta: registra un run "error" para observabilidad.
+    const detalle = e instanceof Error ? e.message : "error desconocido";
     await db.insert(agentRuns).values({
       id: randomUUID(), orgId, conversationId, stepsJson: "[]",
       promptTokens: 0, completionTokens: 0, costCop: 0, status: "error",
-      errorMessage: e instanceof Error ? e.message : "error desconocido",
+      errorMessage: detalle,
       createdAt: new Date(),
+    });
+    await handoffOnFailure(db, orgId, conversationId, {
+      reason: `La IA no pudo responder — falló el modelo ${chatModel} (${chatProviderKind}).\nMotivo: ${detalle}\n\nSe pausó la IA para que un humano continúe. Revisa Configuración › IA.`,
+      agentName: config.name,
+      fallbackMessage: config.fallbackMessage,
+      sender: deps.sender,
+      to: deps.to,
+      replyTo: lastInboundWamid,
     });
   }
 }

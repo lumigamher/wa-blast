@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { organization, conversations, products, organizationSettings } from "@/lib/db/schema";
+import { organization, conversations, mediaAssets, messages, products, organizationSettings } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto/encrypt";
 import { addImageUrl } from "../../catalog/images";
 import { saveCatalogConfig } from "../../integrations/catalog/config";
@@ -160,6 +161,18 @@ describe("enviar_foto_producto", () => {
       const data = r.data as { enviado: boolean };
       expect(data.enviado).toBe(true);
     }
+
+    // La foto debe quedar registrada en el inbox, si no el equipo no la ve
+    const out = await db.select().from(messages).where(eq(messages.conversationId, "conv1"));
+    expect(out).toHaveLength(1);
+    expect(out[0].direction).toBe("out");
+    expect(out[0].type).toBe("image");
+    expect(out[0].wamid).toBe("m1");
+    expect(out[0].body).toContain("Cerveza Aguila");
+    // Apunta a un asset local (media_*), que es lo que la ruta del inbox sabe servir
+    expect(out[0].mediaId).toMatch(/^media_/);
+    const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, out[0].mediaId ?? ""));
+    expect(asset?.orgId).toBe("o1");
   });
 
   it("producto sin imágenes → ok:false", async () => {

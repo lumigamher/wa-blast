@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { conversations, organization, organizationSettings, orders } from "@/lib/db/schema";
+import { conversations, messages, organization, organizationSettings, orders } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto/encrypt";
 import { saveAgentConfig } from "@/lib/agent/config";
 import { enviarCheckout } from "./enviar-checkout";
@@ -171,6 +172,12 @@ describe("enviar_checkout", () => {
     expect(flowBody.type).toBe("interactive");
     expect(flowBody.interactive.type).toBe("flow");
     expect(flowBody.interactive.action.parameters.flow_id).toBe("flow-999");
+
+    // Ambos mensajes deben quedar en el inbox: resumen y flow de pago
+    const out = await db.select().from(messages).where(eq(messages.conversationId, "c4"));
+    expect(out).toHaveLength(2);
+    expect(out.some((m) => m.type === "text" && (m.body ?? "").includes("ord-3"))).toBe(true);
+    expect(out.some((m) => m.type === "interactive")).toBe(true);
   });
 
   it("resolves order by orderId parameter", async () => {
