@@ -14,13 +14,17 @@ git archive main | ssh "$HOST" "mkdir -p $DIR && rm -rf $DIR/src $DIR/drizzle &&
 # Next no puede crear .next/cache/images y cada imagen se re-optimiza en cada
 # petición (EACCES en bucle en el journal).
 echo "→ Build remoto…"
+# Se compila en .next-build y se intercambia al final: si se compila sobre .next
+# en caliente, el servidor pierde sus manifests y devuelve 500 durante todo el
+# build (~70 s). El intercambio + restart dura ~3 s.
 ssh "$HOST" "cd $DIR && \
   bun install --frozen-lockfile && \
-  rm -rf .next/cache && \
-  bun run build && \
+  rm -rf .next-build && \
+  NEXT_DIST_DIR=.next-build bun run build && \
   set -a && . ./.env.local && set +a && \
   bun run db:migrate && \
-  chown -R wablast:wablast .next && \
+  chown -R wablast:wablast .next-build && \
+  rm -rf .next-old && mv .next .next-old && mv .next-build .next && \
   systemctl restart wa-blast && \
   sleep 3 && systemctl is-active wa-blast"
 # (set -a sourcea .env.local porque drizzle-kit NO lo carga solo — sin esto

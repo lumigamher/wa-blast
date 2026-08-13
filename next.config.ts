@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // El deploy compila en un directorio aparte y luego lo intercambia, para no
+  // arrancarle los archivos al servidor que está atendiendo: hacerlo en caliente
+  // provoca 500 ("client reference manifest does not exist") durante todo el build.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
