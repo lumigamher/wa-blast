@@ -46,7 +46,7 @@ export async function listContactsAction(
 			and(
 				eq(contacts.orgId, orgId),
 				f.q
-					? sql`(${contacts.name} LIKE ${"%" + f.q + "%"} OR ${contacts.phone} LIKE ${"%" + f.q + "%"})`
+					? sql`(${contacts.name} LIKE ${"%" + f.q + "%"} OR ${contacts.phone} LIKE ${"%" + f.q + "%"} OR ${contacts.username} LIKE ${"%" + f.q + "%"})`
 					: sql`1=1`,
 				f.status === "activos" ? sql`${contacts.optOutAt} IS NULL` : sql`1=1`,
 				f.status === "optout" ? sql`${contacts.optOutAt} IS NOT NULL` : sql`1=1`,

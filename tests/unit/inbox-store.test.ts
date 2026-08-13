@@ -72,6 +72,22 @@ describe("inbox store", () => {
     expect((await listConversations(db, "o1", { unreadOnly: true })).length).toBe(0);
   });
 
+  it("encuentra por username a quien no tiene teléfono visible", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    await recordInboundMessage(db, {
+      orgId: "o1",
+      identity: { bsuid: "US.13491208655302741918", username: "juanda" },
+      wamid: "wu1",
+      parsed: { type: "text", body: "hola", mediaId: null, payloadJson: null, replyToWamid: null },
+      ts: new Date(),
+    });
+    // Sin teléfono, la búsqueda por nombre/teléfono no lo hallaría nunca
+    expect((await listConversations(db, "o1", { q: "juanda" })).length).toBe(1);
+    expect((await listConversations(db, "o1", { q: "JUANDA" })).length).toBe(1);
+    expect((await listConversations(db, "o1", { q: "otracosa" })).length).toBe(0);
+  });
+
   it("getThread de otra org devuelve null (aislamiento)", async () => {
     const { db } = makeTestDb();
     await seed(db);

@@ -226,9 +226,12 @@ export async function listConversations(
 
   if (opts.q) {
     const qLower = `%${(opts.q ?? "").toLowerCase()}%`;
+    // Incluye username: quien adoptó un username no tiene teléfono que buscar,
+    // así que sin esto su conversación sería inencontrable desde el buscador.
     const orCondition = or(
       like(sql`lower(${contacts.name})`, qLower),
       like(sql`lower(${conversations.phone})`, qLower),
+      like(sql`lower(${conversations.username})`, qLower),
     );
     if (orCondition) {
       conditions.push(orCondition);
