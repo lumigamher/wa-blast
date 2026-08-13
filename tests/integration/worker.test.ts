@@ -88,4 +88,51 @@ describe("InProcessSenderWorker", () => {
     expect(camp.sent).toBe(1);
     expect(camp.failed).toBe(1);
   });
+
+  test("un destinatario sin identidad NO aborta el resto de la campaña", async () => {
+    const db = await seed();
+    // Fila corrupta en medio: ni teléfono ni BSUID. Antes reventaba el bucle
+    // entero y los pendientes nunca se enviaban.
+    await db.insert(campaignRecipients).values({
+      campaignId: "camp", phone: null, bsuid: null, params: "{}", status: "pending",
+    });
+    setFetch(
+      (async () =>
+        new Response(JSON.stringify({ messages: [{ id: "wamid.OK" }] }), { status: 200 })) as unknown as FetchFn,
+    );
+
+    const worker = new InProcessSenderWorker(db);
+    await worker.runCampaign("camp");
+
+    const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, "camp"));
+    // Los dos buenos salieron; solo el corrupto quedó marcado
+    expect(camp.sent).toBe(2);
+    expect(camp.failed).toBe(1);
+    expect(camp.status).toBe("done");
+    const recs = await db.select().from(campaignRecipients);
+    const malo = recs.find((r) => !r.phone && !r.bsuid);
+    expect(malo?.status).toBe("failed");
+    expect(malo?.error ?? "").toMatch(/destinatario/i);
+  });
+
+  test("envía por BSUID a quien no tiene teléfono visible", async () => {
+    const db = await seed();
+    await db.insert(campaignRecipients).values({
+      campaignId: "camp", phone: null, bsuid: "US.777", params: "{}", status: "pending",
+    });
+    let cuerpo: Record<string, unknown> = {};
+    setFetch((async (_u: string, init?: RequestInit) => {
+      const b = JSON.parse(String(init?.body ?? "{}"));
+      if (b.recipient) cuerpo = b;
+      return new Response(JSON.stringify({ messages: [{ id: "wamid.OK" }] }), { status: 200 });
+    }) as unknown as FetchFn);
+
+    const worker = new InProcessSenderWorker(db);
+    await worker.runCampaign("camp");
+
+    expect(cuerpo.recipient).toBe("US.777");
+    expect(cuerpo.to).toBeUndefined();
+    const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, "camp"));
+    expect(camp.sent).toBe(3);
+  });
 });

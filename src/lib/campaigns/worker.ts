@@ -127,6 +127,11 @@ export class InProcessSenderWorker implements SenderWorker {
       const plan = camp.componentPlanJson ? JSON.parse(camp.componentPlanJson) as ComponentPlan : null;
       let result;
 
+      // Cada destinatario va aislado: una fila corrupta (sin identidad, params
+      // ilegibles, lo que sea) marca SOLO esa fila como fallida. Sin esto, la
+      // excepción se escapaba del bucle y abortaba la campaña entera, dejando
+      // sin enviar a todos los pendientes que venían detrás.
+      try {
       if (plan && plan.kind === "flow") {
         const flowPlan = plan as FlowPlan;
         result = await sendFlow(settings, {
@@ -307,6 +312,21 @@ export class InProcessSenderWorker implements SenderWorker {
           .update(campaigns)
           .set({ sent: sql`${campaigns.sent} + 1` })
           .where(eq(campaigns.id, campaignId));
+      }
+      } catch (e) {
+        // Ver el comentario de arriba: el fallo se contiene en esta fila.
+        const motivo = e instanceof Error ? e.message : "error desconocido";
+        console.warn("[campaign recipient]", campaignId, rec.id, motivo);
+        await this.db
+          .update(campaignRecipients)
+          .set({ status: "failed", error: motivo, sentAt: new Date() })
+          .where(eq(campaignRecipients.id, rec.id))
+          .catch(() => {});
+        await this.db
+          .update(campaigns)
+          .set({ failed: sql`${campaigns.failed} + 1` })
+          .where(eq(campaigns.id, campaignId))
+          .catch(() => {});
       }
     }
 

@@ -42,7 +42,7 @@ const inputSchema = z.object({
 });
 
 export type CreateCampaignResult =
-  | { ok: true; campaignId: string; scheduled: boolean }
+  | { ok: true; campaignId: string; scheduled: boolean; descartados: number }
   | { ok: false; error: string; duplicate?: boolean };
 
 /**
@@ -126,6 +126,7 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
       return {
         contactId: c.id,
         phone: c.phone,
+        bsuid: c.bsuid,
         name: c.name,
         params,
       };
@@ -160,6 +161,7 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
       return {
         contactId: c.id,
         phone: c.phone,
+        bsuid: c.bsuid,
         name: c.name,
         params,
       };
@@ -205,6 +207,16 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
     }
   }
 
+  // Un contacto sin teléfono NI BSUID no es alcanzable: se descarta al armar la
+  // lista, no al enviar. Así el conteo de la campaña refleja lo que de verdad va
+  // a salir, en vez de inflarse con filas que van a fallar.
+  const alcanzables = recipients.filter((r) => r.phone || r.bsuid);
+  const descartados = recipients.length - alcanzables.length;
+  if (alcanzables.length === 0) {
+    return { ok: false, error: "Ninguno de los destinatarios tiene teléfono ni identidad de WhatsApp." };
+  }
+  recipients = alcanzables;
+
   const { campaignId } = await createCampaign(db, {
     orgId,
     createdBy: session.user.id,
@@ -229,5 +241,5 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
     await deleteCampaign(db, orgId, data.replacesDraftId); // guard de org dentro
   }
 
-  return { ok: true, campaignId, scheduled: Boolean(scheduledAt) };
+  return { ok: true, campaignId, scheduled: Boolean(scheduledAt), descartados };
 }

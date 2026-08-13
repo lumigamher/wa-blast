@@ -285,6 +285,11 @@ export function Wizard({
         return;
       }
       toast.success(res.scheduled ? "Campaña programada" : "Campaña disparada");
+      if (res.descartados > 0) {
+        toast.warning(
+          `${res.descartados} ${res.descartados === 1 ? "contacto quedó fuera" : "contactos quedaron fuera"}: sin teléfono ni identidad de WhatsApp.`,
+        );
+      }
       router.push(`/campanas/${res.campaignId}`);
     });
   }
