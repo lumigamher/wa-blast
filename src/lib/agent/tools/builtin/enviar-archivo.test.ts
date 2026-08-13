@@ -11,6 +11,7 @@ import {
   organizationSettings,
 } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto/encrypt";
+import { saveMediaAsset } from "@/lib/media/store";
 import { enviarArchivo } from "./enviar-archivo";
 
 // Mock fs.readFile at module level
@@ -463,5 +464,40 @@ describe("enviar_archivo", () => {
     if (!r.ok) {
       expect(r.error).toContain("imagen");
     }
+  });
+
+  it("envía a un usuario que solo tiene BSUID, sin teléfono", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o9", name: "o9", slug: "o9", createdAt: new Date() });
+    await db.insert(organizationSettings).values({
+      orgId: "o9", metaPhoneId: "1234567890", metaWabaId: "w", metaAppId: "a",
+      metaAccessTokenEnc: encrypt("t"), metaAppSecretEnc: encrypt("s"), metaVerifyToken: "v",
+      forwardUrl: null, optoutKeywords: JSON.stringify(["STOP"]), rateLimitMps: 20,
+      defaultCountry: "CO", updatedAt: new Date(),
+    });
+    await db.insert(conversations).values({
+      id: "c9", orgId: "o9", phone: null, bsuid: "US.999", username: "juanda",
+      contactId: null, lastMessageAt: new Date(), lastIncomingAt: null, unreadCount: 0,
+      status: "open", agentPaused: false, createdAt: new Date(),
+    });
+    const asset = await saveMediaAsset(db, {
+      orgId: "o9", bytes: new Uint8Array([1, 2, 3]).buffer as ArrayBuffer, mime: "application/pdf",
+    });
+    await db.insert(agentMediaLibrary).values({
+      id: "lib9", orgId: "o9", mediaAssetId: asset.id, label: "Catálogo", kind: "document",
+      createdAt: new Date(),
+    });
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const u = String(input);
+      if (u.includes("/media")) return new Response(JSON.stringify({ id: "meta_1" }), { status: 200 });
+      return new Response(JSON.stringify({ messages: [{ id: "m9" }] }), { status: 200 });
+    });
+
+    const r = await enviarArchivo.run({ query: "catálogo" }, { db, orgId: "o9", conversationId: "c9" });
+    expect(r.ok).toBe(true);
+    const out = await db.select().from(messages).where(eq(messages.conversationId, "c9"));
+    expect(out).toHaveLength(1);
+    expect(out[0].mediaId).toMatch(/^media_/);
   });
 });

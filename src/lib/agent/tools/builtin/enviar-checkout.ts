@@ -4,6 +4,7 @@ import { conversations, orders } from "@/lib/db/schema";
 import { getAgentConfig } from "@/lib/agent/config";
 import { getOrgSettings } from "@/lib/org/settings";
 import { sendText, sendFlow } from "@/lib/meta/client";
+import { recipientFrom } from "@/lib/meta/recipient";
 import { buildOrderSummaryText } from "@/lib/agent/payments/summary";
 import type { AgentTool } from "../types";
 import { recordOutboundText } from "./_record-outbound";
@@ -67,13 +68,16 @@ export const enviarCheckout: AgentTool = {
       .from(conversations)
       .where(eq(conversations.id, ctx.conversationId));
 
-    if (!conv?.phone) {
-      return { ok: false, error: "Conversación sin teléfono" };
+    // Un usuario con username puede no tener teléfono nunca: basta con que la
+    // conversación tenga alguna identidad para poder escribirle.
+    if (!conv || (!conv.phone && !conv.bsuid)) {
+      return { ok: false, error: "Conversación sin destinatario" };
     }
+    const destinatario = recipientFrom(conv);
 
     // Send text with order summary
     const textResult = await sendText(settings, {
-      to: conv.phone,
+      to: destinatario,
       body: buildOrderSummaryText(order),
     });
 
@@ -91,7 +95,7 @@ export const enviarCheckout: AgentTool = {
 
     // Send flow
     const flowResult = await sendFlow(settings, {
-      to: conv.phone,
+      to: destinatario,
       flowId: config.checkoutFlowId,
       cta: "Pagar",
       bodyText: "Completa tu compra",

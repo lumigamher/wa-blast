@@ -73,7 +73,7 @@ describe("enviar_checkout", () => {
     }
   });
 
-  it("fails when conversation has no phone number", async () => {
+  it("falla si la conversación no tiene ninguna identidad (ni teléfono ni BSUID)", async () => {
     const { db } = makeTestDb();
     await db.insert(organization).values({ id: "o3", name: "o3", slug: "o3", createdAt: new Date() });
     await db.insert(organizationSettings).values({
@@ -104,7 +104,7 @@ describe("enviar_checkout", () => {
     const r = await enviarCheckout.run({}, { db, orgId: "o3", conversationId: "c3" });
     expect(r.ok).toBe(false);
     if (!r.ok) {
-      expect(r.error).toContain("sin teléfono");
+      expect(r.error).toContain("sin destinatario");
     }
   });
 
@@ -258,5 +258,36 @@ describe("enviar_checkout", () => {
 
     const r = await enviarCheckout.run({}, { db, orgId: "o6", conversationId: "c6" });
     expect(r.ok).toBe(false);
+  });
+
+  it("funciona con un usuario que solo tiene BSUID, sin teléfono", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o9", name: "o9", slug: "o9", createdAt: new Date() });
+    await db.insert(organizationSettings).values({
+      orgId: "o9", metaPhoneId: "1234567890", metaWabaId: "w", metaAppId: "a",
+      metaAccessTokenEnc: encrypt("t"), metaAppSecretEnc: encrypt("s"), metaVerifyToken: "v",
+      forwardUrl: null, optoutKeywords: JSON.stringify(["STOP"]), rateLimitMps: 20,
+      defaultCountry: "CO", updatedAt: new Date(),
+    });
+    await db.insert(conversations).values({
+      id: "c9", orgId: "o9", phone: null, bsuid: "US.999", username: "juanda",
+      contactId: null, lastMessageAt: new Date(), lastIncomingAt: null, unreadCount: 0,
+      status: "open", agentPaused: false, createdAt: new Date(),
+    });
+    await db.insert(orders).values({
+      id: "ord-9", orgId: "o9", conversationId: "c9", status: "pendiente", totalCop: 5000,
+      itemsJson: JSON.stringify([{ nombre: "X", cantidad: 1, subtotal: 5000 }]), createdAt: new Date(),
+    });
+    await saveAgentConfig(db, "o9", { checkoutFlowId: "flow-9" });
+
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ messages: [{ id: "m9" }] }), { status: 200 }));
+
+    const r = await enviarCheckout.run({}, { db, orgId: "o9", conversationId: "c9" });
+    expect(r.ok).toBe(true);
+    // Debe direccionar por BSUID, no por teléfono
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.recipient).toBe("US.999");
+    expect(body.to).toBeUndefined();
   });
 });

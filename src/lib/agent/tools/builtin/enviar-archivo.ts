@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { uploadMedia, sendMedia } from "@/lib/meta/client";
+import { recipientFrom } from "@/lib/meta/recipient";
 import { recordOutboundMedia } from "./_record-outbound";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getMediaAsset } from "@/lib/media/store";
@@ -76,17 +77,18 @@ export const enviarArchivo: AgentTool = {
       };
     }
 
-    // 3. Get conversation phone
+    // 3. Identidad del destinatario: teléfono si lo hay, si no el BSUID.
     const [conv] = await ctx.db
-      .select({ phone: conversations.phone })
+      .select({ phone: conversations.phone, bsuid: conversations.bsuid })
       .from(conversations)
       .where(and(eq(conversations.id, ctx.conversationId), eq(conversations.orgId, ctx.orgId)));
-    if (!conv?.phone) {
+    if (!conv || (!conv.phone && !conv.bsuid)) {
       return {
         ok: false,
-        error: "Conversación sin teléfono.",
+        error: "Conversación sin destinatario.",
       };
     }
+    const destinatario = recipientFrom(conv);
 
     // 4. Load org settings
     const settings = await getOrgSettings(ctx.db, ctx.orgId);
@@ -136,7 +138,7 @@ export const enviarArchivo: AgentTool = {
 
     // 7. Send media
     const sendResult = await sendMedia(settings, {
-      to: conv.phone,
+      to: destinatario,
       kind,
       mediaId: uploadResult.mediaId,
       filename: kind === "document" ? item.label : undefined,
