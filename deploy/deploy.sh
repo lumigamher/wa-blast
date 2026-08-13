@@ -10,6 +10,9 @@ echo "→ Empaquetando main y subiendo…"
 # (sin esto, un page.tsx viejo puede chocar con el nuevo y romper el build)
 git archive main | ssh "$HOST" "mkdir -p $DIR && rm -rf $DIR/src $DIR/drizzle && tar -x -C $DIR"
 
+# El build corre como root pero el servicio corre como wablast: sin el chown,
+# Next no puede crear .next/cache/images y cada imagen se re-optimiza en cada
+# petición (EACCES en bucle en el journal).
 echo "→ Build remoto…"
 ssh "$HOST" "cd $DIR && \
   bun install --frozen-lockfile && \
@@ -17,6 +20,7 @@ ssh "$HOST" "cd $DIR && \
   bun run build && \
   set -a && . ./.env.local && set +a && \
   bun run db:migrate && \
+  chown -R wablast:wablast .next && \
   systemctl restart wa-blast && \
   sleep 3 && systemctl is-active wa-blast"
 # (set -a sourcea .env.local porque drizzle-kit NO lo carga solo — sin esto
