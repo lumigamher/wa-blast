@@ -38,7 +38,11 @@ export const contacts = sqliteTable(
     orgId: text("org_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    phone: text("phone").notNull(),
+    phone: text("phone"),
+    /** Business-scoped user ID de Meta. Única identidad garantizada cuando el
+     * usuario adopta un username y esconde su teléfono. Formato: "US.13491208…" */
+    bsuid: text("bsuid"),
+    username: text("username"),
     name: text("name"),
     email: text("email"),
     company: text("company"),
@@ -62,6 +66,7 @@ export const contacts = sqliteTable(
       t.orgId,
       t.phone,
     ),
+    orgBsuidUnique: uniqueIndex("contacts_org_bsuid_unique").on(t.orgId, t.bsuid),
     orgIdx: index("contacts_org_idx").on(t.orgId),
   }),
 );
@@ -154,7 +159,8 @@ export const campaignRecipients = sqliteTable(
     contactId: text("contact_id").references(() => contacts.id, {
       onDelete: "set null",
     }),
-    phone: text("phone").notNull(),
+    phone: text("phone"),
+    bsuid: text("bsuid"),
     name: text("name"),
     params: text("params").notNull().default("{}"),
     status: text("status").notNull().default("pending"),
@@ -292,7 +298,8 @@ export const flowResponses = sqliteTable(
     contactId: text("contact_id").references(() => contacts.id, {
       onDelete: "set null",
     }),
-    phone: text("phone").notNull(),
+    phone: text("phone"),
+    bsuid: text("bsuid"),
     contactName: text("contact_name"),
     flowName: text("flow_name"),
     wamid: text("wamid"),
@@ -415,7 +422,10 @@ export const conversations = sqliteTable(
     orgId: text("org_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    phone: text("phone").notNull(),
+    phone: text("phone"),
+    /** Ver contacts.bsuid. */
+    bsuid: text("bsuid"),
+    username: text("username"),
     contactId: text("contact_id").references(() => contacts.id, {
       onDelete: "set null",
     }),
@@ -433,6 +443,7 @@ export const conversations = sqliteTable(
   },
   (t) => ({
     orgPhoneUnique: uniqueIndex("conversations_org_phone").on(t.orgId, t.phone),
+    orgBsuidUnique: uniqueIndex("conversations_org_bsuid").on(t.orgId, t.bsuid),
   }),
 );
 
