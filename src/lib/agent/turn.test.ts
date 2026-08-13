@@ -31,6 +31,25 @@ describe("runAgentTurn", () => {
     expect(runs[0].status).toBe("ok");
   });
 
+  it("convierte el markdown del modelo al formato de WhatsApp antes de enviar", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const provider = makeFakeProvider([
+      { text: "Tenemos **audífonos** y **teclados**", toolCalls: [], usage: { promptTokens: 1, completionTokens: 1 } },
+    ]);
+    const sender = vi.fn(async () => ({ wamid: "o1" }));
+    await runAgentTurn(db, "o1", "c1", { provider, sender, to: "+57300" });
+    // Lo que sale por WhatsApp no puede llevar dobles asteriscos
+    expect(sender).toHaveBeenCalledWith({
+      to: "+57300",
+      body: "Tenemos *audífonos* y *teclados*",
+      replyTo: "w1",
+    });
+    // Y lo guardado debe coincidir con lo enviado, no con el crudo del modelo
+    const out = await db.select().from(messages).where(eq(messages.conversationId, "c1"));
+    expect(out.some((m) => m.direction === "out" && m.body === "Tenemos *audífonos* y *teclados*")).toBe(true);
+  });
+
   it("agente OFF: no hace nada", async () => {
     const { db } = makeTestDb();
     await seed(db);

@@ -9,6 +9,7 @@ import { buildSystemPrompt, toLlmHistory } from "./context";
 import { estimateCostCop, estimateEmbeddingCostCop } from "./cost";
 import { isOverCostCap } from "./guardrails";
 import { isPaused, pauseAgent } from "./pause";
+import { toWhatsAppFormat } from "./whatsapp-format";
 import type { GatewayProvider } from "@/lib/ai/gateway/config";
 import { resolveChatProvider, resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 import { getGatewayConfig } from "@/lib/ai/gateway/config";
@@ -207,9 +208,13 @@ export async function runAgentTurn(
       // 3) Pausar la IA (handoff).
       await pauseAgent(db, conversationId);
     } else if (res.status === "ok" && res.reply) {
-      const sent = await deps.sender({ to: deps.to, body: res.reply, replyTo: lastInboundWamid });
+      // El modelo escribe markdown estándar por costumbre; WhatsApp lo muestra
+      // crudo (`**así**`). Se traduce ANTES de enviar y se guarda lo mismo que
+      // se envió, para que el historial refleje lo que vio el cliente.
+      const reply = toWhatsAppFormat(res.reply);
+      const sent = await deps.sender({ to: deps.to, body: reply, replyTo: lastInboundWamid });
       await recordOutboundMessage(db, {
-        orgId, conversationId, wamid: sent.wamid, type: "text", body: res.reply,
+        orgId, conversationId, wamid: sent.wamid, type: "text", body: reply,
         status: sent.wamid ? "sent" : "failed",
       });
     } else if (res.status === "capped") {
