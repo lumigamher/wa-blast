@@ -28,7 +28,7 @@ type Campaign = {
 
 type Recipient = {
   id: number;
-  phone: string;
+  phone: string | null;
   name: string | null;
   status: string;
   error: string | null;

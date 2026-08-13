@@ -7,7 +7,7 @@ import { contacts, contactTags, conversations, tags } from "@/lib/db/schema";
 const emailSchema = z.email();
 
 export type CreateContactInput = {
-	phone: string;
+	phone: string | null;
 	name?: string | null;
 	email?: string | null;
 	company?: string | null;

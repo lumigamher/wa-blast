@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { getOrgSettings } from "@/lib/org/settings";
 import { TIER_LIMITS, credsFromSettings, getPhoneHealth } from "@/lib/meta/graph";
+import { countRecentDrops } from "@/lib/meta/webhook-drops";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,11 @@ export default async function SaludPage() {
       </div>
     );
   }
+
+  // Webhooks que Meta entregó y no pudimos interpretar. Meta exige responder 200
+  // igual, así que sin este número un cambio de formato se traduce en mensajes
+  // perdidos sin que nadie se entere.
+  const descartes = await countRecentDrops(db, 24).catch(() => 0);
 
   const health = await getPhoneHealth(creds).catch((e) => {
     console.error("getPhoneHealth failed:", e);
@@ -57,6 +63,15 @@ export default async function SaludPage() {
           <p className="text-sm text-muted-foreground">Estado del número {health.display_phone_number}</p>
         </div>
       </header>
+
+      {descartes > 0 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          <strong>{descartes}</strong>{" "}
+          {descartes === 1 ? "webhook entrante no se pudo interpretar" : "webhooks entrantes no se pudieron interpretar"}{" "}
+          en las últimas 24 horas. Puede que Meta haya cambiado el formato del payload: esos mensajes no llegaron al
+          inbox. Quedaron guardados para poder revisarlos.
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

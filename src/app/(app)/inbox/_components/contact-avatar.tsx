@@ -8,14 +8,14 @@ export function ContactAvatar({
   size = 40,
   className = "",
 }: {
-  seed: string;
+  seed: string | null;
   name?: string | null;
   size?: number;
   className?: string;
 }) {
   const [errored, setErrored] = useState(false);
   const initial = (name?.trim() || seed || "?").charAt(0).toUpperCase();
-  const url = `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(seed)}`;
+  const url = `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(seed ?? "?")}`;
 
   if (errored) {
     return (

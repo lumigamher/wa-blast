@@ -10,6 +10,7 @@ import { getLastInboundWamid, getThread, markConversationRead, recordOutboundMes
 import { upsertReaction } from "@/lib/inbox/reactions";
 import { isWindowOpen } from "@/lib/inbox/window";
 import { markRead, sendMedia, sendReaction, sendTemplate, sendText, uploadMedia } from "@/lib/meta/client";
+import { recipientFrom } from "@/lib/meta/recipient";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getMediaAsset, saveMediaAsset } from "@/lib/media/store";
 import { toOggOpus, toWebpSticker } from "@/lib/media/transcode";
@@ -41,7 +42,7 @@ export async function sendMessageAction(
   }
 
   const settings = await getOrgSettings(db, orgId);
-  const r = await sendText(settings, { to: thread.conversation.phone, body, replyTo: opts?.replyTo });
+  const r = await sendText(settings, { to: recipientFrom(thread.conversation), body, replyTo: opts?.replyTo });
 
   if ("error" in r) {
     await recordOutboundMessage(db, {
@@ -90,7 +91,7 @@ export async function sendTemplateToConversationAction(
     : [];
 
   const r = await sendTemplate(settings, {
-    to: thread.conversation.phone,
+    to: recipientFrom(thread.conversation),
     templateName: input.templateName,
     language: input.language,
     components,
@@ -230,7 +231,7 @@ export async function sendMediaAction(
 
   // Send media
   const sendRes = await sendMedia(settings, {
-    to: thread.conversation.phone,
+    to: recipientFrom(thread.conversation),
     kind: input.kind,
     mediaId: uploadRes.mediaId,
     caption: input.caption,
@@ -280,7 +281,7 @@ export async function sendReactionAction(
   }
 
   const settings = await getOrgSettings(db, orgId);
-  const sendRes = await sendReaction(settings, { to: thread.conversation.phone, wamid: input.wamid, emoji: input.emoji });
+  const sendRes = await sendReaction(settings, { to: recipientFrom(thread.conversation), wamid: input.wamid, emoji: input.emoji });
   if ("error" in sendRes) return { ok: false, error: `No se pudo enviar la reacción: ${sendRes.error.message}` };
 
   await upsertReaction(db, { orgId, conversationId, targetWamid: input.wamid, direction: "out", emoji: input.emoji });
@@ -322,7 +323,7 @@ export async function sendVoiceAction(
     console.error(`[voice] upload error: ${up.error.message}`);
     return { ok: false, error: `No se pudo subir la voz: ${up.error.message}` };
   }
-  const sendRes = await sendMedia(settings, { to: thread.conversation.phone, kind: "audio", mediaId: up.mediaId });
+  const sendRes = await sendMedia(settings, { to: recipientFrom(thread.conversation), kind: "audio", mediaId: up.mediaId });
   if ("error" in sendRes) {
     await recordOutboundMessage(db, {
       orgId,
@@ -403,7 +404,7 @@ export async function sendStickerAction(conversationId: string, input: { sticker
   });
   if ("error" in up) return { ok: false, error: `No se pudo subir el sticker: ${up.error.message}` };
 
-  const sendRes = await sendMedia(settings, { to: thread.conversation.phone, kind: "sticker", mediaId: up.mediaId });
+  const sendRes = await sendMedia(settings, { to: recipientFrom(thread.conversation), kind: "sticker", mediaId: up.mediaId });
   if ("error" in sendRes) {
     await recordOutboundMessage(db, {
       orgId,

@@ -91,10 +91,10 @@ describe("idempotencia de webhooks", () => {
     };
 
     // First transmission
-    await handleInboundMessage(db, orgId, msg, []);
+    await handleInboundMessage(db, orgId, msg, [], null, { phone: "+" + String(msg.from).replace(/^\+/, "") });
 
     // Second transmission (retransmisión de Meta)
-    await handleInboundMessage(db, orgId, msg, []);
+    await handleInboundMessage(db, orgId, msg, [], null, { phone: "+" + String(msg.from).replace(/^\+/, "") });
 
     const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId));
     expect(camp.replied).toBe(1);

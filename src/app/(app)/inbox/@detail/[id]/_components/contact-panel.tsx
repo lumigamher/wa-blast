@@ -100,7 +100,7 @@ export function ContactInfoToggle({
   conversationId: string;
   contact: { name?: string | null } | null;
   contactId?: string | null;
-  phone: string;
+  phone: string | null;
   notes: Note[];
 }) {
   const [open, setOpen] = useState(false);

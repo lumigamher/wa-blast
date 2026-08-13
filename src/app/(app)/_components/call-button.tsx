@@ -17,7 +17,7 @@ export function CallButton({
 }: {
   contactId: string;
   name?: string | null;
-  phone?: string;
+  phone?: string | null;
   className?: string;
   /** Solo el ícono (para headers compactos); conserva title accesible */
   iconOnly?: boolean;

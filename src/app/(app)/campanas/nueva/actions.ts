@@ -68,7 +68,7 @@ async function findRecentDuplicate(
       .select({ phone: campaignRecipients.phone })
       .from(campaignRecipients)
       .where(eq(campaignRecipients.campaignId, camp.id));
-    const overlap = rows.filter((r) => newSet.has(r.phone)).length;
+    const overlap = rows.filter((r) => r.phone && newSet.has(r.phone)).length;
     if (overlap / newSet.size >= 0.5) return { name: camp.name, overlap };
   }
   return null;
@@ -114,7 +114,7 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
         // Server-side resolution for carousel
         const fields = {
           name: c.name ?? "",
-          phone: c.phone,
+          phone: c.phone ?? "",
           email: c.email ?? "",
         };
         params = resolveVarMapping(data.varMapping, fields);
@@ -148,7 +148,7 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
         // Server-side resolution for carousel
         const fields = {
           name: c.name ?? "",
-          phone: c.phone,
+          phone: c.phone ?? "",
           email: c.email ?? "",
         };
         params = resolveVarMapping(data.varMapping, fields);
@@ -195,7 +195,7 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
   if (recipients.length === 0) return { ok: false, error: "No hay destinatarios válidos" };
 
   if (!data.force) {
-    const dup = await findRecentDuplicate(orgId, data.templateName, recipients.map((r) => r.phone));
+    const dup = await findRecentDuplicate(orgId, data.templateName, recipients.map((r) => r.phone).filter((p): p is string => !!p));
     if (dup) {
       return {
         ok: false,

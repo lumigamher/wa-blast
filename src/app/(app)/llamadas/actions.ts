@@ -84,6 +84,8 @@ export async function requestCallPermissionAction(
   const { orgId } = await requireOrg();
   const [c] = await db.select().from(contacts).where(and(eq(contacts.orgId, orgId), eq(contacts.id, contactId)));
   if (!c) return { error: "Contacto no encontrado" };
+  // La API de llamadas de Meta no acepta BSUID: sin teléfono no hay forma de llamar.
+  if (!c.phone) return { error: "Este contacto no tiene teléfono visible (usa username), así que no se le puede llamar." };
   const settings = await getOrgSettings(db, orgId);
   return requestCallPermission(settings, c.phone);
 }
@@ -97,6 +99,7 @@ export async function placeCallAction(
   if (!perm.valid) return { error: "Sin permiso de llamada vigente" };
   const [c] = await db.select().from(contacts).where(and(eq(contacts.orgId, orgId), eq(contacts.id, contactId)));
   if (!c) return { error: "Contacto no encontrado" };
+  if (!c.phone) return { error: "Este contacto no tiene teléfono visible (usa username), así que no se le puede llamar." };
   const settings = await getOrgSettings(db, orgId);
   const conv = await getOrCreateConversation(db, orgId, c.phone, new Date());
   const res = await placeCall(settings, offerSdp, c.phone);

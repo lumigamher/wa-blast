@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Input } from "@/components/ui/input";
 import { listContactsAction } from "../contactos/actions";
 
-type Row = { id: string; name: string | null; phone: string };
+type Row = { id: string; name: string | null; phone: string | null };
 
 export function NuevaLlamada() {
   const [open, setOpen] = useState(false);

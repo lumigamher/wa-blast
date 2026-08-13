@@ -1,22 +1,23 @@
+import { addressFields, type Recipient } from "./recipient";
 import type { DecryptedSettings } from "@/lib/org/settings";
 
 export const GRAPH_TIMEOUT_MS = 15_000;
 
 export type SendTemplateParams = {
-  to: string;
+  to: string | Recipient;
   templateName: string;
   language: string;
   components?: unknown[];
 };
 
 export type SendTextParams = {
-  to: string;
+  to: string | Recipient;
   body: string;
   replyTo?: string;
 };
 
 export type SendFlowParams = {
-  to: string;
+  to: string | Recipient;
   flowId: string;
   cta: string;
   bodyText: string;
@@ -38,7 +39,7 @@ export async function sendText(
   const url = `https://graph.facebook.com/v22.0/${settings.metaPhoneId}/messages`;
   const payload: Record<string, unknown> = {
     messaging_product: "whatsapp",
-    to: p.to.replace(/^\+/, ""),
+    ...addressFields(p.to),
     type: "text",
     text: { body: p.body },
   };
@@ -77,7 +78,7 @@ export async function sendTemplate(
     },
     body: JSON.stringify({
       messaging_product: "whatsapp",
-      to: p.to.replace(/^\+/, ""),
+      ...addressFields(p.to),
       type: "template",
       template: {
         name: p.templateName,
@@ -113,7 +114,7 @@ export async function sendFlow(
     },
     body: JSON.stringify({
       messaging_product: "whatsapp",
-      to: p.to.replace(/^\+/, ""),
+      ...addressFields(p.to),
       type: "interactive",
       interactive: {
         type: "flow",
@@ -188,14 +189,14 @@ export async function uploadMedia(
 
 export async function sendMedia(
   settings: DecryptedSettings,
-  p: { to: string; kind: "image" | "audio" | "video" | "document" | "sticker"; mediaId: string; caption?: string; filename?: string; replyTo?: string },
+  p: { to: string | Recipient; kind: "image" | "audio" | "video" | "document" | "sticker"; mediaId: string; caption?: string; filename?: string; replyTo?: string },
 ): Promise<{ wamid: string } | { error: MetaError }> {
   if (!settings.metaPhoneId || !settings.metaAccessToken)
     return { error: { code: 0, message: "Meta creds not configured", type: "auth" } };
   const media: Record<string, unknown> = { id: p.mediaId };
   if (p.caption && (p.kind === "image" || p.kind === "video" || p.kind === "document")) media.caption = p.caption;
   if (p.filename && p.kind === "document") media.filename = p.filename;
-  const body: Record<string, unknown> = { messaging_product: "whatsapp", to: p.to.replace(/^\+/, ""), type: p.kind, [p.kind]: media };
+  const body: Record<string, unknown> = { messaging_product: "whatsapp", ...addressFields(p.to), type: p.kind, [p.kind]: media };
   if (p.replyTo) body.context = { message_id: p.replyTo };
   const res = await fetch(`https://graph.facebook.com/v22.0/${settings.metaPhoneId}/messages`, {
     method: "POST",
@@ -213,14 +214,14 @@ export async function sendMedia(
 
 export async function sendReaction(
   settings: DecryptedSettings,
-  p: { to: string; wamid: string; emoji: string },
+  p: { to: string | Recipient; wamid: string; emoji: string },
 ): Promise<{ wamid: string } | { error: MetaError }> {
   if (!settings.metaPhoneId || !settings.metaAccessToken)
     return { error: { code: 0, message: "Meta creds not configured", type: "auth" } };
   const res = await fetch(`https://graph.facebook.com/v22.0/${settings.metaPhoneId}/messages`, {
     method: "POST",
     headers: { authorization: `Bearer ${settings.metaAccessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", to: p.to.replace(/^\+/, ""), type: "reaction", reaction: { message_id: p.wamid, emoji: p.emoji } }),
+    body: JSON.stringify({ messaging_product: "whatsapp", ...addressFields(p.to), type: "reaction", reaction: { message_id: p.wamid, emoji: p.emoji } }),
     signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
   });
   if (!res.ok) {

@@ -79,7 +79,8 @@ describe("flowResponsesToCsv", () => {
     const csv = flowResponsesToCsv([
       {
         ...base,
-        phone: "573001112233",
+        bsuid: null,
+      phone: "573001112233",
         contactName: "Ana, V.",
         flowName: "lead",
         fieldsJson: JSON.stringify({ nombre: "Ana", ciudad: "Cali" }),
@@ -87,7 +88,8 @@ describe("flowResponsesToCsv", () => {
       {
         ...base,
         id: "2",
-        phone: "573004445566",
+        bsuid: null,
+      phone: "573004445566",
         contactName: null,
         flowName: null,
         fieldsJson: JSON.stringify({ nombre: "Beto", email: "b@x.com" }),

@@ -826,3 +826,21 @@ export const agentMediaLibrary = sqliteTable("agent_media_library", {
   productId: text("product_id"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
+
+/**
+ * Payloads de webhook que no pasaron validación. Meta exige responder 200 (si no
+ * reintenta en bucle y termina desactivando el webhook), así que sin esta tabla
+ * un payload con forma nueva se pierde en silencio — que es exactamente cómo se
+ * perdieron los mensajes de usuarios con username. Retención corta: contiene
+ * datos personales.
+ */
+export const webhookDrops = sqliteTable(
+  "webhook_drops",
+  {
+    id: text("id").primaryKey(),
+    reason: text("reason").notNull(),
+    rawBody: text("raw_body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ createdIdx: index("webhook_drops_created_idx").on(t.createdAt) }),
+);

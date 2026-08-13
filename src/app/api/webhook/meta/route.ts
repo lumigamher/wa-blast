@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { verifyWebhookToken } from "@/lib/webhook/verify";
-import { verifyMetaSignature, webhookPayloadSchema } from "@/lib/meta/webhook";
+import { identityFromWebhook, verifyMetaSignature, webhookPayloadSchema } from "@/lib/meta/webhook";
+import { recordWebhookDrop } from "@/lib/meta/webhook-drops";
 import { handleInboundMessage, handleStatusEvent, handleCallEvent, handleCallPermissionReply } from "@/lib/meta/webhook-handlers";
 import { forwardWebhook } from "@/lib/meta/forward";
 import { resolveOrgByPhoneId } from "@/lib/org/resolve-by-phone-id";
@@ -32,13 +33,21 @@ export async function POST(req: Request) {
   const rawBody = await req.text();
   const sigHeader = req.headers.get("x-hub-signature-256");
 
+  // Meta exige 200 en todos los casos: cualquier otra cosa provoca reintentos en
+  // bucle y termina desactivando el webhook. Pero un 200 sin rastro es cómo se
+  // perdían los mensajes de usuarios con username, así que todo descarte queda
+  // registrado y visible en /salud.
   let parsed;
   try {
     parsed = webhookPayloadSchema.safeParse(JSON.parse(rawBody));
-  } catch {
+  } catch (e) {
+    await recordWebhookDrop(db, { reason: `JSON inválido: ${(e as Error)?.message ?? ""}`, rawBody });
     return NextResponse.json({ ok: true }, { status: 200 });
   }
-  if (!parsed.success) return NextResponse.json({ ok: true }, { status: 200 });
+  if (!parsed.success) {
+    await recordWebhookDrop(db, { reason: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "), rawBody });
+    return NextResponse.json({ ok: true }, { status: 200 });
+  }
 
   const firstChange = parsed.data.entry[0]?.changes[0]?.value;
   const phoneId = firstChange?.metadata?.phone_number_id;
@@ -75,7 +84,14 @@ export async function POST(req: Request) {
             });
             continue;
           }
-          await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords, profileName);
+          const identity = identityFromWebhook(m, v.contacts?.[0]);
+          if (!identity.phone && !identity.bsuid) {
+            // Sin identidad no hay a quién atribuirle el mensaje: se registra en
+            // vez de perderlo, que es el punto de todo este cambio.
+            await recordWebhookDrop(db, { reason: "mensaje sin from ni from_user_id", rawBody });
+            continue;
+          }
+          await handleInboundMessage(db, settings.orgId, m, settings.optoutKeywords, profileName, identity);
         }
       }
       if (v.calls) {

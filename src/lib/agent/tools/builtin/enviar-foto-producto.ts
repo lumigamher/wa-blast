@@ -5,6 +5,7 @@ import type { DB } from "@/lib/db/client";
 import { getCatalogConfig } from "../../integrations/catalog/config";
 import { getCatalogProvider } from "../../integrations/catalog/index";
 import { uploadMedia, sendMedia } from "@/lib/meta/client";
+import { recipientFrom } from "@/lib/meta/recipient";
 import { getOrgSettings } from "@/lib/org/settings";
 import { getMediaAsset } from "@/lib/media/store";
 import { conversations } from "@/lib/db/schema";
@@ -161,7 +162,6 @@ export const enviarFotoProducto: AgentTool = {
     if (!convRow) {
       return { ok: false, error: "Conversación sin teléfono" };
     }
-    const phone = convRow.phone;
 
     // 6. Upload media to Meta
     const uploadResult = await uploadMedia(settings, { bytes, mime });
@@ -172,7 +172,7 @@ export const enviarFotoProducto: AgentTool = {
     // 7. Send media with caption including product info
     const caption = buildCaption(product, variantLabel);
     const sendResult = await sendMedia(settings, {
-      to: phone,
+      to: recipientFrom(convRow),
       kind: "image",
       mediaId: uploadResult.mediaId,
       caption,

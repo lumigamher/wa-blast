@@ -30,7 +30,7 @@ describe("flow response end-to-end (recordInboundMessage)", () => {
 
     await recordInboundMessage(db, {
       orgId: "o1",
-      phone: "+57300",
+      identity: { phone: "+57300" },
       wamid: "wamid.flow.1",
       parsed: {
         type: "flow",
@@ -66,7 +66,7 @@ describe("flow response end-to-end (recordInboundMessage)", () => {
     // 3) idempotencia: reprocesar el mismo wamid no duplica
     await recordInboundMessage(db, {
       orgId: "o1",
-      phone: "+57300",
+      identity: { phone: "+57300" },
       wamid: "wamid.flow.1",
       parsed: {
         type: "flow",
