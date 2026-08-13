@@ -18,7 +18,7 @@ import {
 type Tag = { id: string; name: string; color: string };
 type Contact = {
   id: string;
-  phone: string;
+  phone: string | null;
   name: string | null;
   email: string | null;
   company: string | null;

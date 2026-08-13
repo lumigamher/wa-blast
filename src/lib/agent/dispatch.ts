@@ -1,3 +1,4 @@
+import type { Recipient } from "@/lib/meta/recipient";
 import { sendText, markRead } from "@/lib/meta/client";
 import { credsFromSettings } from "@/lib/meta/graph";
 import { db as defaultDb } from "@/lib/db/client";
@@ -18,7 +19,7 @@ export async function maybeDispatchAgentTurn(
   db: DB,
   orgId: string,
   conversationId: string,
-  phone: string,
+  recipient: string | Recipient,
   deps?: { enqueue?: EnqueueFn },
 ): Promise<void> {
   const config = await getAgentConfig(db, orgId);
@@ -44,10 +45,10 @@ export async function maybeDispatchAgentTurn(
   }
 
   const enqueue = deps?.enqueue ?? enqueueAgentTurn;
-  enqueue(conversationId, () => runRealTurn(orgId, conversationId, phone), DEBOUNCE_MS);
+  enqueue(conversationId, () => runRealTurn(orgId, conversationId, recipient), DEBOUNCE_MS);
 }
 
-async function runRealTurn(orgId: string, conversationId: string, phone: string): Promise<void> {
+async function runRealTurn(orgId: string, conversationId: string, recipient: string | Recipient): Promise<void> {
   const settings = await getOrgSettings(defaultDb, orgId);
   const creds = credsFromSettings(settings);
   const sender: AgentSender = async ({ to, body, replyTo }) => {
@@ -76,7 +77,7 @@ async function runRealTurn(orgId: string, conversationId: string, phone: string)
   try {
     await runAgentTurn(defaultDb, orgId, conversationId, {
       sender,
-      to: phone,
+      to: recipient,
     });
   } finally {
     // Clear typing on success or error

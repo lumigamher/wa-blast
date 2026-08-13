@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { getOrCreateConversationByIdentity, type Identity } from "@/lib/inbox/identity";
 import type { DB } from "@/lib/db/client";
 import { calls, campaignRecipients, campaigns, contacts, messageEvents } from "@/lib/db/schema";
 import { matchOptOut } from "@/lib/optout/match";
@@ -13,7 +14,7 @@ import { maybeDispatchAgentTurn } from "@/lib/agent/dispatch";
 export async function handleStatusEvent(
   db: DB,
   orgId: string,
-  status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id: string; errors?: Array<{ message?: string }> },
+  status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id?: string; recipient_user_id?: string; errors?: Array<{ message?: string; title?: string }> },
 ) {
   const ts = new Date(Number(status.timestamp) * 1000);
   const inserted = await db
@@ -62,16 +63,16 @@ export async function handleStatusEvent(
 export async function handleInboundMessage(
   db: DB,
   orgId: string,
-  msg: { from: string; id: string; timestamp: string; type: string; text?: { body: string }; reaction?: { message_id: string; emoji: string } } & Record<string, unknown>,
+  msg: { from?: string; id: string; timestamp: string; type: string; text?: { body: string }; reaction?: { message_id: string; emoji: string } } & Record<string, unknown>,
   optoutKeywords: string[],
-  profileName?: string | null,
+  profileName: string | null | undefined,
+  identity: Identity,
 ) {
-  const phone = "+" + msg.from.replace(/^\+/, "");
   const ts = new Date(Number(msg.timestamp) * 1000);
 
   // Handle reactions early and return
   if (msg.type === "reaction" && msg.reaction) {
-    const conv = await getOrCreateConversation(db, orgId, phone, ts, profileName);
+    const conv = await getOrCreateConversationByIdentity(db, orgId, identity, ts, profileName);
     await upsertReaction(db, {
       orgId, conversationId: conv.id, targetWamid: msg.reaction.message_id,
       direction: "in", emoji: msg.reaction.emoji ?? "",
@@ -88,24 +89,30 @@ export async function handleInboundMessage(
       wamid: msg.id,
       event: "replied",
       timestamp: ts,
-      payload: JSON.stringify({ from: msg.from, preview: body.slice(0, 40) }),
+      payload: JSON.stringify({ from: msg.from ?? identity.bsuid, preview: body.slice(0, 40) }),
     })
     .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
     .returning({ id: messageEvents.id });
   if (inserted.length === 0) return; // webhook retransmitido: ya procesado
 
   if (body && matchOptOut(body, optoutKeywords)) {
-    await db
-      .update(contacts)
-      .set({ optOutAt: ts })
-      .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone)));
+    const col = identity.bsuid ? contacts.bsuid : contacts.phone;
+    const val = (identity.bsuid ?? identity.phone) as string;
+    await db.update(contacts).set({ optOutAt: ts }).where(and(eq(contacts.orgId, orgId), eq(col, val)));
   }
 
   const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
   const [recent] = await db
     .select()
     .from(campaignRecipients)
-    .where(and(eq(campaignRecipients.phone, phone), gte(campaignRecipients.sentAt, cutoff)))
+    .where(
+      and(
+        identity.bsuid && !identity.phone
+          ? eq(campaignRecipients.bsuid, identity.bsuid)
+          : eq(campaignRecipients.phone, identity.phone as string),
+        gte(campaignRecipients.sentAt, cutoff),
+      ),
+    )
     .orderBy(desc(campaignRecipients.sentAt))
     .limit(1);
 
@@ -122,7 +129,7 @@ export async function handleInboundMessage(
   // Persist inbound message to inbox
   const conversationId = await recordInboundMessage(db, {
     orgId,
-    phone,
+    identity,
     wamid: msg.id,
     parsed,
     ts,
@@ -131,7 +138,7 @@ export async function handleInboundMessage(
 
   // Dispara el agente IA (si la org lo tiene activo y la conversación no está pausada).
   try {
-    await maybeDispatchAgentTurn(db, orgId, conversationId, phone);
+    await maybeDispatchAgentTurn(db, orgId, conversationId, identity);
   } catch (e) {
     console.error("[agent] dispatch fallo", e);
   }

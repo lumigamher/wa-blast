@@ -12,6 +12,7 @@ import { isPaused, pauseAgent } from "./pause";
 import type { GatewayProvider } from "@/lib/ai/gateway/config";
 import { resolveChatProvider, resolveEmbeddingProvider } from "@/lib/ai/gateway/resolve";
 import { getGatewayConfig } from "@/lib/ai/gateway/config";
+import type { Recipient } from "@/lib/meta/recipient";
 import type { LlmProvider } from "./providers/types";
 import { runAgentLoop } from "./runtime";
 import { resolveTools } from "./tools/registry";
@@ -19,7 +20,7 @@ import type { EmbeddingProvider } from "./rag/embeddings/types";
 import { retrieveKnowledge } from "./rag";
 import { buildCustomerProfile } from "./customer/profile";
 
-export type AgentSender = (input: { to: string; body: string; replyTo?: string }) => Promise<{ wamid: string | null }>;
+export type AgentSender = (input: { to: string | Recipient; body: string; replyTo?: string }) => Promise<{ wamid: string | null }>;
 
 const HISTORY_LIMIT = Number(process.env.AGENT_HISTORY_LIMIT ?? 10);
 
@@ -35,7 +36,7 @@ async function handoffOnFailure(
   db: DB,
   orgId: string,
   conversationId: string,
-  opts: { reason: string; agentName: string; fallbackMessage: string; sender: AgentSender; to: string; replyTo?: string },
+  opts: { reason: string; agentName: string; fallbackMessage: string; sender: AgentSender; to: string | Recipient; replyTo?: string },
 ): Promise<void> {
   await addNote(db, orgId, {
     conversationId,
@@ -63,7 +64,7 @@ export async function runAgentTurn(
   db: DB,
   orgId: string,
   conversationId: string,
-  deps: { provider?: LlmProvider; embeddings?: EmbeddingProvider; sender: AgentSender; to: string },
+  deps: { provider?: LlmProvider; embeddings?: EmbeddingProvider; sender: AgentSender; to: string | Recipient },
 ): Promise<void> {
   const config = await getAgentConfig(db, orgId);
   if (!config.enabled) return;

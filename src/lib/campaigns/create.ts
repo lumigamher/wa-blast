@@ -15,7 +15,7 @@ export type CreateCampaignInput = {
   source: "segment" | "adhoc";
   segmentId?: string | null;
   scheduledAt?: Date | null;
-  recipients: { contactId?: string; phone: string; name?: string | null; params: Record<string, string> }[];
+  recipients: { contactId?: string; phone: string | null; bsuid?: string | null; name?: string | null; params: Record<string, string> }[];
 };
 
 export async function createCampaign(

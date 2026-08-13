@@ -19,7 +19,7 @@ import {
 
 export type ContactWithTags = {
 	id: string;
-	phone: string;
+	phone: string | null;
 	name: string | null;
 	email: string | null;
 	company: string | null;
@@ -145,7 +145,7 @@ export async function toggleOptOutAction(
 }
 
 export async function createContactAction(input: {
-	phone: string;
+	phone: string | null;
 	name?: string;
 	email?: string;
 	company?: string;

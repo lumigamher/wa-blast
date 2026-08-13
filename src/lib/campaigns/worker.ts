@@ -5,7 +5,8 @@ import { getOrgSettings } from "@/lib/org/settings";
 import { sendTemplate, sendFlow } from "@/lib/meta/client";
 import { buildSendComponents, type ComponentPlan, type FlowPlan } from "./component-plan";
 import { TokenBucket } from "./rate-limit";
-import { getOrCreateConversation, recordOutboundMessage } from "@/lib/inbox/store";
+import { getOrCreateConversationByIdentity } from "@/lib/inbox/identity";
+import { recordOutboundMessage } from "@/lib/inbox/store";
 import { listTemplates, credsFromSettings } from "@/lib/meta/graph";
 import type { ButtonSpec } from "@/lib/meta/types";
 import { saveMediaAsset, publicMediaUrl } from "@/lib/media/store";
@@ -129,7 +130,7 @@ export class InProcessSenderWorker implements SenderWorker {
       if (plan && plan.kind === "flow") {
         const flowPlan = plan as FlowPlan;
         result = await sendFlow(settings, {
-          to: rec.phone,
+          to: { phone: rec.phone, bsuid: rec.bsuid },
           flowId: flowPlan.flowId,
           cta: flowPlan.cta,
           bodyText: flowPlan.bodyText,
@@ -152,7 +153,7 @@ export class InProcessSenderWorker implements SenderWorker {
         }
 
         result = await sendTemplate(settings, {
-          to: rec.phone,
+          to: { phone: rec.phone, bsuid: rec.bsuid },
           templateName: camp.templateName,
           language: camp.templateLanguage,
           components,
@@ -172,7 +173,7 @@ export class InProcessSenderWorker implements SenderWorker {
       } else {
         // Campaign send succeeded; record it in inbox (best-effort, don't block on failure)
         try {
-          const conv = await getOrCreateConversation(this.db, camp.orgId, rec.phone, now);
+          const conv = await getOrCreateConversationByIdentity(this.db, camp.orgId, { phone: rec.phone, bsuid: rec.bsuid }, now);
           const params = JSON.parse(rec.params) as Record<string, string>;
 
           let payloadJson: string | null = null;

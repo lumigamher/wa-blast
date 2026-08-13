@@ -129,7 +129,7 @@ export async function recordFlowResponse(
     orgId: string;
     conversationId: string | null;
     contactId: string | null;
-    phone: string;
+    phone: string | null;
     contactName: string | null;
     wamid: string | null;
     payloadJson: string | null;

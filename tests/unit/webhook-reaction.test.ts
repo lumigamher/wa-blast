@@ -17,7 +17,7 @@ describe("webhook reacción entrante", () => {
     await handleInboundMessage(db, "o1", {
       from: "57300", id: "wamid.R", timestamp: "1700000000", type: "reaction",
       reaction: { message_id: "wamid.TARGET", emoji: "👍" },
-    }, []);
+    }, [], null, { phone: "+57300" });
     const rx = await db.select().from(messageReactions).where(eq(messageReactions.targetWamid, "wamid.TARGET"));
     expect(rx.length).toBe(1);
     expect(rx[0].emoji).toBe("👍");

@@ -87,6 +87,8 @@ describe("inbound message", () => {
       "o",
       { from: "573001234567", id: "wamid.IN", timestamp: "1", type: "text", text: { body: "STOP" } },
       ["STOP", "BAJA"],
+      null,
+      { phone: "+573001234567" },
     );
 
     const [c] = await db.select().from(contacts).where(eq(contacts.id, "c1"));
@@ -100,6 +102,8 @@ describe("inbound message", () => {
       "o",
       { from: "573001234567", id: "wamid.IN2", timestamp: "1", type: "text", text: { body: "hola, quiero info" } },
       ["STOP"],
+      null,
+      { phone: "+573001234567" },
     );
 
     const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, "camp"));
@@ -113,6 +117,8 @@ describe("inbound message", () => {
       "o",
       { from: "573001234567", id: "wamid.TEXT1", timestamp: "1", type: "text", text: { body: "hola desde webhook" } },
       ["STOP"],
+      null,
+      { phone: "+573001234567" },
     );
 
     const convs = await db.select().from(conversations).where(eq(conversations.orgId, "o"));
@@ -135,6 +141,8 @@ describe("inbound message", () => {
       "o",
       { from: "573001234567", id: "wamid.IMG1", timestamp: "1", type: "image", image: { id: "MEDIA123", mime_type: "image/jpeg", caption: "foto linda" } },
       ["STOP"],
+      null,
+      { phone: "+573001234567" },
     );
 
     const msgs = await db.select().from(messages);

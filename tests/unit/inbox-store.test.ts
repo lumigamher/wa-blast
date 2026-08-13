@@ -16,7 +16,7 @@ describe("inbox store", () => {
     const { db } = makeTestDb();
     await seed(db);
     const ts = new Date();
-    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "w1", parsed: { type: "text", body: "hola", mediaId: null, payloadJson: null, replyToWamid: null }, ts });
+    await recordInboundMessage(db, { orgId: "o1", identity: { phone: "+573001112233" }, wamid: "w1", parsed: { type: "text", body: "hola", mediaId: null, payloadJson: null, replyToWamid: null }, ts });
     const convs = await listConversations(db, "o1", {});
     expect(convs.length).toBe(1);
     expect(convs[0].unreadCount).toBe(1);
@@ -30,7 +30,7 @@ describe("inbox store", () => {
     const { db } = makeTestDb();
     await seed(db);
     const ts = new Date();
-    const input = { orgId: "o1", phone: "+573001112233", wamid: "dup", parsed: { type: "text", body: "x", mediaId: null, payloadJson: null, replyToWamid: null }, ts };
+    const input = { orgId: "o1", identity: { phone: "+573001112233" }, wamid: "dup", parsed: { type: "text", body: "x", mediaId: null, payloadJson: null, replyToWamid: null }, ts };
     await recordInboundMessage(db, input);
     await recordInboundMessage(db, input);
     const { messages: msgs } = (await getThread(db, "o1", (await listConversations(db, "o1", {}))[0].id))!;
@@ -52,7 +52,7 @@ describe("inbox store", () => {
   it("markConversationRead resetea unread", async () => {
     const { db } = makeTestDb();
     await seed(db);
-    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "w2", parsed: { type: "text", body: "a", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
+    await recordInboundMessage(db, { orgId: "o1", identity: { phone: "+573001112233" }, wamid: "w2", parsed: { type: "text", body: "a", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
     const conv = (await listConversations(db, "o1", {}))[0];
     await markConversationRead(db, "o1", conv.id);
     expect((await listConversations(db, "o1", {}))[0].unreadCount).toBe(0);
@@ -62,8 +62,8 @@ describe("inbox store", () => {
     const { db } = makeTestDb();
     await seed(db);
     await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
-    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "w3", parsed: { type: "text", body: "a", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
-    await recordInboundMessage(db, { orgId: "o2", phone: "+573009998877", wamid: "w4", parsed: { type: "text", body: "b", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
+    await recordInboundMessage(db, { orgId: "o1", identity: { phone: "+573001112233" }, wamid: "w3", parsed: { type: "text", body: "a", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
+    await recordInboundMessage(db, { orgId: "o2", identity: { phone: "+573009998877" }, wamid: "w4", parsed: { type: "text", body: "b", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
     expect((await listConversations(db, "o1", {})).length).toBe(1);
     expect((await listConversations(db, "o1", { q: "ana" })).length).toBe(1);
     expect((await listConversations(db, "o1", { q: "9998877" })).length).toBe(0);
@@ -75,7 +75,7 @@ describe("inbox store", () => {
   it("getThread de otra org devuelve null (aislamiento)", async () => {
     const { db } = makeTestDb();
     await seed(db);
-    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "w5", parsed: { type: "text", body: "a", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
+    await recordInboundMessage(db, { orgId: "o1", identity: { phone: "+573001112233" }, wamid: "w5", parsed: { type: "text", body: "a", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
     const conv = (await listConversations(db, "o1", {}))[0];
     expect(await getThread(db, "otra-org", conv.id)).toBeNull();
   });
@@ -84,8 +84,8 @@ describe("inbox store", () => {
     const { db } = makeTestDb();
     await seed(db);
     const conv = await getOrCreateConversation(db, "o1", "+573001112233", new Date());
-    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "wamid.in1", parsed: { type: "text", body: "primero", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date(Date.now() - 1000) });
-    await recordInboundMessage(db, { orgId: "o1", phone: "+573001112233", wamid: "wamid.in2", parsed: { type: "text", body: "segundo", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
+    await recordInboundMessage(db, { orgId: "o1", identity: { phone: "+573001112233" }, wamid: "wamid.in1", parsed: { type: "text", body: "primero", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date(Date.now() - 1000) });
+    await recordInboundMessage(db, { orgId: "o1", identity: { phone: "+573001112233" }, wamid: "wamid.in2", parsed: { type: "text", body: "segundo", mediaId: null, payloadJson: null, replyToWamid: null }, ts: new Date() });
     await recordOutboundMessage(db, { orgId: "o1", conversationId: conv.id, wamid: "wamid.out1", type: "text", body: "respuesta" });
     const last = await getLastInboundWamid(db, "o1", conv.id);
     expect(last).toBe("wamid.in2");

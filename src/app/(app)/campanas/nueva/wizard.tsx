@@ -36,7 +36,7 @@ type Source = "tags" | "adhoc" | "contacts";
 
 type TagRow = { id: string; name: string; color: string; count: number };
 
-type ContactRow = { id: string; name: string | null; phone: string };
+type ContactRow = { id: string; name: string | null; phone: string | null };
 
 type AdhocRow = { phone: string; name: string; params: Record<string, string> };
 
@@ -237,7 +237,7 @@ export function Wizard({
     return contacts.filter(
       (c) =>
         (c.name?.toLowerCase() ?? "").includes(needle) ||
-        c.phone.includes(needle),
+        (c.phone ?? "").includes(needle),
     );
   }, [contacts, contactSearchQuery]);
 

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { conversations } from "@/lib/db/schema";
 import { getMediaAsset } from "@/lib/media/store";
 import { sendMedia, uploadMedia } from "@/lib/meta/client";
+import { recipientFrom } from "@/lib/meta/recipient";
 import { recordOutboundMedia } from "./_record-outbound";
 import { getOrgSettings } from "@/lib/org/settings";
 import { listPaymentMethods } from "../../payments/methods";
@@ -67,7 +68,6 @@ export const enviarQrPago: AgentTool = {
 		if (!convRow) {
 			return { ok: false, error: "Conversación sin teléfono" };
 		}
-		const phone = convRow.phone;
 
 		// Load asset
 		const asset = await getMediaAsset(ctx.db, selectedMethod.qrMediaAssetId);
@@ -98,7 +98,7 @@ export const enviarQrPago: AgentTool = {
 
 		// Send media
 		const sendResult = await sendMedia(settings, {
-			to: phone,
+			to: recipientFrom(convRow),
 			kind: "image",
 			mediaId: uploadResult.mediaId,
 			caption: `QR - ${selectedMethod.label}`,

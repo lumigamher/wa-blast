@@ -9,10 +9,15 @@ import {
   messages,
 } from "@/lib/db/schema";
 import { recordFlowResponse } from "@/lib/flows/responses";
+import { getOrCreateConversationByIdentity, type Identity } from "@/lib/inbox/identity";
 import { listNotes } from "@/lib/inbox/notes";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
 import { getReactionsForMessages } from "@/lib/inbox/reactions";
 
+/**
+ * Atajo para los llamadores que sí tienen teléfono (llamadas, worker de
+ * campañas). Delega en la resolución por identidad para no duplicar las reglas.
+ */
 export async function getOrCreateConversation(
   db: DB,
   orgId: string,
@@ -20,95 +25,24 @@ export async function getOrCreateConversation(
   ts: Date,
   profileName?: string | null,
 ) {
-  let contact = (
-    await db
-      .select()
-      .from(contacts)
-      .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone)))
-  )[0];
-
-  if (!contact) {
-    const newContact = {
-      id: randomUUID(),
-      orgId,
-      phone,
-      name: profileName?.trim() || null,
-      email: null,
-      customFields: "{}",
-      optOutAt: null,
-      createdAt: ts,
-      updatedAt: ts,
-    };
-    await db.insert(contacts).values(newContact).onConflictDoNothing();
-    contact = (
-      await db
-        .select()
-        .from(contacts)
-        .where(and(eq(contacts.orgId, orgId), eq(contacts.phone, phone)))
-    )[0];
-  } else if (!contact.name && profileName?.trim()) {
-    await db
-      .update(contacts)
-      .set({ name: profileName.trim(), updatedAt: ts })
-      .where(eq(contacts.id, contact.id));
-    contact = { ...contact, name: profileName.trim() };
-  }
-
-  const existing = (
-    await db
-      .select()
-      .from(conversations)
-      .where(
-        and(eq(conversations.orgId, orgId), eq(conversations.phone, phone)),
-      )
-  )[0];
-  if (existing) {
-    if (!existing.contactId && contact) {
-      await db
-        .update(conversations)
-        .set({ contactId: contact.id })
-        .where(eq(conversations.id, existing.id));
-      return { ...existing, contactId: contact.id };
-    }
-    return existing;
-  }
-
-  const row = {
-    id: randomUUID(),
-    orgId,
-    phone,
-    contactId: contact?.id ?? null,
-    lastMessageAt: ts,
-    lastIncomingAt: null as Date | null,
-    unreadCount: 0,
-    createdAt: ts,
-  };
-  await db.insert(conversations).values(row).onConflictDoNothing();
-  return (
-    await db
-      .select()
-      .from(conversations)
-      .where(
-        and(eq(conversations.orgId, orgId), eq(conversations.phone, phone)),
-      )
-  )[0];
+  return getOrCreateConversationByIdentity(db, orgId, { phone }, ts, profileName);
 }
 
 export async function recordInboundMessage(
   db: DB,
   input: {
     orgId: string;
-    phone: string;
+    identity: Identity;
     wamid: string;
     parsed: ParsedInbound;
     ts: Date;
     profileName?: string | null;
   },
 ): Promise<string> {
-  const conv = await getOrCreateConversation(
+  const conv = await getOrCreateConversationByIdentity(
     db,
     input.orgId,
-    input.phone,
+    input.identity,
     input.ts,
     input.profileName,
   );
@@ -158,7 +92,7 @@ export async function recordInboundMessage(
       orgId: input.orgId,
       conversationId: conv.id,
       contactId: conv.contactId ?? null,
-      phone: input.phone,
+      phone: input.identity.phone ?? null,
       contactName: input.profileName ?? null,
       wamid: input.wamid ?? null,
       payloadJson: input.parsed.payloadJson,
@@ -256,7 +190,7 @@ export async function markConversationRead(
 
 export type ConversationListItem = {
   id: string;
-  phone: string;
+  phone: string | null;
   contactName: string | null;
   preview: string | null;
   previewDirection: "in" | "out" | null;
