@@ -1,3 +1,4 @@
+import { displayIdentity } from "@/lib/inbox/display-identity";
 import { requireModuleAccess } from "@/lib/billing/require-module";
 import { SearchIcon, TagIcon, UploadIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
@@ -76,7 +77,7 @@ export default async function ContactosPage({
           <Input
             name="q"
             defaultValue={q ?? ""}
-            placeholder="Buscar por nombre o teléfono…"
+            placeholder="Buscar por nombre, teléfono o @usuario…"
             className="pl-8"
           />
           {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
@@ -167,10 +168,10 @@ export default async function ContactosPage({
                   <tr key={r.id} className="border-t transition-colors hover:bg-muted/30">
                     <td className="px-3 py-2">
                       <Link href={`/contactos/${r.id}`} className="font-medium hover:underline">
-                        {r.name ?? r.phone}
+                        {displayIdentity({ name: r.name, username: r.username, phone: r.phone, bsuid: r.bsuid })}
                       </Link>
                     </td>
-                    <td className="px-3 py-2 font-mono text-xs">{r.phone}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{r.phone ?? "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{r.company ?? "—"}</td>
                     <td className="px-3 py-2">
                       <TagChips tags={r.tagList} />
@@ -200,8 +201,8 @@ export default async function ContactosPage({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{r.name ?? r.phone}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{r.phone}</div>
+                    <div className="truncate text-sm font-medium">{displayIdentity({ name: r.name, username: r.username, phone: r.phone, bsuid: r.bsuid })}</div>
+                    <div className="font-mono text-xs text-muted-foreground">{r.phone ?? (r.username ? "@" + r.username.replace(/^@/, "") : "—")}</div>
                   </div>
                   {r.optOutAt ? (
                     <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-950 dark:text-red-400">

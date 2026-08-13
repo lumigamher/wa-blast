@@ -1,5 +1,6 @@
 "use client";
 
+import { displayIdentity } from "@/lib/inbox/display-identity";
 import { useEffect, useState, useTransition, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -81,7 +82,7 @@ function VirtualizedConversationList({
             >
               <div className="flex items-start gap-2.5">
                 <ContactAvatar
-                  seed={conv.phone}
+                  seed={conv.phone ?? conv.bsuid}
                   name={conv.contactName}
                   size={40}
                   className="mt-0.5"
@@ -93,7 +94,7 @@ function VirtualizedConversationList({
                         conv.unreadCount > 0 ? "font-semibold" : "font-medium"
                       }`}
                     >
-                      {conv.contactName || conv.phone}
+                      {displayIdentity({ name: conv.contactName, username: conv.username, phone: conv.phone, bsuid: conv.bsuid })}
                     </div>
                     {data.agentEnabled && (
                       <AgentBadge

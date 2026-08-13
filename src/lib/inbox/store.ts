@@ -191,6 +191,8 @@ export async function markConversationRead(
 export type ConversationListItem = {
   id: string;
   phone: string | null;
+  bsuid: string | null;
+  username: string | null;
   contactName: string | null;
   preview: string | null;
   previewDirection: "in" | "out" | null;
@@ -252,6 +254,8 @@ export async function listConversations(
     .select({
       id: conversations.id,
       phone: conversations.phone,
+      bsuid: conversations.bsuid,
+      username: conversations.username,
       contactName: contacts.name,
       lastMessageAt: conversations.lastMessageAt,
       lastIncomingAt: conversations.lastIncomingAt,

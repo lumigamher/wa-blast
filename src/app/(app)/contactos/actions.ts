@@ -20,6 +20,8 @@ import {
 export type ContactWithTags = {
 	id: string;
 	phone: string | null;
+	bsuid: string | null;
+	username: string | null;
 	name: string | null;
 	email: string | null;
 	company: string | null;
@@ -84,6 +86,8 @@ export async function listContactsAction(
 	return rows.map((r) => ({
 		id: r.id,
 		phone: r.phone,
+		bsuid: r.bsuid,
+		username: r.username,
 		name: r.name,
 		email: r.email,
 		company: r.company,

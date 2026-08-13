@@ -1,3 +1,4 @@
+import { displayIdentity } from "@/lib/inbox/display-identity";
 import { requireModuleAccess } from "@/lib/billing/require-module";
 import { notFound } from "next/navigation";
 import { requireOrg } from "@/lib/auth/session";
@@ -88,14 +89,19 @@ export default async function InboxThreadPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 flex-1 min-w-0">
             <ContactAvatar
-              seed={thread.conversation.phone}
+              seed={thread.conversation.phone ?? thread.conversation.bsuid}
               name={thread.contact?.name}
               size={40}
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <div className="font-semibold text-sm truncate">
-                  {thread.contact?.name || thread.conversation.phone}
+                  {displayIdentity({
+                    name: thread.contact?.name,
+                    username: thread.conversation.username,
+                    phone: thread.conversation.phone,
+                    bsuid: thread.conversation.bsuid,
+                  })}
                 </div>
                 {agentConfig.enabled && (
                   <AgentBadge
@@ -105,7 +111,12 @@ export default async function InboxThreadPage({
                 )}
               </div>
               <div className="text-xs text-muted-foreground truncate">
-                WhatsApp · {thread.conversation.phone}
+                WhatsApp ·{" "}
+                {thread.conversation.phone ??
+                  displayIdentity({
+                    username: thread.conversation.username,
+                    bsuid: thread.conversation.bsuid,
+                  })}
               </div>
               {currentLabels.length > 0 && (
                 <div className="mt-1.5">
