@@ -14,6 +14,8 @@ import { EmojiPicker } from "./emoji-picker";
 import { StickerPicker } from "./sticker-picker";
 import type { ReplyTarget } from "./thread";
 import { VoiceRecorder } from "./voice-recorder";
+import { WhatsAppText } from "@/components/whatsapp-text";
+import { stripWhatsAppFormat } from "@/lib/format/whatsapp-render";
 
 type Template = {
   name: string;
@@ -667,7 +669,11 @@ function TemplateComposer({
               </span>
             </div>
             <div className="mt-1.5 rounded-md rounded-tl-none bg-emerald-50 px-2.5 py-2 text-xs leading-snug text-foreground/90 dark:bg-emerald-950/40">
-              {selectedTemplate.bodyText || "(sin vista previa)"}
+              {selectedTemplate.bodyText ? (
+                <WhatsAppText text={selectedTemplate.bodyText} />
+              ) : (
+                "(sin vista previa)"
+              )}
             </div>
           </div>
         ) : (
@@ -706,7 +712,7 @@ function TemplateComposer({
                       </span>
                     </div>
                     <div className="mt-1.5 line-clamp-3 rounded-md rounded-tl-none bg-emerald-50 px-2 py-1.5 text-[11px] leading-snug text-foreground/80 dark:bg-emerald-950/40">
-                      {t.bodyText || "(sin vista previa)"}
+                      {t.bodyText ? stripWhatsAppFormat(t.bodyText) : "(sin vista previa)"}
                     </div>
                     {t.varCount > 0 && (
                       <div className="mt-1 text-[10px] text-muted-foreground">

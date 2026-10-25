@@ -8,6 +8,7 @@ import {
   ReplyIcon,
 } from "lucide-react";
 import type { WhatsAppTemplate } from "@/lib/meta/types";
+import { WhatsAppText } from "@/components/whatsapp-text";
 
 type Size = "sm" | "md" | "lg";
 
@@ -199,6 +200,22 @@ function DoubleCheck() {
 }
 
 function renderText(
+  text: string,
+  values?: Record<string, string>,
+  highlightVars?: boolean,
+) {
+  // El formato (*negrita*, _cursiva_…) lo pinta WhatsAppText; aquí solo se
+  // sustituye/realza {{n}} en cada trozo de texto plano.
+  return (
+    <WhatsAppText
+      text={text}
+      renderPlain={(t) => renderVars(t, values, highlightVars)}
+      linkClassName="text-[#016a98] underline underline-offset-2 break-all"
+    />
+  );
+}
+
+function renderVars(
   text: string,
   values?: Record<string, string>,
   highlightVars?: boolean,

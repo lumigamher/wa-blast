@@ -22,6 +22,7 @@ import { AgentBadge } from "@/app/(app)/inbox/_components/agent-badge";
 import { LabelChips } from "@/app/(app)/inbox/_components/label-chips";
 
 import { formatRelativeTime } from "@/lib/format/relative-time";
+import { stripWhatsAppFormat } from "@/lib/format/whatsapp-render";
 
 interface VirtualizedConversationListProps {
   conversations: Awaited<ReturnType<typeof getInboxData>>["conversations"];
@@ -123,7 +124,7 @@ function VirtualizedConversationList({
                       {conv.previewDirection === "out" && conv.preview && (
                         <span className="text-muted-foreground">Tú: </span>
                       )}
-                      {conv.preview || "(sin mensaje)"}
+                      {stripWhatsAppFormat(conv.preview) || "(sin mensaje)"}
                     </div>
                     {conv.status === "resolved" && (
                       <div className="shrink-0" title="Resuelta">

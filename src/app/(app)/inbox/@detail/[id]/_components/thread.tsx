@@ -28,6 +28,8 @@ import { CallEntry } from "./call-entry";
 import { EmojiPicker } from "./emoji-picker";
 import { MediaImage } from "./media-image";
 import { MediaVideo } from "./media-video";
+import { WhatsAppText } from "@/components/whatsapp-text";
+import { stripWhatsAppFormat } from "@/lib/format/whatsapp-render";
 import { ReactionChips } from "./reaction-chip";
 
 type Message = InferSelectModel<typeof messagesSchema>;
@@ -70,7 +72,7 @@ type ThreadProps = {
 function replyLabel(message: Message): string {
   switch (message.type) {
     case "text":
-      return (message.body || "").slice(0, 80);
+      return stripWhatsAppFormat(message.body).slice(0, 80);
     case "image":
       return "Imagen";
     case "video":
@@ -86,9 +88,9 @@ function replyLabel(message: Message): string {
     case "interactive":
     case "button":
     case "flow":
-      return (message.body || "").slice(0, 80);
+      return stripWhatsAppFormat(message.body).slice(0, 80);
     default:
-      return (message.body || "").slice(0, 80) || `[${message.type}]`;
+      return stripWhatsAppFormat(message.body).slice(0, 80) || `[${message.type}]`;
   }
 }
 
@@ -469,7 +471,7 @@ function MessageBubble({
             {quote && (
               <div className="border-l-2 border-emerald-500/60 bg-black/5 dark:bg-white/5 rounded px-2 py-1 mb-1">
                 <p className="text-xs text-muted-foreground line-clamp-1">
-                  {quote.label}
+                  {stripWhatsAppFormat(quote.label)}
                 </p>
               </div>
             )}
@@ -661,7 +663,7 @@ function NoteBubble({ note }: { note: Note }) {
           Nota interna · {note.authorName}
         </div>
         <div className="whitespace-pre-wrap break-words text-sm text-foreground/90">
-          {note.body}
+          <WhatsAppText text={note.body} />
         </div>
         <div className="mt-1 text-right text-[10px] text-amber-700/70 dark:text-amber-500/60">
           {time}
@@ -674,13 +676,17 @@ function NoteBubble({ note }: { note: Note }) {
 function renderMessageContent(message: Message): React.ReactNode {
   switch (message.type) {
     case "text":
-      return message.body;
+      return <WhatsAppText text={message.body} />;
 
     case "image":
       return message.mediaId ? (
         <div className="space-y-2">
           <MediaImage src={`/api/inbox/media/${message.mediaId}`} alt="Image" />
-          {message.body && <div className="text-xs">{message.body}</div>}
+          {message.body && (
+            <div className="text-xs">
+              <WhatsAppText text={message.body} />
+            </div>
+          )}
         </div>
       ) : (
         `[Imagen]`
@@ -690,7 +696,11 @@ function renderMessageContent(message: Message): React.ReactNode {
       return message.mediaId ? (
         <div className="space-y-2">
           <MediaVideo src={`/api/inbox/media/${message.mediaId}`} />
-          {message.body && <div className="text-xs">{message.body}</div>}
+          {message.body && (
+            <div className="text-xs">
+              <WhatsAppText text={message.body} />
+            </div>
+          )}
         </div>
       ) : (
         `[Video]`
@@ -748,7 +758,9 @@ function renderMessageContent(message: Message): React.ReactNode {
       }
       return (
         <div>
-          <div className="text-sm">{message.body}</div>
+          <div className="text-sm">
+            <WhatsAppText text={message.body} />
+          </div>
           {message.payloadJson && (
             <div className="text-xs text-muted-foreground mt-1 opacity-75">
               [Respuesta interactiva]
@@ -798,7 +810,9 @@ function renderMessageContent(message: Message): React.ReactNode {
             return (
               <div className="flex flex-col gap-3">
                 {payload.bodyText && (
-                  <div className="text-sm font-medium">{payload.bodyText}</div>
+                  <div className="text-sm font-medium">
+                    <WhatsAppText text={payload.bodyText} />
+                  </div>
                 )}
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
                   {payload.cards.map((card, idx) => (
@@ -853,7 +867,9 @@ function renderMessageContent(message: Message): React.ReactNode {
           // Render standard template
           return (
             <div className="flex flex-col gap-2">
-              <div className="text-sm">{payload.bodyText}</div>
+              <div className="text-sm">
+                <WhatsAppText text={payload.bodyText} />
+              </div>
               {payload.buttons && payload.buttons.length > 0 && (
                 <div className="flex flex-col gap-1 border-t border-black/10 dark:border-white/10 pt-2">
                   {payload.buttons.map((btn, idx) => {
@@ -973,7 +989,9 @@ function renderMessageContent(message: Message): React.ReactNode {
           };
           return (
             <div className="flex flex-col gap-2">
-              <div className="text-sm">{payload.bodyText}</div>
+              <div className="text-sm">
+                <WhatsAppText text={payload.bodyText} />
+              </div>
               <div className="flex items-center gap-2 rounded-full bg-blue-100 dark:bg-blue-900 px-3 py-1.5 text-xs font-medium text-blue-900 dark:text-blue-100">
                 <Zap className="size-3.5" />
                 <span>{payload.cta}</span>
