@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { campaigns, organization, user } from "@/lib/db/schema";
+import { campaignRecipients, campaigns, organization, user } from "@/lib/db/schema";
 import {
   claimDueCampaign,
   recoverStuckCampaigns,
@@ -109,8 +109,8 @@ describe("cron claim atomico y recuperacion", () => {
       createdAt: new Date(),
     });
 
-    // Create recent campaign (still within 2h window)
-    const oneHourAgo = new Date(Date.now() - 1 * 3600 * 1000);
+    // Create recent campaign (latido reciente, dentro de los 10 min)
+    const oneHourAgo = new Date(Date.now() - 5 * 60 * 1000);
     await db.insert(campaigns).values({
       id: recentCampaignId,
       orgId,
@@ -199,5 +199,51 @@ describe("cron claim atomico y recuperacion", () => {
       .where(eq(campaigns.id, orphanCampaignId));
     expect(camp.status).toBe("draft");
     expect(camp.statusChangedAt).not.toBeNull();
+  });
+
+  it("recupera queued vencida y pasa sus filas sending a failed sin tocar las pending", async () => {
+    const { db, orgId, userId } = await setupTest(makeTestDb().db);
+    const base = {
+      orgId, name: "C", templateName: "t", templateLanguage: "es", headerType: "NONE",
+      source: "api", scheduledAt: new Date(), total: 3, createdBy: userId, createdAt: new Date(),
+    };
+    const old = new Date(Date.now() - 11 * 60 * 1000);
+    await db.insert(campaigns).values([
+      { ...base, id: "q-old", status: "queued", statusChangedAt: old, failed: 1 },
+      { ...base, id: "q-fresh", status: "queued", statusChangedAt: new Date() },
+    ]);
+    await db.insert(campaignRecipients).values([
+      { campaignId: "q-old", phone: "+1", params: "{}", status: "sending" },
+      { campaignId: "q-old", phone: "+2", params: "{}", status: "sending" },
+      { campaignId: "q-old", phone: "+3", params: "{}", status: "pending" },
+      { campaignId: "q-fresh", phone: "+4", params: "{}", status: "sending" },
+    ]);
+
+    const recovered = await recoverStuckCampaigns(db);
+    expect(recovered).toEqual(["q-old"]);
+
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.id, "q-old"));
+    expect(c.status).toBe("draft");
+    expect(c.failed).toBe(3);
+    const recs = await db.select().from(campaignRecipients);
+    const byPhone = Object.fromEntries(recs.map((r) => [r.phone, r]));
+    expect(byPhone["+1"].status).toBe("failed");
+    expect(byPhone["+1"].error).toBe("Envío interrumpido; revisa antes de reintentar");
+    expect(byPhone["+2"].status).toBe("failed");
+    expect(byPhone["+3"].status).toBe("pending");
+    expect(byPhone["+4"].status).toBe("sending");
+  });
+
+  it("recupera sending con latido vencido y marca sus filas sending", async () => {
+    const { db, orgId, userId } = await setupTest(makeTestDb().db);
+    await db.insert(campaigns).values({
+      id: "s-old", orgId, name: "C", templateName: "t", templateLanguage: "es", headerType: "NONE",
+      source: "api", status: "sending", statusChangedAt: new Date(Date.now() - 11 * 60 * 1000),
+      scheduledAt: new Date(), total: 1, createdBy: userId, createdAt: new Date(),
+    });
+    await db.insert(campaignRecipients).values({ campaignId: "s-old", phone: "+1", params: "{}", status: "sending" });
+    expect(await recoverStuckCampaigns(db)).toEqual(["s-old"]);
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.id, "s-old"));
+    expect(c.failed).toBe(1);
   });
 });

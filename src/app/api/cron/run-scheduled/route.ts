@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { and, eq, lte, isNotNull, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, lte, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { db } from "@/lib/db/client";
-import { campaigns } from "@/lib/db/schema";
+import { campaignRecipients, campaigns } from "@/lib/db/schema";
 import { getWorker } from "@/lib/campaigns/worker";
 import { sweepAgentJobs } from "@/lib/agent/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STUCK_MS = 2 * 3600 * 1000;
+// El worker renueva el latido cada 15 s; 10 min sin latido = proceso muerto.
+const STUCK_MS = 10 * 60 * 1000;
+const INTERRUPTED_ERROR = "Envío interrumpido; revisa antes de reintentar";
 
 export async function claimDueCampaign(db: DB, id: string): Promise<boolean> {
   const claimed = await db
@@ -27,11 +29,29 @@ export async function recoverStuckCampaigns(db: DB): Promise<string[]> {
     .set({ status: "draft", scheduledAt: new Date(), statusChangedAt: new Date() })
     .where(
       and(
-        eq(campaigns.status, "sending"),
+        // `queued` = reclamada pero el proceso murió antes de empezar.
+        inArray(campaigns.status, ["sending", "queued"]),
         or(isNull(campaigns.statusChangedAt), lte(campaigns.statusChangedAt, cutoff)),
       ),
     )
     .returning({ id: campaigns.id });
+
+  // Filas en `sending`: el envío se interrumpió y no sabemos si Meta lo aceptó.
+  // No se reenvían solas (riesgo de duplicado): pasan a failed y se pueden
+  // reintentar desde el botón existente. Las `pending` siguen y el cron reanuda.
+  for (const { id } of stuck) {
+    const interrupted = await db
+      .update(campaignRecipients)
+      .set({ status: "failed", error: INTERRUPTED_ERROR, sentAt: new Date() })
+      .where(and(eq(campaignRecipients.campaignId, id), eq(campaignRecipients.status, "sending")))
+      .returning({ id: campaignRecipients.id });
+    if (interrupted.length > 0) {
+      await db
+        .update(campaigns)
+        .set({ failed: sql`${campaigns.failed} + ${interrupted.length}` })
+        .where(eq(campaigns.id, id));
+    }
+  }
   return stuck.map((s) => s.id);
 }
 

@@ -1,6 +1,6 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
-import { campaignRecipients, campaigns, templateCardMedia } from "@/lib/db/schema";
+import { campaignRecipients, campaigns, contacts, templateCardMedia } from "@/lib/db/schema";
 import { getOrgSettings } from "@/lib/org/settings";
 import { sendTemplate, sendFlow } from "@/lib/meta/client";
 import { buildSendComponents, type ComponentPlan, type FlowPlan } from "./component-plan";
@@ -15,8 +15,40 @@ export interface SenderWorker {
   runCampaign(campaignId: string): Promise<void>;
 }
 
+/** Cada cuánto, como máximo, el bucle renueva el latido (campaigns.statusChangedAt). */
+const HEARTBEAT_MS = 15_000;
+/** Esperas ante 130429/131056 (límite de Meta): 2 s, 4 s, 8 s, máx 3 reintentos. */
+const BACKOFF_MS = [2000, 4000, 8000];
+const RATE_LIMIT_CODES = new Set([130429, 131056]);
+
+export interface WorkerOptions {
+  /** Espera inyectable para tests (por defecto, setTimeout real). */
+  sleep?: (ms: number) => Promise<void>;
+  /** Reloj inyectable para el latido (por defecto, Date.now). */
+  now?: () => number;
+}
+
+type SendResult = { wamid: string } | { error: { code: number | string; message: string; type: string } };
+
 export class InProcessSenderWorker implements SenderWorker {
-  constructor(private db: DB) {}
+  private sleep: (ms: number) => Promise<void>;
+  private now: () => number;
+
+  constructor(private db: DB, opts: WorkerOptions = {}) {
+    this.sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+    this.now = opts.now ?? Date.now;
+  }
+
+  /** Reintenta la misma fila con backoff mientras Meta responda límite de tasa. */
+  private async withBackoff(send: () => Promise<SendResult>): Promise<SendResult> {
+    let result = await send();
+    for (const delay of BACKOFF_MS) {
+      if (!("error" in result) || !RATE_LIMIT_CODES.has(Number(result.error.code))) break;
+      await this.sleep(delay);
+      result = await send();
+    }
+    return result;
+  }
 
   async runCampaign(campaignId: string): Promise<void> {
     const [camp] = await this.db.select().from(campaigns).where(eq(campaigns.id, campaignId));
@@ -25,7 +57,8 @@ export class InProcessSenderWorker implements SenderWorker {
     const settings = await getOrgSettings(this.db, camp.orgId);
     const bucket = new TokenBucket(settings.rateLimitMps, settings.rateLimitMps);
 
-    await this.db.update(campaigns).set({ status: "sending", statusChangedAt: new Date() }).where(eq(campaigns.id, campaignId));
+    await this.db.update(campaigns).set({ status: "sending", statusChangedAt: new Date(this.now()) }).where(eq(campaigns.id, campaignId));
+    let lastBeat = this.now();
 
     const pending = await this.db
       .select()
@@ -124,6 +157,21 @@ export class InProcessSenderWorker implements SenderWorker {
     for (const rec of pending) {
       await bucket.take();
 
+      // Latido: el cron solo recupera campañas con statusChangedAt vencido.
+      if (this.now() - lastBeat >= HEARTBEAT_MS) {
+        lastBeat = this.now();
+        await this.db.update(campaigns).set({ statusChangedAt: new Date(lastBeat) }).where(eq(campaigns.id, campaignId));
+      }
+
+      // Reserva atómica de la fila: si otro worker (o un reintento del cron) ya la
+      // tomó, no se envía dos veces.
+      const reserved = await this.db
+        .update(campaignRecipients)
+        .set({ status: "sending" })
+        .where(and(eq(campaignRecipients.id, rec.id), eq(campaignRecipients.status, "pending")))
+        .returning({ id: campaignRecipients.id });
+      if (reserved.length === 0) continue;
+
       const plan = camp.componentPlanJson ? JSON.parse(camp.componentPlanJson) as ComponentPlan : null;
       let result;
 
@@ -132,14 +180,38 @@ export class InProcessSenderWorker implements SenderWorker {
       // excepción se escapaba del bucle y abortaba la campaña entera, dejando
       // sin enviar a todos los pendientes que venían detrás.
       try {
+      // Opt-out al enviar: el contacto pudo darse de baja después de armar la campaña.
+      const identidad = or(
+        rec.phone ? eq(contacts.phone, rec.phone) : undefined,
+        rec.bsuid ? eq(contacts.bsuid, rec.bsuid) : undefined,
+      );
+      if (identidad) {
+        const [baja] = await this.db
+          .select({ optOutAt: contacts.optOutAt })
+          .from(contacts)
+          .where(and(eq(contacts.orgId, camp.orgId), identidad, sql`${contacts.optOutAt} is not null`))
+          .limit(1);
+        if (baja) {
+          await this.db
+            .update(campaignRecipients)
+            .set({ status: "failed", error: "El contacto se dio de baja", sentAt: new Date() })
+            .where(eq(campaignRecipients.id, rec.id));
+          await this.db
+            .update(campaigns)
+            .set({ failed: sql`${campaigns.failed} + 1` })
+            .where(eq(campaigns.id, campaignId));
+          continue;
+        }
+      }
+
       if (plan && plan.kind === "flow") {
         const flowPlan = plan as FlowPlan;
-        result = await sendFlow(settings, {
+        result = await this.withBackoff(() => sendFlow(settings, {
           to: { phone: rec.phone, bsuid: rec.bsuid },
           flowId: flowPlan.flowId,
           cta: flowPlan.cta,
           bodyText: flowPlan.bodyText,
-        });
+        }));
       } else {
         const params = JSON.parse(rec.params) as Record<string, string>;
         let components: unknown[];
@@ -157,12 +229,12 @@ export class InProcessSenderWorker implements SenderWorker {
           components = [standardHeaderComponent, ...components];
         }
 
-        result = await sendTemplate(settings, {
+        result = await this.withBackoff(() => sendTemplate(settings, {
           to: { phone: rec.phone, bsuid: rec.bsuid },
           templateName: camp.templateName,
           language: camp.templateLanguage,
           components,
-        });
+        }));
       }
 
       const now = new Date();
