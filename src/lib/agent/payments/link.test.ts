@@ -2,7 +2,13 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { conversations, contacts, orderPayments, orders, organization } from "@/lib/db/schema";
+import { createCheckout, efipayCredsFromEnv } from "@/lib/billing/efipay";
 import { generarLinkPago, markOrderPaidByCheckout } from "./link";
+
+vi.mock("@/lib/billing/efipay", async (orig) => {
+  const actual = await orig<typeof import("@/lib/billing/efipay")>();
+  return { ...actual, efipayCredsFromEnv: vi.fn(actual.efipayCredsFromEnv), createCheckout: vi.fn() };
+});
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"]) {
   await db.insert(organization).values({
@@ -214,6 +220,23 @@ describe("link.ts", () => {
         if (originalToken) process.env.EFIPAY_API_TOKEN = originalToken;
         if (originalOfficeId) process.env.EFIPAY_OFFICE_ID = originalOfficeId;
       }
+    });
+
+    it("con orderId de un pedido propio (misma org y conversación): cobra ese pedido, no el más reciente", async () => {
+      const { db } = makeTestDb();
+      await seed(db);
+      const base = { orgId: "o1", conversationId: "c1", contactId: "ct1", itemsJson: "[]", status: "pendiente" as const };
+      await db.insert(orders).values({ id: "propio-viejo", ...base, totalCop: 7000, createdAt: new Date(Date.now() - 60000) });
+      await db.insert(orders).values({ id: "propio-reciente", ...base, totalCop: 9000, createdAt: new Date() });
+      vi.mocked(efipayCredsFromEnv).mockReturnValueOnce({ apiToken: "t", officeId: "1", baseUrl: "https://x" } as never);
+      vi.mocked(createCheckout).mockResolvedValueOnce({ transactionId: "tx-propio", checkoutUrl: "https://pay.test/abc" } as never);
+
+      const result = await generarLinkPago(db, { orgId: "o1", conversationId: "c1", orderId: "propio-viejo" });
+
+      expect(result).toEqual({ ok: true, url: "https://pay.test/abc" });
+      expect(vi.mocked(createCheckout).mock.calls[0][1]).toMatchObject({ reference: "propio-viejo", amountCop: 7000 });
+      const [pay] = await db.select().from(orderPayments).where(eq(orderPayments.id, "tx-propio"));
+      expect(pay.orderId).toBe("propio-viejo");
     });
 
     it("con orderId de otra org o de otra conversación: no encuentra el pedido", async () => {

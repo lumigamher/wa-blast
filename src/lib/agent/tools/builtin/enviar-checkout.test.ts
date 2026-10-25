@@ -290,6 +290,31 @@ describe("enviar_checkout", () => {
     expect(body.recipient).toBe("US.999");
     expect(body.to).toBeUndefined();
   });
+  it("con orderId de un pedido propio (misma org y conversación): envía ese pedido, no el más reciente", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o8", name: "o8", slug: "o8", createdAt: new Date() });
+    await db.insert(organizationSettings).values({
+      orgId: "o8", metaPhoneId: "123", metaAccessTokenEnc: encrypt("test-token"), updatedAt: new Date(),
+    });
+    await db.insert(conversations).values({
+      id: "c8", orgId: "o8", phone: "+57300", lastMessageAt: new Date(), unreadCount: 0, createdAt: new Date(),
+    });
+    const base = { orgId: "o8", conversationId: "c8", status: "pendiente" as const, itemsJson: "[]" };
+    await db.insert(orders).values({ id: "ord-propio-viejo", ...base, totalCop: 11000, createdAt: new Date(Date.now() - 60000) });
+    await db.insert(orders).values({ id: "ord-propio-reciente", ...base, totalCop: 22000, createdAt: new Date() });
+    await saveAgentConfig(db, "o8", { checkoutFlowId: "flow-8" });
+
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ messages: [{ id: "m8" }] }), { status: 200 }));
+
+    const r = await enviarCheckout.run({ orderId: "ord-propio-viejo" }, { db, orgId: "o8", conversationId: "c8" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect((r.data as { orderId: string }).orderId).toBe("ord-propio-viejo");
+    const textBody = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(textBody.text.body).toContain("$11.000");
+    expect(textBody.text.body).not.toContain("$22.000");
+  });
+
   it("con orderId de otra org o de otra conversación: no lo usa y no envía nada", async () => {
     const { db } = makeTestDb();
     await db.insert(organization).values({ id: "o6", name: "o6", slug: "o6", createdAt: new Date() });
