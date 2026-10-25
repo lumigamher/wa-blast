@@ -2,10 +2,11 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
 import { db } from "@/lib/db/client";
 import { env } from "@/lib/env";
 import { sendEmail } from "@/lib/email/resend";
-import { createOrgForNewUser } from "./hooks";
+import { ALREADY_MEMBER, createOrgForNewUser, settleInvitationIfAlreadyMember } from "./hooks";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "sqlite" }),
@@ -37,6 +38,24 @@ export const auth = betterAuth({
     organization({
       allowUserToCreateOrganization: true,
       creatorRole: "owner",
+      organizationHooks: {
+        // Ya miembro: se marca la invitación aceptada y se corta con un código
+        // propio (la página lo trata como éxito) en vez del 500 del índice único.
+        async beforeAcceptInvitation({ invitation, user }) {
+          const settled = await settleInvitationIfAlreadyMember(db, {
+            invitationId: invitation.id,
+            organizationId: invitation.organizationId,
+            userId: user.id,
+          });
+          if (settled) {
+            throw new APIError("CONFLICT", {
+              message: "Ya eres miembro de esta organización.",
+              code: ALREADY_MEMBER,
+              organizationId: invitation.organizationId,
+            });
+          }
+        },
+      },
       async sendInvitationEmail(data) {
         const url = `${env.BETTER_AUTH_URL}/aceptar-invitacion/${data.id}`;
         await sendEmail(

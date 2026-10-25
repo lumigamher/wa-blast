@@ -18,6 +18,13 @@ export default function AceptarInvitacionPage({ params }: { params: Promise<{ id
   function accept() {
     startTransition(async () => {
       const { data, error } = await authClient.organization.acceptInvitation({ invitationId: id });
+      // Ya era miembro: el servidor marcó la invitación aceptada; se sigue como éxito.
+      if (error?.code === "ALREADY_MEMBER") {
+        const orgId = (error as { organizationId?: string }).organizationId;
+        if (orgId) await authClient.organization.setActive({ organizationId: orgId });
+        router.push("/panel");
+        return;
+      }
       if (error) {
         setError(error.message ?? "No pude aceptar la invitación (¿expiró o es de otro correo?)");
         return;
