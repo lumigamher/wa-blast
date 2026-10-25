@@ -53,6 +53,8 @@ export async function createCampaign(
       segmentId: input.segmentId ?? null,
       scheduledAt: input.scheduledAt ?? null,
       status: input.scheduledAt ? "draft" : "queued",
+      // Una `queued` sin statusChangedAt no debe parecer colgada al cron.
+      statusChangedAt: input.scheduledAt ? null : now,
       total: filtered.length,
       createdBy: input.createdBy,
       createdAt: now,

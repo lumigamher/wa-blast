@@ -183,7 +183,8 @@ describe("cron claim atomico y recuperacion", () => {
       failed: 2,
       replied: 0,
       createdBy: userId,
-      createdAt: new Date(),
+      // Sin latido se mide desde createdAt: tiene que ser vieja.
+      createdAt: new Date(Date.now() - 3 * 3600 * 1000),
     });
 
     // Run recovery
@@ -286,5 +287,20 @@ describe("cron claim atomico y recuperacion", () => {
     expect(recs.filter((r) => r.status === "sending")).toHaveLength(0);
     // segunda pasada: ya no está vencida, no se vuelve a contar
     expect(await recoverStuckCampaigns(db)).toEqual([]);
+  });
+
+  it("queued sin statusChangedAt: recién creada NO se recupera, vieja sí", async () => {
+    const { db, orgId, userId } = await setupTest(makeTestDb().db);
+    const base = {
+      orgId, name: "C", templateName: "t", templateLanguage: "es", headerType: "NONE",
+      source: "adhoc", status: "queued", statusChangedAt: null, total: 0, createdBy: userId,
+    };
+    await db.insert(campaigns).values([
+      { ...base, id: "q-null-fresh", createdAt: new Date() },
+      { ...base, id: "q-null-old", createdAt: new Date(Date.now() - 11 * 60 * 1000) },
+    ]);
+    expect(await recoverStuckCampaigns(db)).toEqual(["q-null-old"]);
+    const [fresh] = await db.select().from(campaigns).where(eq(campaigns.id, "q-null-fresh"));
+    expect(fresh.status).toBe("queued");
   });
 });

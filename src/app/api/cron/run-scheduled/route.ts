@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, inArray, lte, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, lte, isNotNull, sql } from "drizzle-orm";
 import type { DB } from "@/lib/db/client";
 import { db } from "@/lib/db/client";
 import { campaignRecipients, campaigns } from "@/lib/db/schema";
@@ -24,10 +24,14 @@ export async function claimDueCampaign(db: DB, id: string): Promise<boolean> {
 
 export async function recoverStuckCampaigns(db: DB): Promise<string[]> {
   const cutoff = new Date(Date.now() - STUCK_MS);
+  // Timestamps en segundos (mode "timestamp"). Sin statusChangedAt (filas
+  // anteriores al latido) se mide desde createdAt: una `queued` recién creada
+  // no cuenta como vencida, y una vieja sí.
+  const cutoffSec = Math.floor(cutoff.getTime() / 1000);
   const staleCond = and(
     // `queued` = reclamada pero el proceso murió antes de empezar.
     inArray(campaigns.status, ["sending", "queued"]),
-    or(isNull(campaigns.statusChangedAt), lte(campaigns.statusChangedAt, cutoff)),
+    sql`coalesce(${campaigns.statusChangedAt}, ${campaigns.createdAt}) <= ${cutoffSec}`,
   );
   const candidates = await db.select({ id: campaigns.id }).from(campaigns).where(staleCond);
 
@@ -72,28 +76,35 @@ export async function GET(req: Request) {
     return new NextResponse("forbidden", { status: 403 });
   }
 
-  // Recover stuck campaigns first, before selecting due campaigns
-  const recovered = await recoverStuckCampaigns(db);
-  if (recovered.length > 0) {
-    console.log("recovered stuck campaigns", recovered);
-  }
-
-  const now = new Date();
-  const due = await db
-    .select()
-    .from(campaigns)
-    .where(and(eq(campaigns.status, "draft"), isNotNull(campaigns.scheduledAt), lte(campaigns.scheduledAt, now)));
-
+  // Campañas en su propio try: si la recuperación o el reclamo lanzan, el
+  // barrido del agente igual corre y se responde con lo que alcanzó a salir.
+  let recovered: string[] = [];
   const ids: string[] = [];
-  for (const c of due) {
-    // Atomically claim campaign (only if still draft)
-    if (!(await claimDueCampaign(db, c.id))) {
-      continue;
+  try {
+    // Recover stuck campaigns first, before selecting due campaigns
+    recovered = await recoverStuckCampaigns(db);
+    if (recovered.length > 0) {
+      console.log("recovered stuck campaigns", recovered);
     }
-    void getWorker(db)
-      .runCampaign(c.id)
-      .catch((e) => console.error("scheduled sender error", c.id, e));
-    ids.push(c.id);
+
+    const now = new Date();
+    const due = await db
+      .select()
+      .from(campaigns)
+      .where(and(eq(campaigns.status, "draft"), isNotNull(campaigns.scheduledAt), lte(campaigns.scheduledAt, now)));
+
+    for (const c of due) {
+      // Atomically claim campaign (only if still draft)
+      if (!(await claimDueCampaign(db, c.id))) {
+        continue;
+      }
+      void getWorker(db)
+        .runCampaign(c.id)
+        .catch((e) => console.error("scheduled sender error", c.id, e));
+      ids.push(c.id);
+    }
+  } catch (e) {
+    console.error("[cron] campaigns error", e);
   }
 
   // Turnos del agente vencidos sin timer (p. ej. tras un reinicio). No espera
