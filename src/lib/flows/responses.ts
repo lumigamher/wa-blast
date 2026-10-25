@@ -68,11 +68,22 @@ export async function enrichContactFromFlow(
   fields: Record<string, unknown>,
   ts: Date,
 ): Promise<void> {
+  enrichContactFromFlowSync(db, contactId, fields, ts);
+}
+
+/** Cliente (o transacción) de better-sqlite3 con el que se puede operar de forma síncrona. */
+export type SyncDb = Pick<DB, "select" | "insert" | "update">;
+
+/** Versión síncrona (.get/.run): usable dentro de `db.transaction`, donde no se puede await. */
+export function enrichContactFromFlowSync(
+  db: SyncDb,
+  contactId: string,
+  fields: Record<string, unknown>,
+  ts: Date,
+): void {
   const mapped = mapFlowFieldsToContact(fields);
   if (Object.keys(mapped).length === 0) return;
-  const c = (
-    await db.select().from(contacts).where(eq(contacts.id, contactId))
-  )[0];
+  const c = db.select().from(contacts).where(eq(contacts.id, contactId)).get();
   if (!c) return;
 
   const set: Partial<typeof contacts.$inferInsert> = {};
@@ -84,7 +95,7 @@ export async function enrichContactFromFlow(
 
   if (Object.keys(set).length === 0) return;
   set.updatedAt = ts;
-  await db.update(contacts).set(set).where(eq(contacts.id, contactId));
+  db.update(contacts).set(set).where(eq(contacts.id, contactId)).run();
 }
 
 /**
@@ -122,50 +133,55 @@ export function parseFlowPayload(
   return { flowName, fields };
 }
 
+type FlowResponseInput = {
+  orgId: string;
+  conversationId: string | null;
+  contactId: string | null;
+  phone: string | null;
+  contactName: string | null;
+  wamid: string | null;
+  payloadJson: string | null;
+  ts: Date;
+};
+
 /** Persiste una respuesta de formulario de forma estructurada (idempotente por wamid). */
-export async function recordFlowResponse(
-  db: DB,
-  input: {
-    orgId: string;
-    conversationId: string | null;
-    contactId: string | null;
-    phone: string | null;
-    contactName: string | null;
-    wamid: string | null;
-    payloadJson: string | null;
-    ts: Date;
-  },
-): Promise<void> {
+export async function recordFlowResponse(db: DB, input: FlowResponseInput): Promise<void> {
+  recordFlowResponseSync(db, input);
+}
+
+/** Versión síncrona de `recordFlowResponse` (solo toca la DB), para usar dentro de una transacción. */
+export function recordFlowResponseSync(db: SyncDb, input: FlowResponseInput): void {
   const parsed = parseFlowPayload(input.payloadJson);
   if (!parsed) return;
 
   // dedupe por wamid
   if (input.wamid) {
-    const dup = (
-      await db
-        .select({ id: flowResponses.id })
-        .from(flowResponses)
-        .where(eq(flowResponses.wamid, input.wamid))
-    )[0];
+    const dup = db
+      .select({ id: flowResponses.id })
+      .from(flowResponses)
+      .where(eq(flowResponses.wamid, input.wamid))
+      .get();
     if (dup) return;
   }
 
-  await db.insert(flowResponses).values({
-    id: randomUUID(),
-    orgId: input.orgId,
-    conversationId: input.conversationId,
-    contactId: input.contactId,
-    phone: input.phone,
-    contactName: input.contactName,
-    flowName: parsed.flowName,
-    wamid: input.wamid,
-    fieldsJson: JSON.stringify(parsed.fields),
-    createdAt: input.ts,
-  });
+  db.insert(flowResponses)
+    .values({
+      id: randomUUID(),
+      orgId: input.orgId,
+      conversationId: input.conversationId,
+      contactId: input.contactId,
+      phone: input.phone,
+      contactName: input.contactName,
+      flowName: parsed.flowName,
+      wamid: input.wamid,
+      fieldsJson: JSON.stringify(parsed.fields),
+      createdAt: input.ts,
+    })
+    .run();
 
   // Enriquece la ficha del contacto con los campos del formulario (campos vacíos).
   if (input.contactId) {
-    await enrichContactFromFlow(db, input.contactId, parsed.fields, input.ts);
+    enrichContactFromFlowSync(db, input.contactId, parsed.fields, input.ts);
   }
 }
 

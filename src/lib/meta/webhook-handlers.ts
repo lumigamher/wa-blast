@@ -58,7 +58,11 @@ export async function handleStatusEvent(
     }
   } catch (e) {
     // Si el procesamiento falla, se libera el gate para que la reentrega de Meta (500) reintente.
-    await db.delete(messageEvents).where(and(eq(messageEvents.wamid, status.id), eq(messageEvents.event, status.status)));
+    try {
+      await db.delete(messageEvents).where(and(eq(messageEvents.wamid, status.id), eq(messageEvents.event, status.status)));
+    } catch (d) {
+      console.error("[webhook] no se pudo liberar el claim", d);
+    }
     throw e;
   }
 }
@@ -168,7 +172,11 @@ export async function handleInboundMessage(
     }
   } catch (e) {
     // Si el procesamiento falla, se libera el gate para que la reentrega de Meta (500) reintente.
-    await db.delete(messageEvents).where(and(eq(messageEvents.wamid, msg.id), eq(messageEvents.event, "replied")));
+    try {
+      await db.delete(messageEvents).where(and(eq(messageEvents.wamid, msg.id), eq(messageEvents.event, "replied")));
+    } catch (d) {
+      console.error("[webhook] no se pudo liberar el claim", d);
+    }
     throw e;
   }
 }

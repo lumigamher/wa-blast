@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
-import { campaignRecipients, campaigns, messageEvents, messages, organization, user } from "@/lib/db/schema";
+import { campaignRecipients, campaigns, conversations, messageEvents, messages, organization, user } from "@/lib/db/schema";
 import * as store from "@/lib/inbox/store";
 import { maybeDispatchAgentTurn } from "@/lib/agent/dispatch";
 import { handleInboundMessage, handleStatusEvent } from "./webhook-handlers";
@@ -93,6 +93,34 @@ describe("handleInboundMessage: fallos tras guardar y concurrencia", () => {
     expect(await db.select().from(messages).where(eq(messages.wamid, "wamid.in4"))).toHaveLength(1);
     expect(maybeDispatchAgentTurn).toHaveBeenCalledTimes(1);
     expect((await camp(db)).replied).toBe(1);
+  });
+});
+
+describe("handleInboundMessage: atomicidad y liberación del gate", () => {
+  it("falla el update de conversations tras el insert: la reentrega deja 1 mensaje, lastIncomingAt y unread +1", async () => {
+    const db = await seed();
+    const raw = (db as unknown as { $client: { exec: (s: string) => void } }).$client;
+    raw.exec("CREATE TRIGGER boom BEFORE UPDATE ON conversations BEGIN SELECT RAISE(ABORT, 'SQLITE_BUSY'); END;");
+    await expect(handleInboundMessage(db, "o1", msg("wamid.in5"), [], "Juan", identity)).rejects.toThrow("SQLITE_BUSY");
+    expect(await db.select().from(messages).where(eq(messages.wamid, "wamid.in5"))).toHaveLength(0);
+    raw.exec("DROP TRIGGER boom;");
+    await handleInboundMessage(db, "o1", msg("wamid.in5"), [], "Juan", identity);
+    await handleInboundMessage(db, "o1", msg("wamid.in5"), [], "Juan", identity);
+    expect(await db.select().from(messages).where(eq(messages.wamid, "wamid.in5"))).toHaveLength(1);
+    const [conv] = await db.select().from(conversations);
+    expect(conv.unreadCount).toBe(1);
+    expect(conv.lastIncomingAt).not.toBeNull();
+    expect(maybeDispatchAgentTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it("si liberar el claim también falla, se propaga el error ORIGINAL", async () => {
+    const db = await seed();
+    vi.mocked(store.recordInboundMessage).mockRejectedValueOnce(new Error("original"));
+    vi.spyOn(db, "delete").mockImplementationOnce((() => {
+      throw new Error("delete fallo");
+    }) as never);
+    vi.spyOn(console, "error").mockImplementationOnce(() => {});
+    await expect(handleInboundMessage(db, "o1", msg("wamid.in6"), [], "Juan", identity)).rejects.toThrow("original");
   });
 });
 

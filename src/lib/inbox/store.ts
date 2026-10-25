@@ -8,7 +8,7 @@ import {
   conversationLabelLinks,
   messages,
 } from "@/lib/db/schema";
-import { recordFlowResponse } from "@/lib/flows/responses";
+import { recordFlowResponseSync } from "@/lib/flows/responses";
 import { getOrCreateConversationByIdentity, type Identity } from "@/lib/inbox/identity";
 import { listNotes } from "@/lib/inbox/notes";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
@@ -60,45 +60,52 @@ export async function recordInboundMessage(
     if (dup) return { conversationId: conv.id, duplicate: true };
   }
 
-  await db.insert(messages).values({
-    id: randomUUID(),
-    conversationId: conv.id,
-    orgId: input.orgId,
-    direction: "in",
-    wamid: input.wamid,
-    type: input.parsed.type,
-    body: input.parsed.body,
-    mediaId: input.parsed.mediaId,
-    status: null,
-    errorMessage: null,
-    payloadJson: input.parsed.payloadJson,
-    replyToWamid: input.parsed.replyToWamid,
-    createdAt: input.ts,
+  // Mensaje + contadores de la conversación + respuesta de formulario en UNA transacción
+  // sincrónica (better-sqlite3): o se aplica todo o nada, así que una reentrega nunca ve
+  // el mensaje guardado sin sus efectos. recordFlowResponseSync solo toca la DB.
+  db.transaction((tx) => {
+    tx.insert(messages)
+      .values({
+        id: randomUUID(),
+        conversationId: conv.id,
+        orgId: input.orgId,
+        direction: "in",
+        wamid: input.wamid,
+        type: input.parsed.type,
+        body: input.parsed.body,
+        mediaId: input.parsed.mediaId,
+        status: null,
+        errorMessage: null,
+        payloadJson: input.parsed.payloadJson,
+        replyToWamid: input.parsed.replyToWamid,
+        createdAt: input.ts,
+      })
+      .run();
+
+    tx.update(conversations)
+      .set({
+        lastMessageAt: input.ts,
+        lastIncomingAt: input.ts,
+        unreadCount: sql`${conversations.unreadCount} + 1`,
+      })
+      .where(eq(conversations.id, conv.id))
+      .run();
+
+    // Respuesta de formulario (WhatsApp Flow): además del mensaje, persiste una
+    // fila estructurada para gestión/exportación.
+    if (input.parsed.type === "flow") {
+      recordFlowResponseSync(tx, {
+        orgId: input.orgId,
+        conversationId: conv.id,
+        contactId: conv.contactId ?? null,
+        phone: input.identity.phone ?? null,
+        contactName: input.profileName ?? null,
+        wamid: input.wamid ?? null,
+        payloadJson: input.parsed.payloadJson,
+        ts: input.ts,
+      });
+    }
   });
-
-  await db
-    .update(conversations)
-    .set({
-      lastMessageAt: input.ts,
-      lastIncomingAt: input.ts,
-      unreadCount: sql`${conversations.unreadCount} + 1`,
-    })
-    .where(eq(conversations.id, conv.id));
-
-  // Respuesta de formulario (WhatsApp Flow): además del mensaje, persiste una
-  // fila estructurada para gestión/exportación.
-  if (input.parsed.type === "flow") {
-    await recordFlowResponse(db, {
-      orgId: input.orgId,
-      conversationId: conv.id,
-      contactId: conv.contactId ?? null,
-      phone: input.identity.phone ?? null,
-      contactName: input.profileName ?? null,
-      wamid: input.wamid ?? null,
-      payloadJson: input.parsed.payloadJson,
-      ts: input.ts,
-    });
-  }
 
   return { conversationId: conv.id, duplicate: false };
 }
