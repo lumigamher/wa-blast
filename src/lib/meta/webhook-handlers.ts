@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, or, sql } from "drizzle-orm";
 import { getOrCreateConversationByIdentity, type Identity } from "@/lib/inbox/identity";
 import type { DB } from "@/lib/db/client";
 import { calls, campaignRecipients, campaigns, contacts, messageEvents } from "@/lib/db/schema";
@@ -104,25 +104,29 @@ export async function handleInboundMessage(
 
   try {
     if (body && matchOptOut(body, optoutKeywords)) {
-      const col = identity.bsuid ? contacts.bsuid : contacts.phone;
-      const val = (identity.bsuid ?? identity.phone) as string;
-      await db.update(contacts).set({ optOutAt: ts }).where(and(eq(contacts.orgId, orgId), eq(col, val)));
+      // Coincide por teléfono O BSUID: un contacto importado solo con teléfono puede escribir
+      // su primer mensaje ya con BSUID (y viceversa).
+      const match = or(
+        identity.phone ? eq(contacts.phone, identity.phone) : undefined,
+        identity.bsuid ? eq(contacts.bsuid, identity.bsuid) : undefined,
+      );
+      if (match) await db.update(contacts).set({ optOutAt: ts }).where(and(eq(contacts.orgId, orgId), match));
     }
 
     const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
-    const [recent] = await db
-      .select()
-      .from(campaignRecipients)
-      .where(
-        and(
-          identity.bsuid && !identity.phone
-            ? eq(campaignRecipients.bsuid, identity.bsuid)
-            : eq(campaignRecipients.phone, identity.phone as string),
-          gte(campaignRecipients.sentAt, cutoff),
-        ),
-      )
-      .orderBy(desc(campaignRecipients.sentAt))
-      .limit(1);
+    // Por teléfono O BSUID: la fila de campaña pudo crearse solo con uno de los dos.
+    const recipientMatch = or(
+      identity.phone ? eq(campaignRecipients.phone, identity.phone) : undefined,
+      identity.bsuid ? eq(campaignRecipients.bsuid, identity.bsuid) : undefined,
+    );
+    const [recent] = recipientMatch
+      ? await db
+          .select()
+          .from(campaignRecipients)
+          .where(and(recipientMatch, gte(campaignRecipients.sentAt, cutoff)))
+          .orderBy(desc(campaignRecipients.sentAt))
+          .limit(1)
+      : [];
 
     // Parse message once and reuse
     const parsed = parseInboundMessage(msg);

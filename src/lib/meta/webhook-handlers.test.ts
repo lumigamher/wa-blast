@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
-import { campaignRecipients, campaigns, conversations, messageEvents, messages, organization, user } from "@/lib/db/schema";
+import { campaignRecipients, campaigns, contacts, conversations, messageEvents, messages, organization, user } from "@/lib/db/schema";
 import * as store from "@/lib/inbox/store";
 import { maybeDispatchAgentTurn } from "@/lib/agent/dispatch";
 import { handleInboundMessage, handleStatusEvent } from "./webhook-handlers";
@@ -60,6 +60,28 @@ describe("handleInboundMessage: reentregas", () => {
     expect(await db.select().from(messages).where(eq(messages.wamid, "wamid.in2"))).toHaveLength(1);
     expect(maybeDispatchAgentTurn).toHaveBeenCalledTimes(1);
     expect((await camp(db)).replied).toBe(1);
+  });
+});
+
+describe("handleInboundMessage: identidad mixta (teléfono + BSUID)", () => {
+  const both = { phone: PHONE, bsuid: "US.123" };
+
+  it("replied: fila de campaña solo-BSUID + inbound con teléfono y BSUID suma +1", async () => {
+    const db = await seed();
+    await db.delete(campaignRecipients);
+    await db.insert(campaignRecipients).values({
+      campaignId: "c1", phone: null, bsuid: "US.123", status: "sent", wamid: "wamid.out", sentAt: new Date(),
+    });
+    await handleInboundMessage(db, "o1", msg("wamid.mix1"), [], "Juan", both);
+    expect((await camp(db)).replied).toBe(1);
+  });
+
+  it("opt-out: contacto solo-teléfono que escribe BAJA con BSUID queda dado de baja", async () => {
+    const db = await seed();
+    await db.insert(contacts).values({ id: "ct1", orgId: "o1", phone: PHONE, createdAt: new Date(), updatedAt: new Date() } as never);
+    await handleInboundMessage(db, "o1", { ...msg("wamid.mix2"), text: { body: "BAJA" } }, ["BAJA"], "Juan", both);
+    const [c] = await db.select().from(contacts).where(eq(contacts.id, "ct1"));
+    expect(c.optOutAt).not.toBeNull();
   });
 });
 
