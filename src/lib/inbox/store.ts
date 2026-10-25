@@ -38,7 +38,7 @@ export async function recordInboundMessage(
     ts: Date;
     profileName?: string | null;
   },
-): Promise<string> {
+): Promise<{ conversationId: string; duplicate: boolean }> {
   const conv = await getOrCreateConversationByIdentity(
     db,
     input.orgId,
@@ -57,7 +57,7 @@ export async function recordInboundMessage(
           and(eq(messages.orgId, input.orgId), eq(messages.wamid, input.wamid)),
         )
     )[0];
-    if (dup) return conv.id;
+    if (dup) return { conversationId: conv.id, duplicate: true };
   }
 
   await db.insert(messages).values({
@@ -100,7 +100,7 @@ export async function recordInboundMessage(
     });
   }
 
-  return conv.id;
+  return { conversationId: conv.id, duplicate: false };
 }
 
 export async function recordOutboundMessage(

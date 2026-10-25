@@ -17,7 +17,42 @@ export async function handleStatusEvent(
   status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id?: string; recipient_user_id?: string; errors?: Array<{ message?: string; title?: string }> },
 ) {
   const ts = new Date(Number(status.timestamp) * 1000);
-  const inserted = await db
+  // Dedupe: si el evento ya quedó registrado, los efectos ya se aplicaron por completo.
+  // El evento se inserta AL FINAL: si un efecto lanza, la reentrega de Meta reintenta todo.
+  const [seen] = await db
+    .select({ id: messageEvents.id })
+    .from(messageEvents)
+    .where(and(eq(messageEvents.wamid, status.id), eq(messageEvents.event, status.status)));
+  if (seen) return; // webhook retransmitido: ya procesado
+
+  // Update inbox message status (idempotente)
+  await updateMessageStatusByWamid(db, status.id, status.status, status.errors?.[0]?.message);
+
+  const [rec] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, status.id));
+  if (rec) {
+    // Verify the campaign belongs to this org
+    const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, rec.campaignId));
+    if (camp && camp.orgId === orgId) {
+      const counter =
+        status.status === "delivered"
+          ? { delivered: sql`${campaigns.delivered} + 1` }
+          : status.status === "read"
+            ? { read: sql`${campaigns.read} + 1` }
+            : status.status === "failed"
+              ? { failed: sql`${campaigns.failed} + 1` }
+              : null;
+      if (counter && rec.status !== status.status) {
+        // Contador + estado del destinatario en una transacción sincrónica (better-sqlite3):
+        // o se aplican los dos o ninguno, y si el estado ya es el mismo no se suma otra vez.
+        db.transaction((tx) => {
+          tx.update(campaigns).set(counter).where(eq(campaigns.id, rec.campaignId)).run();
+          tx.update(campaignRecipients).set({ status: status.status as "delivered" | "read" | "failed" }).where(eq(campaignRecipients.id, rec.id)).run();
+        });
+      }
+    }
+  }
+
+  await db
     .insert(messageEvents)
     .values({
       wamid: status.id,
@@ -25,39 +60,7 @@ export async function handleStatusEvent(
       timestamp: ts,
       payload: JSON.stringify(status),
     })
-    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
-    .returning({ id: messageEvents.id });
-  if (inserted.length === 0) return; // webhook retransmitido: ya procesado
-
-  // Update inbox message status
-  await updateMessageStatusByWamid(db, status.id, status.status, status.errors?.[0]?.message);
-
-  const [rec] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, status.id));
-  if (!rec) return;
-
-  // Verify the campaign belongs to this org
-  const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, rec.campaignId));
-  if (!camp || camp.orgId !== orgId) return;
-
-  if (status.status === "delivered") {
-    await db
-      .update(campaigns)
-      .set({ delivered: sql`${campaigns.delivered} + 1` })
-      .where(eq(campaigns.id, rec.campaignId));
-    await db.update(campaignRecipients).set({ status: "delivered" }).where(eq(campaignRecipients.id, rec.id));
-  } else if (status.status === "read") {
-    await db
-      .update(campaigns)
-      .set({ read: sql`${campaigns.read} + 1` })
-      .where(eq(campaigns.id, rec.campaignId));
-    await db.update(campaignRecipients).set({ status: "read" }).where(eq(campaignRecipients.id, rec.id));
-  } else if (status.status === "failed") {
-    await db
-      .update(campaigns)
-      .set({ failed: sql`${campaigns.failed} + 1` })
-      .where(eq(campaigns.id, rec.campaignId));
-    await db.update(campaignRecipients).set({ status: "failed" }).where(eq(campaignRecipients.id, rec.id));
-  }
+    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] });
 }
 
 export async function handleInboundMessage(
@@ -82,18 +85,13 @@ export async function handleInboundMessage(
 
   const body = msg.text?.body ?? "";
 
-  // Gate: insert replied event only if this is the first transmission
-  const inserted = await db
-    .insert(messageEvents)
-    .values({
-      wamid: msg.id,
-      event: "replied",
-      timestamp: ts,
-      payload: JSON.stringify({ from: msg.from ?? identity.bsuid, preview: body.slice(0, 40) }),
-    })
-    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
-    .returning({ id: messageEvents.id });
-  if (inserted.length === 0) return; // webhook retransmitido: ya procesado
+  // Dedupe: si el evento "replied" ya quedó registrado, el mensaje se procesó por completo.
+  // El evento se inserta AL FINAL: si guardar el mensaje lanza, la reentrega de Meta reintenta todo.
+  const [seen] = await db
+    .select({ id: messageEvents.id })
+    .from(messageEvents)
+    .where(and(eq(messageEvents.wamid, msg.id), eq(messageEvents.event, "replied")));
+  if (seen) return; // webhook retransmitido: ya procesado
 
   if (body && matchOptOut(body, optoutKeywords)) {
     const col = identity.bsuid ? contacts.bsuid : contacts.phone;
@@ -101,33 +99,11 @@ export async function handleInboundMessage(
     await db.update(contacts).set({ optOutAt: ts }).where(and(eq(contacts.orgId, orgId), eq(col, val)));
   }
 
-  const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
-  const [recent] = await db
-    .select()
-    .from(campaignRecipients)
-    .where(
-      and(
-        identity.bsuid && !identity.phone
-          ? eq(campaignRecipients.bsuid, identity.bsuid)
-          : eq(campaignRecipients.phone, identity.phone as string),
-        gte(campaignRecipients.sentAt, cutoff),
-      ),
-    )
-    .orderBy(desc(campaignRecipients.sentAt))
-    .limit(1);
-
-  if (recent) {
-    await db
-      .update(campaigns)
-      .set({ replied: sql`${campaigns.replied} + 1` })
-      .where(eq(campaigns.id, recent.campaignId));
-  }
-
   // Parse message once and reuse
   const parsed = parseInboundMessage(msg);
 
-  // Persist inbound message to inbox
-  const conversationId = await recordInboundMessage(db, {
+  // Persist inbound message to inbox (idempotente por wamid: devuelve duplicate si ya existía)
+  const { conversationId, duplicate } = await recordInboundMessage(db, {
     orgId,
     identity,
     wamid: msg.id,
@@ -136,11 +112,35 @@ export async function handleInboundMessage(
     profileName,
   });
 
-  // Dispara el agente IA (si la org lo tiene activo y la conversación no está pausada).
-  try {
-    await maybeDispatchAgentTurn(db, orgId, conversationId, identity);
-  } catch (e) {
-    console.error("[agent] dispatch fallo", e);
+  if (!duplicate) {
+    const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+    const [recent] = await db
+      .select()
+      .from(campaignRecipients)
+      .where(
+        and(
+          identity.bsuid && !identity.phone
+            ? eq(campaignRecipients.bsuid, identity.bsuid)
+            : eq(campaignRecipients.phone, identity.phone as string),
+          gte(campaignRecipients.sentAt, cutoff),
+        ),
+      )
+      .orderBy(desc(campaignRecipients.sentAt))
+      .limit(1);
+
+    if (recent) {
+      await db
+        .update(campaigns)
+        .set({ replied: sql`${campaigns.replied} + 1` })
+        .where(eq(campaigns.id, recent.campaignId));
+    }
+
+    // Dispara el agente IA (si la org lo tiene activo y la conversación no está pausada).
+    try {
+      await maybeDispatchAgentTurn(db, orgId, conversationId, identity);
+    } catch (e) {
+      console.error("[agent] dispatch fallo", e);
+    }
   }
 
   // Proactively cache inbound media (best-effort, doesn't break webhook if it fails)
@@ -160,6 +160,17 @@ export async function handleInboundMessage(
       // Best-effort: log silently and continue
     }
   }
+
+  // Marca el webhook como procesado SOLO cuando todo lo anterior tuvo éxito.
+  await db
+    .insert(messageEvents)
+    .values({
+      wamid: msg.id,
+      event: "replied",
+      timestamp: ts,
+      payload: JSON.stringify({ from: msg.from ?? identity.bsuid, preview: body.slice(0, 40) }),
+    })
+    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] });
 }
 
 export async function handleCallEvent(
