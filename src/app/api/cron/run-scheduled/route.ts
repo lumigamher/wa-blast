@@ -24,35 +24,46 @@ export async function claimDueCampaign(db: DB, id: string): Promise<boolean> {
 
 export async function recoverStuckCampaigns(db: DB): Promise<string[]> {
   const cutoff = new Date(Date.now() - STUCK_MS);
-  const stuck = await db
-    .update(campaigns)
-    .set({ status: "draft", scheduledAt: new Date(), statusChangedAt: new Date() })
-    .where(
-      and(
-        // `queued` = reclamada pero el proceso murió antes de empezar.
-        inArray(campaigns.status, ["sending", "queued"]),
-        or(isNull(campaigns.statusChangedAt), lte(campaigns.statusChangedAt, cutoff)),
-      ),
-    )
-    .returning({ id: campaigns.id });
+  const staleCond = and(
+    // `queued` = reclamada pero el proceso murió antes de empezar.
+    inArray(campaigns.status, ["sending", "queued"]),
+    or(isNull(campaigns.statusChangedAt), lte(campaigns.statusChangedAt, cutoff)),
+  );
+  const candidates = await db.select({ id: campaigns.id }).from(campaigns).where(staleCond);
 
-  // Filas en `sending`: el envío se interrumpió y no sabemos si Meta lo aceptó.
-  // No se reenvían solas (riesgo de duplicado): pasan a failed y se pueden
-  // reintentar desde el botón existente. Las `pending` siguen y el cron reanuda.
-  for (const { id } of stuck) {
-    const interrupted = await db
-      .update(campaignRecipients)
-      .set({ status: "failed", error: INTERRUPTED_ERROR, sentAt: new Date() })
-      .where(and(eq(campaignRecipients.campaignId, id), eq(campaignRecipients.status, "sending")))
-      .returning({ id: campaignRecipients.id });
-    if (interrupted.length > 0) {
-      await db
+  const recovered: string[] = [];
+  for (const { id } of candidates) {
+    // Todo en UNA transacción síncrona: la campaña solo pasa a draft si SIGUE
+    // vencida, y en la misma unidad se barren sus filas `sending` y se suma el
+    // contador. Así un corte o un cron concurrente no deja filas huérfanas ni
+    // marca como "interrumpidas" filas que un worker nuevo acaba de reservar.
+    // Las filas `sending` no se reenvían solas (no sabemos si Meta las aceptó):
+    // pasan a failed y se reintentan desde el botón existente. Las `pending` siguen.
+    const ok = db.transaction((tx) => {
+      const claimed = tx
         .update(campaigns)
-        .set({ failed: sql`${campaigns.failed} + ${interrupted.length}` })
-        .where(eq(campaigns.id, id));
-    }
+        .set({ status: "draft", scheduledAt: new Date(), statusChangedAt: new Date() })
+        .where(and(eq(campaigns.id, id), staleCond))
+        .returning({ id: campaigns.id })
+        .all();
+      if (claimed.length === 0) return false;
+      const interrupted = tx
+        .update(campaignRecipients)
+        .set({ status: "failed", error: INTERRUPTED_ERROR, sentAt: new Date() })
+        .where(and(eq(campaignRecipients.campaignId, id), eq(campaignRecipients.status, "sending")))
+        .returning({ id: campaignRecipients.id })
+        .all();
+      if (interrupted.length > 0) {
+        tx.update(campaigns)
+          .set({ failed: sql`${campaigns.failed} + ${interrupted.length}` })
+          .where(eq(campaigns.id, id))
+          .run();
+      }
+      return true;
+    });
+    if (ok) recovered.push(id);
   }
-  return stuck.map((s) => s.id);
+  return recovered;
 }
 
 export async function GET(req: Request) {

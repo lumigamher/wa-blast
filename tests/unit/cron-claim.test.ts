@@ -110,7 +110,7 @@ describe("cron claim atomico y recuperacion", () => {
     });
 
     // Create recent campaign (latido reciente, dentro de los 10 min)
-    const oneHourAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
     await db.insert(campaigns).values({
       id: recentCampaignId,
       orgId,
@@ -120,7 +120,7 @@ describe("cron claim atomico y recuperacion", () => {
       headerType: "NONE",
       source: "api",
       status: "sending",
-      statusChangedAt: oneHourAgo,
+      statusChangedAt: fiveMinAgo,
       scheduledAt: new Date(),
       total: 10,
       sent: 3,
@@ -245,5 +245,46 @@ describe("cron claim atomico y recuperacion", () => {
     expect(await recoverStuckCampaigns(db)).toEqual(["s-old"]);
     const [c] = await db.select().from(campaigns).where(eq(campaigns.id, "s-old"));
     expect(c.failed).toBe(1);
+  });
+
+  it("sending con latido fresco queda intacta junto con sus filas sending", async () => {
+    const { db, orgId, userId } = await setupTest(makeTestDb().db);
+    await db.insert(campaigns).values({
+      id: "s-fresh", orgId, name: "C", templateName: "t", templateLanguage: "es", headerType: "NONE",
+      source: "api", status: "sending", statusChangedAt: new Date(), failed: 0,
+      scheduledAt: new Date(), total: 1, createdBy: userId, createdAt: new Date(),
+    });
+    await db.insert(campaignRecipients).values({ campaignId: "s-fresh", phone: "+1", params: "{}", status: "sending" });
+    expect(await recoverStuckCampaigns(db)).toEqual([]);
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.id, "s-fresh"));
+    expect(c.status).toBe("sending");
+    expect(c.failed).toBe(0);
+    const [r] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.campaignId, "s-fresh"));
+    expect(r.status).toBe("sending");
+  });
+
+  it("recuperación consistente: campaña draft, filas failed y contador = filas barridas", async () => {
+    const { db, orgId, userId } = await setupTest(makeTestDb().db);
+    await db.insert(campaigns).values({
+      id: "s-cons", orgId, name: "C", templateName: "t", templateLanguage: "es", headerType: "NONE",
+      source: "api", status: "sending", statusChangedAt: new Date(Date.now() - 20 * 60 * 1000), failed: 2,
+      scheduledAt: new Date(), total: 4, createdBy: userId, createdAt: new Date(),
+    });
+    await db.insert(campaignRecipients).values([
+      { campaignId: "s-cons", phone: "+1", params: "{}", status: "sending" },
+      { campaignId: "s-cons", phone: "+2", params: "{}", status: "sending" },
+      { campaignId: "s-cons", phone: "+3", params: "{}", status: "sending" },
+      { campaignId: "s-cons", phone: "+4", params: "{}", status: "sent" },
+    ]);
+    expect(await recoverStuckCampaigns(db)).toEqual(["s-cons"]);
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.id, "s-cons"));
+    const recs = await db.select().from(campaignRecipients).where(eq(campaignRecipients.campaignId, "s-cons"));
+    const barridas = recs.filter((r) => r.status === "failed").length;
+    expect(c.status).toBe("draft");
+    expect(barridas).toBe(3);
+    expect(c.failed).toBe(2 + barridas);
+    expect(recs.filter((r) => r.status === "sending")).toHaveLength(0);
+    // segunda pasada: ya no está vencida, no se vuelve a contar
+    expect(await recoverStuckCampaigns(db)).toEqual([]);
   });
 });
