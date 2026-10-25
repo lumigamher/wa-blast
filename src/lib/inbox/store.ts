@@ -72,25 +72,33 @@ export async function recordInboundMessage(
   // el mensaje guardado sin sus efectos. recordFlowResponseSync solo toca la DB.
   // Si dos entregas del mismo wamid pasan la verificación a la vez, la segunda choca
   // con el índice único: la transacción se revierte entera y se trata como duplicado.
+  // Solo el choque del INSERT del mensaje cuenta como duplicado; uno de otra
+  // sentencia (p. ej. la respuesta de formulario) se relanza para no perderlo.
+  let messageConflict = false;
   try {
     db.transaction((tx) => {
-      tx.insert(messages)
-        .values({
-          id: randomUUID(),
-          conversationId: conv.id,
-          orgId: input.orgId,
-          direction: "in",
-          wamid: input.wamid,
-          type: input.parsed.type,
-          body: input.parsed.body,
-          mediaId: input.parsed.mediaId,
-          status: null,
-          errorMessage: null,
-          payloadJson: input.parsed.payloadJson,
-          replyToWamid: input.parsed.replyToWamid,
-          createdAt: input.ts,
-        })
-        .run();
+      try {
+        tx.insert(messages)
+          .values({
+            id: randomUUID(),
+            conversationId: conv.id,
+            orgId: input.orgId,
+            direction: "in",
+            wamid: input.wamid,
+            type: input.parsed.type,
+            body: input.parsed.body,
+            mediaId: input.parsed.mediaId,
+            status: null,
+            errorMessage: null,
+            payloadJson: input.parsed.payloadJson,
+            replyToWamid: input.parsed.replyToWamid,
+            createdAt: input.ts,
+          })
+          .run();
+      } catch (e) {
+        if (isUniqueViolation(e)) messageConflict = true;
+        throw e;
+      }
 
       tx.update(conversations)
         .set({
@@ -117,7 +125,7 @@ export async function recordInboundMessage(
       }
     });
   } catch (e) {
-    if (isUniqueViolation(e)) return { conversationId: conv.id, duplicate: true };
+    if (messageConflict) return { conversationId: conv.id, duplicate: true };
     throw e;
   }
 
