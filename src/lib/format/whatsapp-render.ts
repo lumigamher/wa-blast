@@ -44,8 +44,9 @@ function findClose(s: string, mark: string, from: number): number {
   return -1;
 }
 
-const URL_RE = /^(?:https?:\/\/|www\.)[^\s<>]+/i;
-const MD_LINK_RE = /^\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/i;
+// Flag `y` (sticky): se prueba en `lastIndex` sin recortar el string (evita O(n²)).
+const URL_RE = /(?:https?:\/\/|www\.)[^\s<>]+/iy;
+const MD_LINK_RE = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/iy;
 
 /** Quita puntuación final pegada a la URL (y `)` solo si no tiene su `(`). */
 function trimUrl(url: string): string {
@@ -61,7 +62,8 @@ function trimUrl(url: string): string {
   }
 }
 
-function parseInline(s: string): Inline[] {
+/** `noLinks`: dentro de un enlace no se generan más enlaces (un <a> no anida otro <a>). */
+function parseInline(s: string, noLinks = false): Inline[] {
   const out: Inline[] = [];
   let buf = "";
   const flush = () => {
@@ -73,24 +75,26 @@ function parseInline(s: string): Inline[] {
   while (i < s.length) {
     const c = s[i];
     const prev = s[i - 1];
-    const rest = s.slice(i);
 
     // [texto](url): el esquema se limita a http/https en la propia regex.
-    if (c === "[") {
-      const m = MD_LINK_RE.exec(rest);
+    if (c === "[" && !noLinks) {
+      MD_LINK_RE.lastIndex = i;
+      const m = MD_LINK_RE.exec(s);
       if (m) {
         flush();
-        out.push({ type: "link", href: m[2], children: parseInline(m[1]) });
+        out.push({ type: "link", href: m[2], children: parseInline(m[1], true) });
         i += m[0].length;
         continue;
       }
     }
 
     // URL suelta (no pegada a una palabra).
-    if ((c === "h" || c === "H" || c === "w" || c === "W") && !isAlnum(prev)) {
-      const m = URL_RE.exec(rest);
+    if (!noLinks && (c === "h" || c === "H" || c === "w" || c === "W") && !isAlnum(prev)) {
+      URL_RE.lastIndex = i;
+      const m = URL_RE.exec(s);
       if (m) {
         const raw = trimUrl(m[0]);
+        URL_RE.lastIndex = 0;
         if (URL_RE.test(raw)) {
           flush();
           const href = /^www\./i.test(raw) ? `https://${raw}` : raw;
@@ -119,7 +123,7 @@ function parseInline(s: string): Inline[] {
         const j = findClose(s, c + c, i + 3);
         if (j > i + 2) {
           flush();
-          out.push({ type: "bold", children: parseInline(s.slice(i + 2, j)) });
+          out.push({ type: "bold", children: parseInline(s.slice(i + 2, j), noLinks) });
           i = j + 2;
           continue;
         }
@@ -127,7 +131,7 @@ function parseInline(s: string): Inline[] {
       const j = findClose(s, c, i + 2);
       if (j > i + 1) {
         flush();
-        out.push({ type: MARKS[c], children: parseInline(s.slice(i + 1, j)) });
+        out.push({ type: MARKS[c], children: parseInline(s.slice(i + 1, j), noLinks) });
         i = j + 1;
         continue;
       }

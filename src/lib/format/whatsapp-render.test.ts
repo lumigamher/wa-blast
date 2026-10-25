@@ -83,6 +83,33 @@ describe("parseWhatsAppText: marcadores en línea", () => {
     ]);
   });
 
+  it("un enlace nunca contiene otro enlace", () => {
+    const hasNested = (nodes: Inline[], inLink = false): boolean =>
+      nodes.some((n) => {
+        if (n.type === "text" || n.type === "code") return false;
+        if (n.type === "link") return inLink || hasNested(n.children, true);
+        return hasNested(n.children, inLink);
+      });
+    const a = inl("[https://a.co](https://a.co)");
+    expect(a).toHaveLength(1);
+    expect(hasNested(a)).toBe(false);
+    expect(a[0]).toMatchObject({ type: "link", href: "https://a.co" });
+
+    const b = inl("[ver *esto*](https://a.co)");
+    expect(hasNested(b)).toBe(false);
+    expect(b).toEqual([
+      {
+        type: "link",
+        href: "https://a.co",
+        children: [
+          { type: "text", value: "ver " },
+          { type: "bold", children: [{ type: "text", value: "esto" }] },
+        ],
+      },
+    ]);
+    expect(hasNested(inl("[[x](https://b.co)](https://a.co)"))).toBe(false);
+  });
+
   it("[texto](javascript:...) NO es enlace", () => {
     expect(JSON.stringify(parseWhatsAppText("[x](javascript:alert(1))"))).not.toContain(
       '"link"',
@@ -164,5 +191,15 @@ describe("stripWhatsAppFormat", () => {
   it("vacío", () => {
     expect(stripWhatsAppFormat("")).toBe("");
     expect(stripWhatsAppFormat(null)).toBe("");
+  });
+});
+
+describe("parseWhatsAppText: rendimiento", () => {
+  it("un texto de ~4.000 caracteres se parsea rápido", () => {
+    const t = "Hola *mundo* _x_ https://a.co/x [l](https://b.co) 2*3 snake_case ";
+    const text = t.repeat(Math.ceil(4000 / t.length));
+    const t0 = performance.now();
+    parseWhatsAppText(text);
+    expect(performance.now() - t0).toBeLessThan(200);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import {
   parseWhatsAppText,
   type Block,
@@ -74,7 +74,7 @@ const isFlow = (b: Block | undefined) => b?.type === "line" || b?.type === "list
  * `dangerouslySetInnerHTML`). El contenedor debería tener `whitespace-pre-wrap`.
  */
 export function WhatsAppText(props: Props) {
-  const blocks = parseWhatsAppText(props.text);
+  const blocks = useMemo(() => parseWhatsAppText(props.text), [props.text]);
   return (
     <>
       {blocks.map((b, i) => {
