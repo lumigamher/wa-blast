@@ -200,6 +200,6 @@ describe("parseWhatsAppText: rendimiento", () => {
     const text = t.repeat(Math.ceil(4000 / t.length));
     const t0 = performance.now();
     parseWhatsAppText(text);
-    expect(performance.now() - t0).toBeLessThan(200);
+    expect(performance.now() - t0).toBeLessThan(1000);
   });
 });

@@ -75,7 +75,7 @@ export function WhatsAppBubble({
           />
         ) : header?.text ? (
           <div className={`mb-0.5 font-semibold text-[#111b21] ${sz.text}`}>
-            {renderText(header.text, values, highlightVars)}
+            {renderVars(header.text, values, highlightVars)}
           </div>
         ) : null}
         <div
@@ -211,6 +211,8 @@ function renderText(
       text={text}
       renderPlain={(t) => renderVars(t, values, highlightVars)}
       linkClassName="text-[#016a98] underline underline-offset-2 break-all"
+      // La burbuja siempre es clara (verde #d9fdd3): sin variantes dark:
+      codeBgClassName="bg-black/10"
     />
   );
 }

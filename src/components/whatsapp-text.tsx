@@ -16,7 +16,11 @@ type Props = {
   renderPlain?: (text: string) => ReactNode;
   /** Color del enlace; el default es legible (AA) en claro y oscuro. */
   linkClassName?: string;
+  /** Fondo de `code`/`pre`; el default se adapta al modo oscuro. Para superficies siempre claras (burbuja de vista previa). */
+  codeBgClassName?: string;
 };
+
+const CODE_BG_DEFAULT = "bg-black/10 dark:bg-white/15";
 
 const LINK_DEFAULT =
   "text-sky-700 dark:text-sky-300 underline underline-offset-2 break-all hover:opacity-80";
@@ -45,7 +49,7 @@ function renderInline(
         return (
           <code
             key={key}
-            className="rounded bg-black/10 px-1 py-px font-mono text-[0.9em] dark:bg-white/15"
+            className={`rounded px-1 py-px font-mono text-[0.9em] ${props.codeBgClassName ?? CODE_BG_DEFAULT}`}
           >
             {n.value}
           </code>
@@ -114,7 +118,7 @@ export function WhatsAppText(props: Props) {
             return (
               <pre
                 key={key}
-                className="my-0.5 overflow-x-auto whitespace-pre rounded bg-black/10 p-2 font-mono text-[0.9em] dark:bg-white/15"
+                className={`my-0.5 overflow-x-auto whitespace-pre rounded p-2 font-mono text-[0.9em] ${props.codeBgClassName ?? CODE_BG_DEFAULT}`}
               >
                 {b.value}
               </pre>
