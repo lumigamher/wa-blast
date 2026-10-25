@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
 import { conversations, messages, organization } from "@/lib/db/schema";
-import { listConversations, updateMessageStatusByWamid } from "./store";
+import { eq } from "drizzle-orm";
+import {
+  listConversations,
+  recordInboundMessage,
+  recordOutboundMessage,
+  updateMessageStatusByWamid,
+} from "./store";
 import { createLabel, setConversationLabels } from "./labels";
 import { setAgentTyping } from "@/lib/agent/pause";
 
@@ -140,5 +146,63 @@ describe("updateMessageStatusByWamid", () => {
     const db = await setup();
     await updateMessageStatusByWamid(db, "o1", "w1", "failed", "boom");
     expect(await st(db)).toBe("failed");
+  });
+});
+
+describe("carrera por wamid (índice único parcial)", () => {
+  const parsed = {
+    type: "text",
+    body: "hola",
+    mediaId: null,
+    payloadJson: null,
+    replyToWamid: null,
+  } as unknown as Parameters<typeof recordInboundMessage>[1]["parsed"];
+
+  it("recordInboundMessage concurrente con el mismo wamid guarda una sola fila", async () => {
+    const { db } = makeTestDb();
+    await seed(db);
+    const input = {
+      orgId: "o1",
+      identity: { phone: "+573009" },
+      wamid: "wamid.RACE",
+      parsed,
+      ts: new Date(),
+    };
+    const [a, b] = await Promise.all([
+      recordInboundMessage(db, input),
+      recordInboundMessage(db, input),
+    ]);
+    expect([a.duplicate, b.duplicate].sort()).toEqual([false, true]);
+    const rows = await db.select().from(messages).where(eq(messages.wamid, "wamid.RACE"));
+    expect(rows).toHaveLength(1);
+    const [conv] = await db.select().from(conversations).where(eq(conversations.id, a.conversationId));
+    expect(conv.unreadCount).toBe(1);
+  });
+
+  it("recordOutboundMessage con wamid repetido no lanza y devuelve el id existente", async () => {
+    const { db } = makeTestDb();
+    const { c_ia } = await seed(db);
+    const input = {
+      orgId: "o1",
+      conversationId: c_ia,
+      wamid: "wamid.OUT",
+      type: "text",
+      body: "x",
+    };
+    const id1 = await recordOutboundMessage(db, input);
+    const id2 = await recordOutboundMessage(db, input);
+    expect(id2).toBe(id1);
+    const rows = await db.select().from(messages).where(eq(messages.wamid, "wamid.OUT"));
+    expect(rows).toHaveLength(1);
+  });
+
+  it("varios mensajes con wamid nulo conviven (índice parcial)", async () => {
+    const { db } = makeTestDb();
+    const { c_ia } = await seed(db);
+    const base = { orgId: "o1", conversationId: c_ia, wamid: null, type: "text", body: "f" };
+    await recordOutboundMessage(db, base);
+    await recordOutboundMessage(db, base);
+    const rows = await db.select().from(messages).where(eq(messages.conversationId, c_ia));
+    expect(rows).toHaveLength(2);
   });
 });

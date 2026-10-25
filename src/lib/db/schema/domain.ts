@@ -7,6 +7,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { organization, user } from "./auth";
 
 export const organizationSettings = sqliteTable("organization_settings", {
@@ -444,6 +445,8 @@ export const conversations = sqliteTable(
   (t) => ({
     orgPhoneUnique: uniqueIndex("conversations_org_phone").on(t.orgId, t.phone),
     orgBsuidUnique: uniqueIndex("conversations_org_bsuid").on(t.orgId, t.bsuid),
+    // Listado del inbox: ordena por última actividad dentro de la org.
+    orgLastMsgIdx: index("conversations_org_last_msg").on(t.orgId, t.lastMessageAt),
   }),
 );
 
@@ -475,7 +478,11 @@ export const messages = sqliteTable(
       t.conversationId,
       t.createdAt,
     ),
-    orgWamidIdx: index("messages_org_wamid").on(t.orgId, t.wamid),
+    // Único y parcial: una reentrega de Meta no puede duplicar el mensaje, y los
+    // mensajes sin wamid (envíos fallidos) pueden repetirse.
+    orgWamidIdx: uniqueIndex("messages_org_wamid")
+      .on(t.orgId, t.wamid)
+      .where(sql`wamid is not null`),
   }),
 );
 

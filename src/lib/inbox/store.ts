@@ -15,6 +15,12 @@ import { listNotes } from "@/lib/inbox/notes";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
 import { getReactionsForMessages } from "@/lib/inbox/reactions";
 
+/** Choque con un índice único (p. ej. messages_org_wamid en una carrera). */
+function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string } | null)?.code;
+  return code === "SQLITE_CONSTRAINT_UNIQUE" || code === "SQLITE_CONSTRAINT_PRIMARYKEY";
+}
+
 /**
  * Atajo para los llamadores que sí tienen teléfono (llamadas, worker de
  * campañas). Delega en la resolución por identidad para no duplicar las reglas.
@@ -64,49 +70,56 @@ export async function recordInboundMessage(
   // Mensaje + contadores de la conversación + respuesta de formulario en UNA transacción
   // sincrónica (better-sqlite3): o se aplica todo o nada, así que una reentrega nunca ve
   // el mensaje guardado sin sus efectos. recordFlowResponseSync solo toca la DB.
-  db.transaction((tx) => {
-    tx.insert(messages)
-      .values({
-        id: randomUUID(),
-        conversationId: conv.id,
-        orgId: input.orgId,
-        direction: "in",
-        wamid: input.wamid,
-        type: input.parsed.type,
-        body: input.parsed.body,
-        mediaId: input.parsed.mediaId,
-        status: null,
-        errorMessage: null,
-        payloadJson: input.parsed.payloadJson,
-        replyToWamid: input.parsed.replyToWamid,
-        createdAt: input.ts,
-      })
-      .run();
+  // Si dos entregas del mismo wamid pasan la verificación a la vez, la segunda choca
+  // con el índice único: la transacción se revierte entera y se trata como duplicado.
+  try {
+    db.transaction((tx) => {
+      tx.insert(messages)
+        .values({
+          id: randomUUID(),
+          conversationId: conv.id,
+          orgId: input.orgId,
+          direction: "in",
+          wamid: input.wamid,
+          type: input.parsed.type,
+          body: input.parsed.body,
+          mediaId: input.parsed.mediaId,
+          status: null,
+          errorMessage: null,
+          payloadJson: input.parsed.payloadJson,
+          replyToWamid: input.parsed.replyToWamid,
+          createdAt: input.ts,
+        })
+        .run();
 
-    tx.update(conversations)
-      .set({
-        lastMessageAt: input.ts,
-        lastIncomingAt: input.ts,
-        unreadCount: sql`${conversations.unreadCount} + 1`,
-      })
-      .where(eq(conversations.id, conv.id))
-      .run();
+      tx.update(conversations)
+        .set({
+          lastMessageAt: input.ts,
+          lastIncomingAt: input.ts,
+          unreadCount: sql`${conversations.unreadCount} + 1`,
+        })
+        .where(eq(conversations.id, conv.id))
+        .run();
 
-    // Respuesta de formulario (WhatsApp Flow): además del mensaje, persiste una
-    // fila estructurada para gestión/exportación.
-    if (input.parsed.type === "flow") {
-      recordFlowResponseSync(tx, {
-        orgId: input.orgId,
-        conversationId: conv.id,
-        contactId: conv.contactId ?? null,
-        phone: input.identity.phone ?? null,
-        contactName: input.profileName ?? null,
-        wamid: input.wamid ?? null,
-        payloadJson: input.parsed.payloadJson,
-        ts: input.ts,
-      });
-    }
-  });
+      // Respuesta de formulario (WhatsApp Flow): además del mensaje, persiste una
+      // fila estructurada para gestión/exportación.
+      if (input.parsed.type === "flow") {
+        recordFlowResponseSync(tx, {
+          orgId: input.orgId,
+          conversationId: conv.id,
+          contactId: conv.contactId ?? null,
+          phone: input.identity.phone ?? null,
+          contactName: input.profileName ?? null,
+          wamid: input.wamid ?? null,
+          payloadJson: input.parsed.payloadJson,
+          ts: input.ts,
+        });
+      }
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) return { conversationId: conv.id, duplicate: true };
+    throw e;
+  }
 
   return { conversationId: conv.id, duplicate: false };
 }
@@ -128,21 +141,33 @@ export async function recordOutboundMessage(
 ): Promise<string> {
   const id = randomUUID();
   const now = new Date();
-  await db.insert(messages).values({
-    id,
-    conversationId: input.conversationId,
-    orgId: input.orgId,
-    direction: "out",
-    wamid: input.wamid,
-    type: input.type,
-    body: input.body,
-    mediaId: input.mediaId ?? null,
-    status: input.status ?? (input.wamid ? "sent" : "failed"),
-    errorMessage: input.errorMessage ?? null,
-    payloadJson: input.payloadJson ?? null,
-    replyToWamid: input.replyToWamid ?? null,
-    createdAt: now,
-  });
+  try {
+    await db.insert(messages).values({
+      id,
+      conversationId: input.conversationId,
+      orgId: input.orgId,
+      direction: "out",
+      wamid: input.wamid,
+      type: input.type,
+      body: input.body,
+      mediaId: input.mediaId ?? null,
+      status: input.status ?? (input.wamid ? "sent" : "failed"),
+      errorMessage: input.errorMessage ?? null,
+      payloadJson: input.payloadJson ?? null,
+      replyToWamid: input.replyToWamid ?? null,
+      createdAt: now,
+    });
+  } catch (e) {
+    // wamid ya registrado (carrera con el webhook o reintento): devuelve la fila existente.
+    if (input.wamid && isUniqueViolation(e)) {
+      const [existing] = await db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(and(eq(messages.orgId, input.orgId), eq(messages.wamid, input.wamid)));
+      if (existing) return existing.id;
+    }
+    throw e;
+  }
   await db
     .update(conversations)
     .set({ lastMessageAt: now })

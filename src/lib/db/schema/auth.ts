@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const user = sqliteTable("user", {
   id: text("id").primaryKey(),
@@ -56,13 +56,19 @@ export const organization = sqliteTable("organization", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-export const member = sqliteTable("member", {
-  id: text("id").primaryKey(),
-  organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-  role: text("role").notNull().default("member"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-});
+export const member = sqliteTable(
+  "member",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({
+    userOrgUnique: uniqueIndex("member_user_org").on(t.userId, t.organizationId),
+  }),
+);
 
 export const invitation = sqliteTable("invitation", {
   id: text("id").primaryKey(),
