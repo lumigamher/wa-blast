@@ -75,10 +75,12 @@ describe("cola durable del agente", () => {
     expect(await claimAgentJob(db, "c1", new Date(t0))).toBeNull();
     const claimed = await claimAgentJob(db, "c1", new Date(t0 + 1000));
     expect(claimed?.attempts).toBe(1);
-    expect(claimed?.lockedUntil?.getTime()).toBe(t0 + 1000 + 180_000);
+    expect(claimed?.lockedUntil?.getTime()).toBe(t0 + 1000 + 600_000);
     expect(await claimAgentJob(db, "c1", new Date(t0 + 2000))).toBeNull();
+    // A los 3 min el lock sigue vigente (antes vencía ahí y duplicaba turnos).
+    expect(await claimAgentJob(db, "c1", new Date(t0 + 1000 + 180_001))).toBeNull();
     // Lock vencido: se puede volver a reclamar.
-    const again = await claimAgentJob(db, "c1", new Date(t0 + 1000 + 180_001));
+    const again = await claimAgentJob(db, "c1", new Date(t0 + 1000 + 600_001));
     expect(again?.attempts).toBe(2);
   });
 

@@ -4,7 +4,8 @@ import { messages } from "@/lib/db/schema";
 import { markRead, sendText } from "@/lib/meta/client";
 import { credsFromSettings } from "@/lib/meta/graph";
 import { getOrgSettings } from "@/lib/org/settings";
-import { setAgentTyping } from "./pause";
+import { getAgentConfig } from "./config";
+import { isPaused, setAgentTyping } from "./pause";
 import type { AgentJob } from "./queue";
 import { type AgentSender, runAgentTurn } from "./turn";
 
@@ -15,6 +16,13 @@ import { type AgentSender, runAgentTurn } from "./turn";
  */
 export async function runRealTurn(db: DB, job: AgentJob): Promise<void> {
   const { orgId, conversationId, recipient } = job;
+  // El job puede correr minutos después de encolarse (debounce, barrido tras un
+  // reinicio): si entretanto se apagó el agente o un humano pausó la
+  // conversación, no se muestra "escribiendo…" ni se corre el turno.
+  const config = await getAgentConfig(db, orgId);
+  if (!config.enabled) return;
+  if (await isPaused(db, conversationId)) return;
+
   const settings = await getOrgSettings(db, orgId);
   const creds = credsFromSettings(settings);
   const sender: AgentSender = async ({ to, body, replyTo }) => {

@@ -18,8 +18,13 @@ export type QueueDeps = { runTurn?: TurnRunner };
 
 type AgentJobRow = typeof agentJobs.$inferSelect;
 
-/** Duración del lock de un turno en curso. */
-export const AGENT_LOCK_MS = 180_000;
+/**
+ * Duración del lock de un turno en curso: 10 min. El lock no se renueva, así
+ * que debe cubrir de sobra el turno más largo (varios pasos de LLM sin timeout
+ * propio). Una respuesta duplicada por WhatsApp es peor que retomar tarde un
+ * turno tras un reinicio.
+ */
+export const AGENT_LOCK_MS = 600_000;
 /** Intentos fallidos antes de descartar el job. */
 export const AGENT_MAX_ATTEMPTS = 3;
 /** Jobs por barrido del cron. */

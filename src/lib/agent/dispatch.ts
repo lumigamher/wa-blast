@@ -24,14 +24,20 @@ export async function maybeDispatchAgentTurn(
   if (!config.enabled) return;
   if (await isPaused(db, conversationId)) return;
 
-  // Mostrar "escribiendo…" de inmediato (cubre el debounce + el turno).
+  // Primero los dos chequeos de arriba, después el typing. Mostrar "escribiendo…" de inmediato (cubre el debounce + el turno).
   try {
     const settings = await getOrgSettings(db, orgId);
     const creds = credsFromSettings(settings);
     const lastInbound = await db
       .select({ wamid: messages.wamid })
       .from(messages)
-      .where(and(eq(messages.conversationId, conversationId), eq(messages.direction, "in")))
+      .where(
+        and(
+          eq(messages.orgId, orgId),
+          eq(messages.conversationId, conversationId),
+          eq(messages.direction, "in"),
+        ),
+      )
       .orderBy(desc(messages.createdAt))
       .limit(1);
     if (lastInbound[0]?.wamid && creds) {
