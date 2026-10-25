@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { makeTestDb } from "@/lib/db/test-db";
-import { agentConfigs, conversations, messages, organization } from "@/lib/db/schema";
+import { agentConfigs, agentJobs, conversations, messages, organization } from "@/lib/db/schema";
 import { maybeDispatchAgentTurn } from "./dispatch";
+import { __resetQueue } from "./queue";
 
 async function seed(db: ReturnType<typeof makeTestDb>["db"], enabled: boolean) {
   await db.insert(organization).values({ id: "o1", name: "o1", slug: "o1", createdAt: new Date() });
@@ -92,7 +93,25 @@ describe("maybeDispatchAgentTurn", () => {
     expect(enqueue).toHaveBeenCalledTimes(1);
     // El typing se debe haber enviado antes del enqueue (sin esperar el debounce)
     // Verificar que hay un mensaje agentPending en la DB con agentTypingUntil seteado
-    const [conversationId] = enqueue.mock.calls[0];
-    expect(conversationId).toBe("c1");
+    const [, job] = enqueue.mock.calls[0];
+    expect(job).toEqual({ orgId: "o1", conversationId: "c1", recipient: "+57300" });
+  });
+
+  describe("encolado durable por defecto", () => {
+    afterEach(() => {
+      __resetQueue();
+      vi.useRealTimers();
+    });
+    it("sin deps.enqueue escribe el job en agent_jobs con el recipient", async () => {
+      vi.useFakeTimers();
+      const { db } = makeTestDb();
+      await seed(db, true);
+      const recipient = { phone: "+57300", bsuid: null };
+      await maybeDispatchAgentTurn(db, "o1", "c1", recipient);
+      const row = db.select().from(agentJobs).where(eq(agentJobs.conversationId, "c1")).get();
+      expect(row?.orgId).toBe("o1");
+      expect(JSON.parse(row!.recipientJson)).toEqual(recipient);
+      expect(row?.dueAt.getTime()).toBe(Date.now() + 8000);
+    });
   });
 });

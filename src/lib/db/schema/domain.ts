@@ -851,3 +851,29 @@ export const webhookDrops = sqliteTable(
   },
   (t) => ({ createdIdx: index("webhook_drops_created_idx").on(t.createdAt) }),
 );
+
+/**
+ * Turno pendiente del agente, uno por conversación. Es la fuente de verdad del
+ * debounce: el `setTimeout` en memoria solo baja la latencia, y si el proceso
+ * se reinicia el cron barre lo vencido. `lockedUntil` es el lock del turno en
+ * curso (evita dos turnos de la misma conversación a la vez). `dueAt` y
+ * `lockedUntil` van en milisegundos porque la liberación compara `dueAt` exacto.
+ */
+export const agentJobs = sqliteTable(
+  "agent_jobs",
+  {
+    conversationId: text("conversation_id")
+      .primaryKey()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** `string | Recipient` serializado con JSON.stringify. */
+    recipientJson: text("recipient_json").notNull(),
+    dueAt: integer("due_at", { mode: "timestamp_ms" }).notNull(),
+    lockedUntil: integer("locked_until", { mode: "timestamp_ms" }),
+    attempts: integer("attempts").notNull().default(0),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => ({ dueIdx: index("agent_jobs_due_idx").on(t.dueAt) }),
+);

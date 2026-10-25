@@ -4,6 +4,7 @@ import type { DB } from "@/lib/db/client";
 import { db } from "@/lib/db/client";
 import { campaigns } from "@/lib/db/schema";
 import { getWorker } from "@/lib/campaigns/worker";
+import { sweepAgentJobs } from "@/lib/agent/queue";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,5 +65,14 @@ export async function GET(req: Request) {
     ids.push(c.id);
   }
 
-  return NextResponse.json({ ok: true, triggered: ids, recovered });
+  // Turnos del agente vencidos sin timer (p. ej. tras un reinicio). No espera
+  // los turnos; un fallo del barrido no debe tumbar el cron de campañas.
+  let agentJobs = 0;
+  try {
+    agentJobs = await sweepAgentJobs(db, new Date());
+  } catch (e) {
+    console.error("[agent] sweep error", e);
+  }
+
+  return NextResponse.json({ ok: true, triggered: ids, recovered, agentJobs });
 }
