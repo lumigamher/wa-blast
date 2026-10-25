@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { getMediaAsset } from "@/lib/media/store";
 import { getOrgSettings } from "@/lib/org/settings";
 import { ensureInboundMedia } from "@/lib/media/inbound";
+import { mediaServeHeaders } from "@/lib/media/serve-headers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mediaId
     if (!asset || asset.orgId !== orgId) return new Response("Not found", { status: 404 });
     const buf = await readFile(asset.path);
     return new Response(buf, {
-      headers: { "content-type": asset.mime, "cache-control": "private, max-age=86400" },
+      headers: mediaServeHeaders(asset.mime, undefined, "private, max-age=86400"),
     });
   }
 
@@ -42,6 +43,6 @@ export async function GET(_req: Request, { params }: { params: Promise<{ mediaId
 
   const buf = await readFile(asset.path);
   return new Response(buf, {
-    headers: { "content-type": asset.mime, "cache-control": "private, max-age=86400" },
+    headers: mediaServeHeaders(asset.mime, undefined, "private, max-age=86400"),
   });
 }
