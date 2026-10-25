@@ -17,42 +17,8 @@ export async function handleStatusEvent(
   status: { id: string; status: "sent" | "delivered" | "read" | "failed"; timestamp: string; recipient_id?: string; recipient_user_id?: string; errors?: Array<{ message?: string; title?: string }> },
 ) {
   const ts = new Date(Number(status.timestamp) * 1000);
-  // Dedupe: si el evento ya quedó registrado, los efectos ya se aplicaron por completo.
-  // El evento se inserta AL FINAL: si un efecto lanza, la reentrega de Meta reintenta todo.
-  const [seen] = await db
-    .select({ id: messageEvents.id })
-    .from(messageEvents)
-    .where(and(eq(messageEvents.wamid, status.id), eq(messageEvents.event, status.status)));
-  if (seen) return; // webhook retransmitido: ya procesado
-
-  // Update inbox message status (idempotente)
-  await updateMessageStatusByWamid(db, status.id, status.status, status.errors?.[0]?.message);
-
-  const [rec] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, status.id));
-  if (rec) {
-    // Verify the campaign belongs to this org
-    const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, rec.campaignId));
-    if (camp && camp.orgId === orgId) {
-      const counter =
-        status.status === "delivered"
-          ? { delivered: sql`${campaigns.delivered} + 1` }
-          : status.status === "read"
-            ? { read: sql`${campaigns.read} + 1` }
-            : status.status === "failed"
-              ? { failed: sql`${campaigns.failed} + 1` }
-              : null;
-      if (counter && rec.status !== status.status) {
-        // Contador + estado del destinatario en una transacción sincrónica (better-sqlite3):
-        // o se aplican los dos o ninguno, y si el estado ya es el mismo no se suma otra vez.
-        db.transaction((tx) => {
-          tx.update(campaigns).set(counter).where(eq(campaigns.id, rec.campaignId)).run();
-          tx.update(campaignRecipients).set({ status: status.status as "delivered" | "read" | "failed" }).where(eq(campaignRecipients.id, rec.id)).run();
-        });
-      }
-    }
-  }
-
-  await db
+  // Gate atómico al inicio (índice único wamid+event): solo un procesamiento pasa.
+  const inserted = await db
     .insert(messageEvents)
     .values({
       wamid: status.id,
@@ -60,7 +26,41 @@ export async function handleStatusEvent(
       timestamp: ts,
       payload: JSON.stringify(status),
     })
-    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] });
+    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
+    .returning({ id: messageEvents.id });
+  if (inserted.length === 0) return; // webhook retransmitido: ya procesado
+
+  try {
+    // Update inbox message status
+    await updateMessageStatusByWamid(db, status.id, status.status, status.errors?.[0]?.message);
+
+    const [rec] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, status.id));
+    if (!rec) return;
+
+    // Verify the campaign belongs to this org
+    const [camp] = await db.select().from(campaigns).where(eq(campaigns.id, rec.campaignId));
+    if (!camp || camp.orgId !== orgId) return;
+
+    const counter =
+      status.status === "delivered"
+        ? { delivered: sql`${campaigns.delivered} + 1` }
+        : status.status === "read"
+          ? { read: sql`${campaigns.read} + 1` }
+          : status.status === "failed"
+            ? { failed: sql`${campaigns.failed} + 1` }
+            : null;
+    if (counter && rec.status !== status.status) {
+      // Contador + estado del destinatario en una transacción sincrónica (better-sqlite3).
+      db.transaction((tx) => {
+        tx.update(campaigns).set(counter).where(eq(campaigns.id, rec.campaignId)).run();
+        tx.update(campaignRecipients).set({ status: status.status as "delivered" | "read" | "failed" }).where(eq(campaignRecipients.id, rec.id)).run();
+      });
+    }
+  } catch (e) {
+    // Si el procesamiento falla, se libera el gate para que la reentrega de Meta (500) reintente.
+    await db.delete(messageEvents).where(and(eq(messageEvents.wamid, status.id), eq(messageEvents.event, status.status)));
+    throw e;
+  }
 }
 
 export async function handleInboundMessage(
@@ -85,34 +85,26 @@ export async function handleInboundMessage(
 
   const body = msg.text?.body ?? "";
 
-  // Dedupe: si el evento "replied" ya quedó registrado, el mensaje se procesó por completo.
-  // El evento se inserta AL FINAL: si guardar el mensaje lanza, la reentrega de Meta reintenta todo.
-  const [seen] = await db
-    .select({ id: messageEvents.id })
-    .from(messageEvents)
-    .where(and(eq(messageEvents.wamid, msg.id), eq(messageEvents.event, "replied")));
-  if (seen) return; // webhook retransmitido: ya procesado
+  // Gate atómico al inicio (índice único wamid+event): solo un procesamiento pasa.
+  const inserted = await db
+    .insert(messageEvents)
+    .values({
+      wamid: msg.id,
+      event: "replied",
+      timestamp: ts,
+      payload: JSON.stringify({ from: msg.from ?? identity.bsuid, preview: body.slice(0, 40) }),
+    })
+    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] })
+    .returning({ id: messageEvents.id });
+  if (inserted.length === 0) return; // webhook retransmitido: ya procesado
 
-  if (body && matchOptOut(body, optoutKeywords)) {
-    const col = identity.bsuid ? contacts.bsuid : contacts.phone;
-    const val = (identity.bsuid ?? identity.phone) as string;
-    await db.update(contacts).set({ optOutAt: ts }).where(and(eq(contacts.orgId, orgId), eq(col, val)));
-  }
+  try {
+    if (body && matchOptOut(body, optoutKeywords)) {
+      const col = identity.bsuid ? contacts.bsuid : contacts.phone;
+      const val = (identity.bsuid ?? identity.phone) as string;
+      await db.update(contacts).set({ optOutAt: ts }).where(and(eq(contacts.orgId, orgId), eq(col, val)));
+    }
 
-  // Parse message once and reuse
-  const parsed = parseInboundMessage(msg);
-
-  // Persist inbound message to inbox (idempotente por wamid: devuelve duplicate si ya existía)
-  const { conversationId, duplicate } = await recordInboundMessage(db, {
-    orgId,
-    identity,
-    wamid: msg.id,
-    parsed,
-    ts,
-    profileName,
-  });
-
-  if (!duplicate) {
     const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000);
     const [recent] = await db
       .select()
@@ -128,6 +120,21 @@ export async function handleInboundMessage(
       .orderBy(desc(campaignRecipients.sentAt))
       .limit(1);
 
+    // Parse message once and reuse
+    const parsed = parseInboundMessage(msg);
+
+    // Persist inbound message to inbox. Su dedupe por wamid evita duplicar la fila si un
+    // intento anterior alcanzó a insertarla; `duplicate` NO exime de replied ni del agente
+    // (el gate ya garantiza que solo un procesamiento llega aquí).
+    const { conversationId } = await recordInboundMessage(db, {
+      orgId,
+      identity,
+      wamid: msg.id,
+      parsed,
+      ts,
+      profileName,
+    });
+
     if (recent) {
       await db
         .update(campaigns)
@@ -141,36 +148,29 @@ export async function handleInboundMessage(
     } catch (e) {
       console.error("[agent] dispatch fallo", e);
     }
-  }
 
-  // Proactively cache inbound media (best-effort, doesn't break webhook if it fails)
-  if (parsed.mediaId) {
-    try {
-      const settings = await getOrgSettings(db, orgId);
-      if (settings.metaAccessToken) {
-        await ensureInboundMedia(db, {
-          orgId,
-          metaMediaId: parsed.mediaId,
-          accessToken: settings.metaAccessToken,
-          directUrl: parsed.mediaUrl,
-          mime: parsed.mediaMime,
-        });
+    // Proactively cache inbound media (best-effort, doesn't break webhook if it fails)
+    if (parsed.mediaId) {
+      try {
+        const settings = await getOrgSettings(db, orgId);
+        if (settings.metaAccessToken) {
+          await ensureInboundMedia(db, {
+            orgId,
+            metaMediaId: parsed.mediaId,
+            accessToken: settings.metaAccessToken,
+            directUrl: parsed.mediaUrl,
+            mime: parsed.mediaMime,
+          });
+        }
+      } catch {
+        // Best-effort: log silently and continue
       }
-    } catch {
-      // Best-effort: log silently and continue
     }
+  } catch (e) {
+    // Si el procesamiento falla, se libera el gate para que la reentrega de Meta (500) reintente.
+    await db.delete(messageEvents).where(and(eq(messageEvents.wamid, msg.id), eq(messageEvents.event, "replied")));
+    throw e;
   }
-
-  // Marca el webhook como procesado SOLO cuando todo lo anterior tuvo éxito.
-  await db
-    .insert(messageEvents)
-    .values({
-      wamid: msg.id,
-      event: "replied",
-      timestamp: ts,
-      payload: JSON.stringify({ from: msg.from ?? identity.bsuid, preview: body.slice(0, 40) }),
-    })
-    .onConflictDoNothing({ target: [messageEvents.wamid, messageEvents.event] });
 }
 
 export async function handleCallEvent(

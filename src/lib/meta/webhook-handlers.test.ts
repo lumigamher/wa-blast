@@ -63,6 +63,39 @@ describe("handleInboundMessage: reentregas", () => {
   });
 });
 
+describe("handleInboundMessage: fallos tras guardar y concurrencia", () => {
+  it("falla el update de replied tras guardar el mensaje: la reentrega completa contador y despacho una vez", async () => {
+    const db = await seed();
+    const spy = vi.spyOn(db, "update");
+    // el primer update tras guardar (conversations) lo dejamos pasar; hacemos fallar el de campaigns
+    spy.mockImplementation(((table: unknown) => {
+      if (table === campaigns) {
+        spy.mockRestore();
+        throw new Error("SQLITE_BUSY");
+      }
+      return (Object.getPrototypeOf(db).update as (t: unknown) => unknown).call(db, table);
+    }) as never);
+    await expect(handleInboundMessage(db, "o1", msg("wamid.in3"), [], "Juan", identity)).rejects.toThrow("SQLITE_BUSY");
+    expect(maybeDispatchAgentTurn).toHaveBeenCalledTimes(0);
+    await handleInboundMessage(db, "o1", msg("wamid.in3"), [], "Juan", identity);
+    await handleInboundMessage(db, "o1", msg("wamid.in3"), [], "Juan", identity);
+    expect(await db.select().from(messages).where(eq(messages.wamid, "wamid.in3"))).toHaveLength(1);
+    expect(maybeDispatchAgentTurn).toHaveBeenCalledTimes(1);
+    expect((await camp(db)).replied).toBe(1);
+  });
+
+  it("dos procesamientos concurrentes: un mensaje, replied +1, un despacho", async () => {
+    const db = await seed();
+    await Promise.all([
+      handleInboundMessage(db, "o1", msg("wamid.in4"), [], "Juan", identity),
+      handleInboundMessage(db, "o1", msg("wamid.in4"), [], "Juan", identity),
+    ]);
+    expect(await db.select().from(messages).where(eq(messages.wamid, "wamid.in4"))).toHaveLength(1);
+    expect(maybeDispatchAgentTurn).toHaveBeenCalledTimes(1);
+    expect((await camp(db)).replied).toBe(1);
+  });
+});
+
 describe("handleStatusEvent: reentregas", () => {
   const status = { id: "wamid.out", status: "delivered" as const, timestamp: "1786000000" };
 
@@ -77,5 +110,11 @@ describe("handleStatusEvent: reentregas", () => {
     expect(rec.status).toBe("delivered");
     const evs = await db.select().from(messageEvents).where(and(eq(messageEvents.wamid, "wamid.out"), eq(messageEvents.event, "delivered")));
     expect(evs).toHaveLength(1);
+  });
+
+  it("dos status concurrentes: contador +1", async () => {
+    const db = await seed();
+    await Promise.all([handleStatusEvent(db, "o1", status), handleStatusEvent(db, "o1", status)]);
+    expect((await camp(db)).delivered).toBe(1);
   });
 });
