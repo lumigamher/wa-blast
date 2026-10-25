@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db/client";
 import { requireOrg } from "@/lib/auth/session";
 import { createCampaign } from "@/lib/campaigns/create";
+import { failedRowsToRecipients } from "@/lib/campaigns/retry";
 import { getWorker } from "@/lib/campaigns/worker";
 import { campaignRecipients, campaigns } from "@/lib/db/schema";
 import { cancelCampaign, deleteCampaign, rescheduleCampaign, type ManageResult } from "@/lib/campaigns/manage";
@@ -39,12 +40,7 @@ export async function retryFailedAction(campaignId: string): Promise<RetryFailed
     templateType: (camp.templateType as "standard" | "carousel") ?? "standard",
     componentPlanJson: camp.componentPlanJson,
     source: "adhoc",
-    recipients: failed.map((r) => ({
-      contactId: r.contactId ?? undefined,
-      phone: r.phone,
-      name: r.name,
-      params: JSON.parse(r.params) as Record<string, string>,
-    })),
+    recipients: failedRowsToRecipients(failed),
   });
 
   void getWorker(db)

@@ -52,7 +52,7 @@ export type CreateCampaignResult =
 async function findRecentDuplicate(
   orgId: string,
   templateName: string,
-  phones: string[],
+  phones: string[], // teléfonos o, si no hay, BSUID del destinatario
 ): Promise<{ name: string; overlap: number } | null> {
   if (phones.length === 0) return null;
   const since = new Date(Date.now() - 10 * 60_000);
@@ -65,10 +65,13 @@ async function findRecentDuplicate(
   const newSet = new Set(phones);
   for (const camp of recent) {
     const rows = await db
-      .select({ phone: campaignRecipients.phone })
+      .select({ phone: campaignRecipients.phone, bsuid: campaignRecipients.bsuid })
       .from(campaignRecipients)
       .where(eq(campaignRecipients.campaignId, camp.id));
-    const overlap = rows.filter((r) => r.phone && newSet.has(r.phone)).length;
+    const overlap = rows.filter((r) => {
+      const id = r.phone ?? r.bsuid;
+      return id && newSet.has(id);
+    }).length;
     if (overlap / newSet.size >= 0.5) return { name: camp.name, overlap };
   }
   return null;
@@ -197,7 +200,7 @@ export async function createCampaignAction(input: unknown): Promise<CreateCampai
   if (recipients.length === 0) return { ok: false, error: "No hay destinatarios válidos" };
 
   if (!data.force) {
-    const dup = await findRecentDuplicate(orgId, data.templateName, recipients.map((r) => r.phone).filter((p): p is string => !!p));
+    const dup = await findRecentDuplicate(orgId, data.templateName, recipients.map((r) => r.phone ?? r.bsuid).filter((p): p is string => !!p));
     if (dup) {
       return {
         ok: false,

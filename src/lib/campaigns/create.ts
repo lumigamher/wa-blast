@@ -63,6 +63,7 @@ export async function createCampaign(
           campaignId,
           contactId: r.contactId ?? null,
           phone: r.phone,
+          bsuid: r.bsuid ?? null,
           name: r.name ?? null,
           params: JSON.stringify(r.params),
           status: "pending" as const,
