@@ -22,6 +22,12 @@ ssh "$HOST" "cd $DIR && \
   rm -rf .next-build && \
   NEXT_DIST_DIR=.next-build bun run build && \
   set -a && . ./.env.local && set +a && \
+  test -f \"\$DATABASE_URL\" && \
+  mkdir -p /var/backups/wa-blast && \
+  BK=/var/backups/wa-blast/pre-migrate-\$(date +%Y%m%d-%H%M%S).db && \
+  sqlite3 \"\$DATABASE_URL\" \".backup '\$BK'\" && \
+  chmod 600 \"\$BK\" && \
+  (ls -1t /var/backups/wa-blast/pre-migrate-*.db | tail -n +6 | xargs -r rm -f) && \
   bun run db:migrate && \
   chown -R wablast:wablast .next-build && \
   rm -rf .next-old && mv .next .next-old && mv .next-build .next && \
@@ -29,6 +35,13 @@ ssh "$HOST" "cd $DIR && \
   sleep 3 && systemctl is-active wa-blast"
 # (set -a sourcea .env.local porque drizzle-kit NO lo carga solo — sin esto
 #  migraría contra el fallback .data/wa-blast.db en vez de /var/lib/wa-blast)
+# Backup pre-migrate: usa $DATABASE_URL de .env.local (la misma fuente que lee
+# el servicio vía Next; el unit de systemd no define la ruta). Como corre con
+# `&&` bajo el shell remoto, si sqlite3 falla NO se migra ni se hace swap y el
+# ssh devuelve error -> `set -e` local aborta el deploy. Se guarda fuera de
+# $DIR (no lo toca el swap) en /var/backups/wa-blast, mismo sqlite3 .backup que
+# deploy/backup-db.sh, modo 600 (root; el deploy corre como root). Retención:
+# últimos 5 pre-migrate-*.db (los data-*.db del cron diario no se tocan).
 
 echo "→ Health check…"
 code=$(ssh "$HOST" "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3010/login")
