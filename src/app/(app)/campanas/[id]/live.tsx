@@ -205,6 +205,18 @@ function Stat({ label, value, color }: { label: string; value: number; color?: s
   );
 }
 
+// Etiquetas en español, en línea con las tarjetas de arriba. `sending` es la
+// reserva del worker (fila tomada, envío a Meta en curso).
+const RECIPIENT_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  sending: "Enviando",
+  sent: "Enviado",
+  delivered: "Entregado",
+  read: "Leído",
+  failed: "Fallido",
+  replied: "Respondió",
+};
+
 function RecipientBadge({ s }: { s: string }) {
   const variant: "default" | "secondary" | "destructive" | "outline" =
     s === "sent" || s === "delivered" || s === "read"
@@ -216,7 +228,7 @@ function RecipientBadge({ s }: { s: string }) {
           : "outline";
   return (
     <Badge variant={variant} className="text-[11px]">
-      {s}
+      {RECIPIENT_LABELS[s] ?? s}
     </Badge>
   );
 }
