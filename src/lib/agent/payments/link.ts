@@ -9,7 +9,12 @@ export async function generarLinkPago(
   input: { orgId: string; conversationId: string; orderId?: string },
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const order = input.orderId
-    ? (await db.select().from(orders).where(and(eq(orders.id, input.orderId), eq(orders.orgId, input.orgId))))[0]
+    ? (
+        await db
+          .select()
+          .from(orders)
+          .where(and(eq(orders.id, input.orderId), eq(orders.orgId, input.orgId), eq(orders.conversationId, input.conversationId)))
+      )[0]
     : (
         await db
           .select()

@@ -290,4 +290,31 @@ describe("enviar_checkout", () => {
     expect(body.recipient).toBe("US.999");
     expect(body.to).toBeUndefined();
   });
+  it("con orderId de otra org o de otra conversación: no lo usa y no envía nada", async () => {
+    const { db } = makeTestDb();
+    await db.insert(organization).values({ id: "o6", name: "o6", slug: "o6", createdAt: new Date() });
+    await db.insert(organization).values({ id: "o7", name: "o7", slug: "o7", createdAt: new Date() });
+    await db.insert(organizationSettings).values({
+      orgId: "o6",
+      metaPhoneId: "123",
+      metaAccessTokenEnc: encrypt("test-token"),
+      updatedAt: new Date(),
+    });
+    const conv = (id: string, orgId: string) => ({ id, orgId, phone: "+57300", lastMessageAt: new Date(), unreadCount: 0, createdAt: new Date() });
+    await db.insert(conversations).values(conv("c6", "o6"));
+    await db.insert(conversations).values({ ...conv("c6b", "o6"), phone: "+57302" });
+    await db.insert(conversations).values(conv("c7", "o7"));
+    const base = { status: "pendiente" as const, totalCop: 1, itemsJson: "[]", createdAt: new Date() };
+    await db.insert(orders).values({ id: "ord-otra-conv", orgId: "o6", conversationId: "c6b", ...base });
+    await db.insert(orders).values({ id: "ord-otra-org", orgId: "o7", conversationId: "c7", ...base });
+    await saveAgentConfig(db, "o6", { checkoutFlowId: "flow-6" });
+
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    for (const orderId of ["ord-otra-conv", "ord-otra-org"]) {
+      const r = await enviarCheckout.run({ orderId }, { db, orgId: "o6", conversationId: "c6" });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.error).toContain("No hay un pedido");
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

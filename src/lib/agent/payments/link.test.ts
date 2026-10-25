@@ -216,6 +216,23 @@ describe("link.ts", () => {
       }
     });
 
+    it("con orderId de otra org o de otra conversación: no encuentra el pedido", async () => {
+      const { db } = makeTestDb();
+      await seed(db);
+      await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+      await db.insert(conversations).values({ id: "c2", orgId: "o1", phone: "+57301", lastMessageAt: new Date(), createdAt: new Date() });
+      await db.insert(conversations).values({ id: "c9", orgId: "o2", phone: "+57309", lastMessageAt: new Date(), createdAt: new Date() });
+      const base = { itemsJson: "[]", totalCop: 1, status: "pendiente" as const, createdAt: new Date() };
+      await db.insert(orders).values({ id: "otra-conv", orgId: "o1", conversationId: "c2", ...base });
+      await db.insert(orders).values({ id: "otra-org", orgId: "o2", conversationId: "c9", ...base });
+      for (const orderId of ["otra-conv", "otra-org"]) {
+        const result = await generarLinkPago(db, { orgId: "o1", conversationId: "c1", orderId });
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.error).toBe("No hay un pedido para cobrar");
+      }
+      expect(await db.select().from(orderPayments)).toHaveLength(0);
+    });
+
     it("returns most recent pending order when multiple exist", async () => {
       const { db } = makeTestDb();
       await seed(db);

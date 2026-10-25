@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { conversations, orders } from "@/lib/db/schema";
 import { getAgentConfig } from "@/lib/agent/config";
@@ -36,7 +36,13 @@ export const enviarCheckout: AgentTool = {
       const [row] = await ctx.db
         .select()
         .from(orders)
-        .where(eq(orders.id, orderId));
+        .where(
+          and(
+            eq(orders.id, orderId),
+            eq(orders.orgId, ctx.orgId),
+            eq(orders.conversationId, ctx.conversationId),
+          ),
+        );
       order = row;
     } else {
       // Get latest pending order for this conversation
