@@ -135,3 +135,37 @@ Hacer:
 3. NO ejecutar el script ni conectarse al servidor. Validar sintaxis con `bash -n deploy/deploy.sh`.
 Tests: un test que verifique que la conexión de `client.ts` queda con `busy_timeout` 5000 solo si es factible
 sin efectos secundarios (el cliente abre `env.DATABASE_URL`); si no, omitirlo y explicarlo en el reporte.
+
+## Task 7: Inbox y vistas previas: renderizar el formato de WhatsApp (y el pseudo-markdown)
+
+Problema (reportado por Luis): en el front de los chats el texto se pinta crudo. `thread.tsx` (`renderMessageContent`,
+~líneas 676-697: `case "text"` devuelve `message.body` y los captions de image/video también) y el contenedor
+de la burbuja (~línea 476, `whitespace-pre-wrap`) no interpretan formato: se ven `*negrita*`, `_cursiva_`,
+`~tachado~`, ```` ``` ```` literales, y los `**markdown**` que el agente mandaba antes del 13-ago (y lo que
+teclean personas o clientes). La vista previa de plantillas `src/components/whatsapp-bubble.tsx` (`renderText`,
+~línea 201, solo reemplaza `{{n}}`) tampoco formatea. Del lado de envío ya existe `src/lib/agent/whatsapp-format.ts`
+(`toWhatsAppFormat`, convierte markdown→WhatsApp al ENVIAR); NO cambiar su comportamiento.
+
+Hacer:
+1. Un parser puro (p. ej. `src/lib/format/whatsapp-render.ts`) que convierta un string en un árbol de tokens
+   (no HTML) y un componente React cliente (p. ej. `src/components/whatsapp-text.tsx`) que lo pinte con elementos
+   React (`<strong>`, `<em>`, `<s>`, `<code>`, `<pre>`, `<a>`). PROHIBIDO `dangerouslySetInnerHTML`.
+2. Reglas, iguales a las de WhatsApp: `*negrita*`, `_cursiva_`, `~tachado~`, `` `código` `` en línea,
+   bloques ```` ```mono``` ```` (sin formato adentro, preservar saltos), y por línea: `> cita`, listas `- ` / `* ` /
+   `1. `. Un marcador solo aplica si abre pegado a un carácter no-espacio y cierra pegado a uno no-espacio,
+   en la misma línea, y el de apertura está al inicio o tras espacio/puntuación (así `2*3*4`, `snake_case_var`,
+   `archivo_final_v2.pdf` y asteriscos sueltos NO se formatean). Anidamiento simple (`*_x_*`) soportado.
+   Pseudo-markdown: `**x**` y `__x__` se pintan como negrita; `[texto](url)` como enlace. Los `#`/`##` al inicio de
+   línea se pintan como negrita sin los numerales.
+3. URLs `http(s)://…` y `www.…` como enlaces `target="_blank" rel="noopener noreferrer nofollow"` (sin la
+   puntuación final pegada). Solo esquemas http/https (`javascript:` jamás).
+4. Usarlo en `thread.tsx` para el texto y los captions de image/video (y en cualquier otro tipo que muestre
+   `message.body` como texto libre del cliente/agente: revisar con criterio y listar en el reporte), y en
+   `whatsapp-bubble.tsx` combinándolo con el reemplazo/realce de `{{n}}` existente (que siga funcionando).
+   En la lista de conversaciones (`conversation-list-pane.tsx`, `conv.preview` ~línea 126) quitar los marcadores
+   (texto plano, sin `*`/`_`/`~`/```` ``` ````) con una función `stripWhatsAppFormat` del mismo módulo.
+5. Estilos con Tailwind coherentes con las burbujas: `code` con fondo sutil y `font-mono`, `pre` con scroll
+   horizontal, citas con borde izquierdo, enlaces subrayados con color legible en claro y oscuro (contraste AA).
+Tests: unitarios del parser (cada marcador, los casos negativos de arriba, URLs con puntuación final, bloque
+``` multilínea, pseudo-markdown, anidado, texto vacío) y de `stripWhatsAppFormat`. No hace falta test de UI;
+verificar que `tsc` y `eslint` queden limpios.
