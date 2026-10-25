@@ -146,6 +146,72 @@ describe("handleInboundMessage: atomicidad y liberación del gate", () => {
   });
 });
 
+describe("handleInboundMessage: atribución por org", () => {
+  it("un celular con campaña de la org A que escribe a la org B no suma replied en A", async () => {
+    const db = await seed();
+    await db.insert(organization).values({ id: "o2", name: "o2", slug: "o2", createdAt: new Date() });
+    await handleInboundMessage(db, "o2", msg("wamid.orgB"), [], "Juan", identity);
+    expect((await camp(db)).replied).toBe(0);
+  });
+
+  it("en la misma org sí suma replied", async () => {
+    const db = await seed();
+    await handleInboundMessage(db, "o1", msg("wamid.orgA"), [], "Juan", identity);
+    expect((await camp(db)).replied).toBe(1);
+  });
+});
+
+describe("handleStatusEvent: ranking de estados", () => {
+  const ev = (s: "sent" | "delivered" | "read" | "failed") => ({ id: "wamid.out", status: s, timestamp: "1786000000" });
+  const rec = async (db: Awaited<ReturnType<typeof seed>>) =>
+    (await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, "wamid.out")))[0];
+
+  it("delivered tardío tras read no retrocede ni suma", async () => {
+    const db = await seed();
+    await handleStatusEvent(db, "o1", ev("read"));
+    await handleStatusEvent(db, "o1", ev("delivered"));
+    const c = await camp(db);
+    expect(c.read).toBe(1);
+    expect(c.delivered).toBe(0);
+    expect((await rec(db)).status).toBe("read");
+  });
+
+  it("read sin delivered previo suma read y no inventa delivered", async () => {
+    const db = await seed();
+    await handleStatusEvent(db, "o1", ev("read"));
+    const c = await camp(db);
+    expect(c.read).toBe(1);
+    expect(c.delivered).toBe(0);
+  });
+
+  it("failed tras delivered no aplica", async () => {
+    const db = await seed();
+    await handleStatusEvent(db, "o1", ev("delivered"));
+    await handleStatusEvent(db, "o1", ev("failed"));
+    const c = await camp(db);
+    expect(c.failed).toBe(0);
+    expect((await rec(db)).status).toBe("delivered");
+  });
+
+  it("failed desde sent aplica", async () => {
+    const db = await seed();
+    await handleStatusEvent(db, "o1", ev("failed"));
+    expect((await camp(db)).failed).toBe(1);
+  });
+
+  it("inbox: delivered tardío no pisa read en messages", async () => {
+    const db = await seed();
+    const conv = await store.getOrCreateConversation(db, "o1", PHONE, new Date());
+    await db.insert(messages).values({
+      id: "m1", orgId: "o1", conversationId: conv.id, direction: "out", type: "text", body: "x", wamid: "wamid.out", status: "sent", createdAt: new Date(),
+    } as never);
+    await handleStatusEvent(db, "o1", ev("read"));
+    await handleStatusEvent(db, "o1", ev("delivered"));
+    const [m] = await db.select().from(messages).where(eq(messages.wamid, "wamid.out"));
+    expect(m.status).toBe("read");
+  });
+});
+
 describe("handleStatusEvent: reentregas", () => {
   const status = { id: "wamid.out", status: "delivered" as const, timestamp: "1786000000" };
 

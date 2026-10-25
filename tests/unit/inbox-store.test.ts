@@ -42,11 +42,12 @@ describe("inbox store", () => {
     await seed(db);
     const conv = await getOrCreateConversation(db, "o1", "+573001112233", new Date());
     await recordOutboundMessage(db, { orgId: "o1", conversationId: conv.id, wamid: "out1", type: "text", body: "respuesta" });
-    await updateMessageStatusByWamid(db, "out1", "delivered", undefined);
+    await updateMessageStatusByWamid(db, "o1", "out1", "delivered", undefined);
     const t = (await getThread(db, "o1", conv.id))!;
     expect(t.messages[0].status).toBe("delivered");
-    await updateMessageStatusByWamid(db, "out1", "failed", "boom");
-    expect((await getThread(db, "o1", conv.id))!.messages[0].errorMessage).toBe("boom");
+    await recordOutboundMessage(db, { orgId: "o1", conversationId: conv.id, wamid: "out2", type: "text", body: "otra" });
+    await updateMessageStatusByWamid(db, "o1", "out2", "failed", "boom");
+    expect((await getThread(db, "o1", conv.id))!.messages.find((m) => m.wamid === "out2")!.errorMessage).toBe("boom");
   });
 
   it("markConversationRead resetea unread", async () => {

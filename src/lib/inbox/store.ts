@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/schema";
 import { recordFlowResponseSync } from "@/lib/flows/responses";
 import { getOrCreateConversationByIdentity, type Identity } from "@/lib/inbox/identity";
+import { shouldAdvanceStatus } from "@/lib/meta/status-rank";
 import { listNotes } from "@/lib/inbox/notes";
 import type { ParsedInbound } from "@/lib/inbox/parse-inbound";
 import { getReactionsForMessages } from "@/lib/inbox/reactions";
@@ -151,17 +152,22 @@ export async function recordOutboundMessage(
 
 export async function updateMessageStatusByWamid(
   db: DB,
+  orgId: string,
   wamid: string,
   status: "sent" | "delivered" | "read" | "failed",
   errorMessage?: string,
 ): Promise<void> {
+  const [cur] = await db
+    .select({ id: messages.id, status: messages.status })
+    .from(messages)
+    .where(and(eq(messages.orgId, orgId), eq(messages.wamid, wamid)));
+  if (!cur) return;
+  // No retroceder: los webhooks de Meta llegan desordenados.
+  if (!shouldAdvanceStatus(cur.status, status)) return;
   await db
     .update(messages)
-    .set({
-      status: status,
-      errorMessage: errorMessage ?? null,
-    })
-    .where(eq(messages.wamid, wamid));
+    .set({ status, errorMessage: errorMessage ?? null })
+    .where(eq(messages.id, cur.id));
 }
 
 export async function setConversationStatus(

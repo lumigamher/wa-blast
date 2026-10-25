@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeTestDb } from "@/lib/db/test-db";
-import { conversations, organization } from "@/lib/db/schema";
-import { listConversations } from "./store";
+import { conversations, messages, organization } from "@/lib/db/schema";
+import { listConversations, updateMessageStatusByWamid } from "./store";
 import { createLabel, setConversationLabels } from "./labels";
 import { setAgentTyping } from "@/lib/agent/pause";
 
@@ -102,5 +102,43 @@ describe("inbox store", () => {
     const listCleared = await listConversations(db, "o1", {});
     const convCleared = listCleared.find((c) => c.id === c_ia);
     expect(convCleared?.agentTypingUntil).toBeNull();
+  });
+});
+
+describe("updateMessageStatusByWamid", () => {
+  async function setup() {
+    const { db } = makeTestDb();
+    const { c_ia } = await seed(db);
+    await db.insert(messages).values({
+      id: "m1", orgId: "o1", conversationId: c_ia, direction: "out", type: "text", body: "x", wamid: "w1", status: "sent", createdAt: new Date(),
+    } as never);
+    return db;
+  }
+  const st = async (db: Awaited<ReturnType<typeof setup>>) => (await db.select().from(messages))[0].status;
+
+  it("avanza y no retrocede", async () => {
+    const db = await setup();
+    await updateMessageStatusByWamid(db, "o1", "w1", "read");
+    await updateMessageStatusByWamid(db, "o1", "w1", "delivered");
+    expect(await st(db)).toBe("read");
+  });
+
+  it("filtra por org", async () => {
+    const db = await setup();
+    await updateMessageStatusByWamid(db, "otra", "w1", "read");
+    expect(await st(db)).toBe("sent");
+  });
+
+  it("estado nulo: cualquier estado avanza", async () => {
+    const db = await setup();
+    await db.update(messages).set({ status: null });
+    await updateMessageStatusByWamid(db, "o1", "w1", "delivered");
+    expect(await st(db)).toBe("delivered");
+  });
+
+  it("failed desde sent aplica y guarda el error", async () => {
+    const db = await setup();
+    await updateMessageStatusByWamid(db, "o1", "w1", "failed", "boom");
+    expect(await st(db)).toBe("failed");
   });
 });

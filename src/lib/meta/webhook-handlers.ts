@@ -9,6 +9,7 @@ import { upsertReaction } from "@/lib/inbox/reactions";
 import { ensureInboundMedia } from "@/lib/media/inbound";
 import { getOrgSettings } from "@/lib/org/settings";
 import { markCallPermission, recordCallEvent, setCallAnswer } from "@/lib/calls/store";
+import { shouldAdvanceStatus } from "@/lib/meta/status-rank";
 import { maybeDispatchAgentTurn } from "@/lib/agent/dispatch";
 
 export async function handleStatusEvent(
@@ -32,7 +33,7 @@ export async function handleStatusEvent(
 
   try {
     // Update inbox message status
-    await updateMessageStatusByWamid(db, status.id, status.status, status.errors?.[0]?.message);
+    await updateMessageStatusByWamid(db, orgId, status.id, status.status, status.errors?.[0]?.message);
 
     const [rec] = await db.select().from(campaignRecipients).where(eq(campaignRecipients.wamid, status.id));
     if (!rec) return;
@@ -49,7 +50,7 @@ export async function handleStatusEvent(
           : status.status === "failed"
             ? { failed: sql`${campaigns.failed} + 1` }
             : null;
-    if (counter && rec.status !== status.status) {
+    if (counter && shouldAdvanceStatus(rec.status, status.status)) {
       // Contador + estado del destinatario en una transacción sincrónica (better-sqlite3).
       db.transaction((tx) => {
         tx.update(campaigns).set(counter).where(eq(campaigns.id, rec.campaignId)).run();
@@ -121,9 +122,10 @@ export async function handleInboundMessage(
     );
     const [recent] = recipientMatch
       ? await db
-          .select()
+          .select({ campaignId: campaignRecipients.campaignId })
           .from(campaignRecipients)
-          .where(and(recipientMatch, gte(campaignRecipients.sentAt, cutoff)))
+          .innerJoin(campaigns, eq(campaigns.id, campaignRecipients.campaignId))
+          .where(and(recipientMatch, eq(campaigns.orgId, orgId), gte(campaignRecipients.sentAt, cutoff)))
           .orderBy(desc(campaignRecipients.sentAt))
           .limit(1)
       : [];
