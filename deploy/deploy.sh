@@ -22,10 +22,10 @@ ssh "$HOST" "cd $DIR && \
   rm -rf .next-build && \
   NEXT_DIST_DIR=.next-build bun run build && \
   set -a && . ./.env.local && set +a && \
-  test -f \"\$DATABASE_URL\" && \
+  { test -f \"\$DATABASE_URL\" || { echo \"DATABASE_URL no existe: \$DATABASE_URL\" >&2; false; }; } && \
   mkdir -p /var/backups/wa-blast && \
   BK=/var/backups/wa-blast/pre-migrate-\$(date +%Y%m%d-%H%M%S).db && \
-  sqlite3 \"\$DATABASE_URL\" \".backup '\$BK'\" && \
+  (umask 077 && sqlite3 \"\$DATABASE_URL\" \".backup '\$BK'\") && \
   chmod 600 \"\$BK\" && \
   (ls -1t /var/backups/wa-blast/pre-migrate-*.db | tail -n +6 | xargs -r rm -f) && \
   bun run db:migrate && \
